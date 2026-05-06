@@ -406,7 +406,7 @@ export default function NovaPdvPage() {
               <div style={{marginTop:'0.5rem'}}>
                 <label className="campo-label">Dinheiro recebido (R$)</label>
                 <input className="campo" type="number" style={{marginTop:'0.25rem'}} placeholder="0,00" value={troco} onChange={e=>setTroco(e.target.value)} />
-                {trco > 0 && <p style={{fontSize:'0.82rem',fontWeight:700,color:'var(--verde)',marginTop:'4px'}}>Troco: {formatCurrency(trco)}</p>}
+                {troco && parseFloat(troco) > 0 && <p style={{fontSize:'0.82rem',fontWeight:700,color:'var(--verde)',marginTop:'4px'}}>Troco: {formatCurrency(Math.max(0, parseFloat(troco) - total))}</p>}
               </div>
             )}
           </div>
