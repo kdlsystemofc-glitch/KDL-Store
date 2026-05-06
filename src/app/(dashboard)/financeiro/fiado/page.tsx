@@ -1,139 +1,136 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
+import { Loader2 } from 'lucide-react'
 
-const mockFiados = [
-  { id: '1', nome: 'João Silva',    tel: '11988880001', valorAberto: 350,  ultimaCompra: '02/05/2026', diasAberto: 3  },
-  { id: '2', nome: 'Ana Pereira',   tel: '11988880002', valorAberto: 120,  ultimaCompra: '28/04/2026', diasAberto: 7  },
-  { id: '3', nome: 'Carlos Lima',   tel: '11988880003', valorAberto: 890,  ultimaCompra: '20/04/2026', diasAberto: 15 },
-  { id: '4', nome: 'Maria Souza',   tel: '11988880004', valorAberto: 45,   ultimaCompra: '01/05/2026', diasAberto: 4  },
-]
+type Fiado = { id:string; cliente_nome:string; cliente_tel:string|null; valor_aberto:number; criado_em:string; status:string }
 
 export default function FiadoPage() {
-  const [fiados, setFiados] = useState(mockFiados)
+  const { empresaId } = useEmpresaId()
+  const [fiados,  setFiados]  = useState<Fiado[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const totalAberto    = fiados.reduce((a, f) => a + f.valorAberto, 0)
-  const recebidoMes    = 1240 // mock
-  const nDevedores     = fiados.length
+  useEffect(() => { if (empresaId) carregar(empresaId) }, [empresaId])
 
-  function marcarPago(id: string) {
-    setFiados(prev => prev.filter(f => f.id !== id))
+  async function carregar(eid: string) {
+    setLoading(true)
+    const { data } = await createClient()
+      .from('fiados')
+      .select('id,cliente_nome,cliente_tel,valor_aberto,criado_em,status')
+      .eq('empresa_id', eid)
+      .order('criado_em', { ascending: false })
+    setFiados(data||[])
+    setLoading(false)
   }
 
-  function waMensagem(f: typeof mockFiados[0]) {
-    return encodeURIComponent(
-      `Oi ${f.nome}, tudo bem? Passando para lembrar que você tem ${formatCurrency(f.valorAberto)} em aberto aqui na loja. Quando puder aparecer ou me chama no zap!`
-    )
+  async function marcarPago(id: string, nome: string, valor: number) {
+    if (!confirm(`Marcar R$${valor.toFixed(2)} de ${nome} como pago?`)) return
+    await createClient().from('fiados').update({ status:'pago', pago_em: new Date().toISOString() }).eq('id', id)
+    setFiados(prev => prev.map(f => f.id===id ? {...f, status:'pago'} : f))
   }
 
-  const corDias = (d: number) => d >= 15 ? 'var(--vermelho)' : d >= 7 ? 'var(--amarelo)' : 'var(--texto-sec)'
+  const abertos     = fiados.filter(f=>f.status==='aberto')
+  const pagos       = fiados.filter(f=>f.status==='pago')
+  const totalAberto = abertos.reduce((a,f)=>a+f.valor_aberto,0)
+  const totalPagoMes = pagos.filter(f=>{
+    const d = new Date(f.criado_em)
+    const n = new Date()
+    return d.getMonth()===n.getMonth()&&d.getFullYear()===n.getFullYear()
+  }).reduce((a,f)=>a+f.valor_aberto,0)
+
+  const diasAberto = (data: string) => Math.floor((Date.now()-new Date(data).getTime())/86400000)
 
   return (
-    <div className="anim-fade" style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
-
+    <div className="anim-fade" style={{display:'flex',flexDirection:'column',gap:'0.875rem'}}>
       <div className="pg-header">
         <div>
           <h1 className="pg-titulo">📒 Controle de Fiado</h1>
-          <p className="pg-sub">Vendas pagas depois — acompanhe quem deve e cobre com 1 clique</p>
+          <p className="pg-sub">{abertos.length} devedor(es) · {formatCurrency(totalAberto)} em aberto</p>
         </div>
       </div>
 
       {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.625rem' }}>
-        <div className="kpi-card" style={{ borderLeft: '4px solid var(--vermelho)' }}>
-          <p className="kpi-label">Total em Aberto</p>
-          <p className="kpi-valor" style={{ color: 'var(--vermelho)' }}>{formatCurrency(totalAberto)}</p>
-          <p className="kpi-sub">Aguardando recebimento</p>
-        </div>
-        <div className="kpi-card" style={{ borderLeft: '4px solid var(--verde)' }}>
-          <p className="kpi-label">Recebido este Mês</p>
-          <p className="kpi-valor-verde">{formatCurrency(recebidoMes)}</p>
-          <p className="kpi-sub">Fiados quitados em Maio</p>
-        </div>
-        <div className="kpi-card">
-          <p className="kpi-label">Nº de Devedores</p>
-          <p className="kpi-valor">{nDevedores}</p>
-          <p className="kpi-sub">Clientes com saldo em aberto</p>
-        </div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'0.625rem'}}>
+        {[
+          {l:'Total em Aberto',     v:formatCurrency(totalAberto), c:totalAberto>0?'var(--vermelho)':'var(--verde)'},
+          {l:'Recebido este Mês',   v:formatCurrency(totalPagoMes),c:'var(--verde)'},
+          {l:'Nº de Devedores',     v:String(abertos.length),      c:abertos.length>0?'var(--amarelo)':'var(--verde)'},
+        ].map(k=>(
+          <div key={k.l} className="card" style={{padding:'0.875rem'}}>
+            <p style={{fontSize:'0.78rem',color:'var(--texto-desab)',marginBottom:'0.25rem'}}>{k.l}</p>
+            <p style={{fontWeight:900,fontSize:'1.5rem',color:k.c,fontFamily:'monospace'}}>{k.v}</p>
+          </div>
+        ))}
       </div>
 
-      {/* Alerta se houver devedores com +15 dias */}
-      {fiados.some(f => f.diasAberto >= 15) && (
-        <div className="alerta alerta-erro">
-          <span>⚠️</span>
-          <span><strong>{fiados.filter(f => f.diasAberto >= 15).length} cliente(s)</strong> com fiado há mais de 15 dias — atenção especial recomendada.</span>
+      {abertos.some(f=>diasAberto(f.criado_em)>=15)&&(
+        <div className="alerta alerta-perigo" style={{display:'flex',gap:'0.5rem',alignItems:'center'}}>
+          🚨 Há clientes com fiado em aberto há mais de 15 dias. Considere cobrar via WhatsApp.
         </div>
       )}
 
-      {/* Tabela */}
-      <div className="tabela-wrap">
-        <table className="tabela">
-          <thead>
-            <tr>
-              <th>Cliente</th>
-              <th style={{ textAlign: 'right' }}>Valor em Aberto</th>
-              <th>Última Compra Fiada</th>
-              <th style={{ textAlign: 'center' }}>Dias em Aberto</th>
-              <th style={{ textAlign: 'center' }}>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {fiados.map(f => (
-              <tr key={f.id}>
-                <td style={{ fontWeight: 700 }}>{f.nome}</td>
-                <td style={{ textAlign: 'right', fontWeight: 900, fontFamily: 'monospace', color: 'var(--vermelho)', fontSize: '1rem' }}>
-                  {formatCurrency(f.valorAberto)}
-                </td>
-                <td style={{ fontSize: '0.82rem', color: 'var(--texto-sec)' }}>{f.ultimaCompra}</td>
-                <td style={{ textAlign: 'center', fontWeight: 900, fontSize: '1.1rem', color: corDias(f.diasAberto) }}>
-                  {f.diasAberto}d
-                </td>
-                <td style={{ textAlign: 'center' }}>
-                  <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-                    <a
-                      href={`https://wa.me/55${f.tel.replace(/\D/g,'')}?text=${waMensagem(f)}`}
-                      target="_blank" rel="noopener noreferrer"
-                      className="btn btn-primary"
-                      style={{ fontSize: '0.72rem', padding: '0.25rem 0.625rem', background: '#25D366', border: 'none' }}
-                    >
-                      💬 Cobrar
-                    </a>
-                    <button
-                      onClick={() => {
-                        if (window.confirm(`Marcar o fiado de ${f.nome} (${formatCurrency(f.valorAberto)}) como pago?\n\nIsso não pode ser desfeito.`))
-                          marcarPago(f.id)
-                      }}
-                      className="btn btn-secondary"
-                      style={{ fontSize: '0.72rem', padding: '0.25rem 0.5rem', color: 'var(--verde)', borderColor: 'var(--verde)' }}
-                    >
-                      ✓ Pago
-                    </button>
-                  </div>
-                </td>
+      {loading ? (
+        <div style={{display:'flex',justifyContent:'center',padding:'3rem',gap:'0.75rem',color:'var(--texto-desab)'}}>
+          <Loader2 size={20} style={{animation:'spin 1s linear infinite'}}/> Carregando...
+        </div>
+      ) : abertos.length===0 ? (
+        <div style={{textAlign:'center',padding:'3rem',color:'var(--texto-desab)'}}>
+          <p style={{fontSize:'2rem',marginBottom:'0.5rem'}}>🎉</p>
+          <p style={{fontWeight:700}}>Nenhum fiado em aberto!</p>
+          <p style={{fontSize:'0.85rem',marginTop:'0.25rem'}}>Todos os clientes estão em dia.</p>
+        </div>
+      ) : (
+        <div className="tabela-wrap">
+          <table className="tabela">
+            <thead>
+              <tr style={{background:'#364a60'}}>
+                <th>Cliente</th><th style={{textAlign:'right'}}>Valor</th>
+                <th style={{textAlign:'center'}}>Dias em aberto</th>
+                <th>Desde</th><th style={{textAlign:'center'}}>Ações</th>
               </tr>
-            ))}
-            {fiados.length === 0 && (
-              <tr>
-                <td colSpan={5} style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--texto-desab)' }}>
-                  <p style={{ fontSize: '2rem' }}>✅</p>
-                  <p style={{ fontWeight: 600, marginTop: '0.5rem' }}>Nenhum fiado em aberto!</p>
-                </td>
-              </tr>
-            )}
-          </tbody>
-          {fiados.length > 0 && (
-            <tfoot>
-              <tr>
-                <td style={{ fontWeight: 900 }}>TOTAL</td>
-                <td style={{ textAlign: 'right', fontWeight: 900, fontFamily: 'monospace', color: 'var(--vermelho)', fontSize: '1rem' }}>
-                  {formatCurrency(totalAberto)}
-                </td>
-                <td colSpan={3} />
-              </tr>
-            </tfoot>
-          )}
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {abertos.map(f=>{
+                const dias = diasAberto(f.criado_em)
+                return (
+                  <tr key={f.id}>
+                    <td style={{fontWeight:700}}>
+                      {f.cliente_nome}
+                      {dias>=15&&<span style={{fontSize:'0.68rem',fontWeight:800,color:'var(--vermelho)',marginLeft:'0.375rem',padding:'1px 4px',background:'#fee2e2',borderRadius:'3px'}}>URGENTE</span>}
+                    </td>
+                    <td style={{textAlign:'right',fontWeight:900,color:'var(--vermelho)',fontFamily:'monospace',fontSize:'1.1rem'}}>
+                      {formatCurrency(f.valor_aberto)}
+                    </td>
+                    <td style={{textAlign:'center',fontWeight:700,color:dias>=15?'var(--vermelho)':dias>=7?'var(--amarelo)':'var(--verde)'}}>
+                      {dias} dia{dias!==1?'s':''}
+                    </td>
+                    <td style={{fontSize:'0.82rem',color:'var(--texto-desab)'}}>
+                      {new Date(f.criado_em).toLocaleDateString('pt-BR')}
+                    </td>
+                    <td style={{textAlign:'center'}}>
+                      <div style={{display:'flex',gap:'0.375rem',justifyContent:'center'}}>
+                        {f.cliente_tel&&(
+                          <a href={`https://wa.me/55${f.cliente_tel.replace(/\D/g,'')}?text=${encodeURIComponent(`Oi ${f.cliente_nome}, tudo bem? Passando para lembrar que você tem ${formatCurrency(f.valor_aberto)} em aberto aqui na loja. Quando puder aparecer ou me chama no zap! 😊`)}`}
+                            target="_blank" rel="noopener noreferrer"
+                            className="btn btn-secondary" style={{fontSize:'0.72rem',padding:'0.2rem 0.5rem',background:'#25D366',color:'#fff',border:'none'}}>
+                            💬 Cobrar
+                          </a>
+                        )}
+                        <button onClick={()=>marcarPago(f.id,f.cliente_nome,f.valor_aberto)}
+                          className="btn btn-secondary" style={{fontSize:'0.72rem',padding:'0.2rem 0.5rem'}}>
+                          ✓ Pago
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }

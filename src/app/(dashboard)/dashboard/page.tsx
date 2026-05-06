@@ -1,216 +1,192 @@
-import type { Metadata } from 'next'
+'use client'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { AlertTriangle, TrendingUp, ShoppingCart, Wrench, ArrowRight, PhoneCall, UserX, DollarSign } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
+import { ShoppingCart, TrendingUp, Package, AlertTriangle, BookOpen, FileText } from 'lucide-react'
 
-export const metadata: Metadata = { title: 'Dashboard' }
-
-// Dados mock — serão substituídos por Supabase
-const kpis = {
-  faturamentoHoje: 3840,
-  vendasHoje:      14,
-  despesasMes:     4200,
-  lucroMes:        8950,
+type KPIs = {
+  vendasHoje: number; faturamentoHoje: number; ticketMedio: number
+  produtosCriticos: number; fiadoAberto: number; despesasMes: number
+  vendasSemana: { dia: string; total: number }[]
 }
 
-const alertas = [
-  { tipo: 'perigo', icon: '🚫', msg: 'Moldura Honda Civic ZERADO — estoque acabou', acao: 'Chamar fornecedor', href: '/fornecedores' },
-  { tipo: 'aviso',  icon: '⚠️', msg: '3 clientes não compram há mais de 60 dias', acao: 'Ver lista', href: '/clientes/inativos' },
-  { tipo: 'aviso',  icon: '⚠️', msg: 'Som JBL Stage 200 — apenas 1 unidade em estoque', acao: 'Repor', href: '/estoque' },
-  { tipo: 'info',   icon: '💰', msg: 'Puxador Carlos tem R$ 340,00 a receber este mês', acao: 'Ver comissões', href: '/puxadores' },
-]
-
-const ultimasVendas = [
-  { num: '#0042', hora: '13:45', cliente: 'João Silva', pgto: 'PIX', total: 850, status: 'concluida' },
-  { num: '#0041', hora: '12:20', cliente: 'Maria Souza', pgto: 'Crédito', total: 350, status: 'concluida' },
-  { num: '#0040', hora: '11:05', cliente: 'Anônimo', pgto: 'Dinheiro', total: 120, status: 'concluida' },
-  { num: '#0039', hora: '10:30', cliente: 'Carlos Lima', pgto: 'PIX', total: 2100, status: 'concluida' },
-  { num: '#0038', hora: '09:15', cliente: 'Ana Pereira', pgto: 'Débito', total: 420, status: 'cancelada' },
-]
-
-const estoquesCriticos = [
-  { nome: 'Moldura Honda Civic', atual: 0, minimo: 3, fornecedor: '(11) 99999-0002' },
-  { nome: 'Som JBL Stage 200',   atual: 1, minimo: 5, fornecedor: '(11) 99999-0001' },
-  { nome: 'Câmera de Ré Universal', atual: 2, minimo: 10, fornecedor: '(11) 99999-0003' },
-]
-
-const weekData = [820, 1450, 980, 2100, 1760, 3840, 2200]
-const days     = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
-const maxW     = Math.max(...weekData)
+const EMPTY: KPIs = { vendasHoje:0, faturamentoHoje:0, ticketMedio:0, produtosCriticos:0, fiadoAberto:0, despesasMes:0, vendasSemana:[] }
 
 export default function DashboardPage() {
-  return (
-    <div className="anim-fade" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+  const { empresaId, loading: loadingEmpresa } = useEmpresaId()
+  const [kpis,    setKpis]    = useState<KPIs>(EMPTY)
+  const [loading, setLoading] = useState(true)
+  const [hora,    setHora]    = useState('')
 
-      {/* Saudação */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+  useEffect(() => {
+    setHora(new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }))
+    const t = setInterval(() => setHora(new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})), 60000)
+    return () => clearInterval(t)
+  }, [])
+
+  useEffect(() => {
+    if (!empresaId) return
+    carregar(empresaId)
+  }, [empresaId])
+
+  async function carregar(eid: string) {
+    setLoading(true)
+    const supabase = createClient()
+    const hoje = new Date().toISOString().slice(0,10)
+    const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
+
+    const [
+      { data: vendasHoje },
+      { data: criticos },
+      { data: fiados },
+      { data: despesas },
+      { data: vendasSemana },
+    ] = await Promise.all([
+      supabase.from('vendas').select('total').eq('empresa_id', eid).gte('criado_em', hoje).eq('status','concluida'),
+      supabase.from('produtos').select('id').eq('empresa_id', eid).filter('qtd_atual','lte','qtd_minima').gt('qtd_minima',0),
+      supabase.from('fiados').select('valor_aberto').eq('empresa_id', eid).eq('status','aberto'),
+      supabase.from('despesas').select('valor').eq('empresa_id', eid).gte('data', inicioMes.slice(0,10)),
+      supabase.from('vendas').select('criado_em,total').eq('empresa_id', eid).eq('status','concluida')
+        .gte('criado_em', new Date(Date.now()-6*86400000).toISOString()).order('criado_em'),
+    ])
+
+    const totalHoje = (vendasHoje||[]).reduce((a,v)=>a+(v.total||0),0)
+    const qtdHoje   = (vendasHoje||[]).length
+    const fiadoTotal = (fiados||[]).reduce((a,f)=>a+(f.valor_aberto||0),0)
+    const despTotal  = (despesas||[]).reduce((a,d)=>a+(d.valor||0),0)
+
+    // Agrupa vendas por dia
+    const porDia: Record<string,number> = {}
+    ;(vendasSemana||[]).forEach(v => {
+      const d = v.criado_em.slice(0,10)
+      porDia[d] = (porDia[d]||0) + v.total
+    })
+    const dias = Array.from({length:7},(_,i)=>{
+      const d = new Date(Date.now()-(6-i)*86400000).toISOString().slice(0,10)
+      return { dia: new Date(d+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'short'}), total: porDia[d]||0 }
+    })
+
+    setKpis({
+      vendasHoje: qtdHoje, faturamentoHoje: totalHoje,
+      ticketMedio: qtdHoje > 0 ? totalHoje/qtdHoje : 0,
+      produtosCriticos: (criticos||[]).length,
+      fiadoAberto: fiadoTotal, despesasMes: despTotal,
+      vendasSemana: dias,
+    })
+    setLoading(false)
+  }
+
+  const maxVenda = Math.max(...kpis.vendasSemana.map(d=>d.total), 1)
+  const diaSemana = new Date().toLocaleDateString('pt-BR',{weekday:'long', day:'numeric', month:'long'})
+
+  if (loadingEmpresa || loading) return (
+    <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'60vh',flexDirection:'column',gap:'1rem',color:'var(--texto-desab)'}}>
+      <div style={{width:'40px',height:'40px',border:'3px solid var(--verde)',borderTopColor:'transparent',borderRadius:'50%',animation:'spin 0.8s linear infinite'}}/>
+      <p>Carregando dados da sua loja...</p>
+    </div>
+  )
+
+  return (
+    <div className="anim-fade" style={{display:'flex',flexDirection:'column',gap:'1rem'}}>
+
+      {/* Header */}
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
         <div>
-          <h1 className="pg-titulo">Bom dia! 👋</h1>
-          <p className="pg-sub">Terça-feira, 05 de Maio de 2026 · resumo do seu negócio</p>
+          <h1 className="pg-titulo">📊 Dashboard</h1>
+          <p className="pg-sub" style={{textTransform:'capitalize'}}>{diaSemana} · {hora}</p>
         </div>
-        <Link href="/vendas/nova" className="btn btn-primary" style={{ fontSize: '0.9rem', padding: '0.625rem 1.25rem' }}>
-          <ShoppingCart size={17} fill="currentColor" /> Registrar Venda
+        <Link href="/vendas/nova" className="btn btn-primary" style={{display:'flex',alignItems:'center',gap:'0.375rem',fontSize:'1rem',padding:'0.625rem 1.25rem'}}>
+          <ShoppingCart size={16}/> Nova Venda
         </Link>
       </div>
 
-      {/* ── ALERTAS INTELIGENTES ── */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-        {alertas.map((a, i) => (
-          <div key={i} className={`alerta alerta-${a.tipo === 'perigo' ? 'perigo' : a.tipo === 'info' ? 'info' : 'aviso'}`}>
-            <span>{a.icon}</span>
-            <span style={{ flex: 1 }}>{a.msg}</span>
-            <Link href={a.href} style={{ fontWeight: 700, fontSize: '0.8rem', whiteSpace: 'nowrap', color: 'inherit', textDecoration: 'underline' }}>
-              {a.acao} →
-            </Link>
+      {/* KPIs */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'0.75rem'}}>
+        {[
+          {icon:'🛒', label:'Vendas hoje',        valor:kpis.vendasHoje,               fmt:(v:number)=>String(v),         suf:'transações',    cor:'var(--verde)'},
+          {icon:'💰', label:'Faturamento hoje',   valor:kpis.faturamentoHoje,          fmt:formatCurrency,                 suf:'receita bruta', cor:'var(--verde)'},
+          {icon:'🎯', label:'Ticket médio',       valor:kpis.ticketMedio,              fmt:formatCurrency,                 suf:'por venda',     cor:'var(--texto)'},
+          {icon:'📒', label:'Fiado em aberto',    valor:kpis.fiadoAberto,              fmt:formatCurrency,                 suf:'a receber',     cor:kpis.fiadoAberto>0?'var(--vermelho)':'var(--verde)'},
+          {icon:'💸', label:'Despesas este mês',  valor:kpis.despesasMes,              fmt:formatCurrency,                 suf:'lançadas',      cor:'var(--amarelo)'},
+          {icon:'⚠️', label:'Estoque crítico',   valor:kpis.produtosCriticos,         fmt:(v:number)=>String(v),         suf:'produto(s)',    cor:kpis.produtosCriticos>0?'var(--vermelho)':'var(--verde)'},
+        ].map(k=>(
+          <div key={k.label} className="card" style={{padding:'1rem'}}>
+            <div style={{display:'flex',alignItems:'center',gap:'0.5rem',marginBottom:'0.375rem'}}>
+              <span style={{fontSize:'1.25rem'}}>{k.icon}</span>
+              <p style={{fontSize:'0.78rem',color:'var(--texto-desab)',fontWeight:600}}>{k.label}</p>
+            </div>
+            <p style={{fontWeight:900,fontSize:'1.625rem',color:k.cor,fontFamily:'monospace',lineHeight:1}}>{k.fmt(k.valor)}</p>
+            <p style={{fontSize:'0.72rem',color:'var(--texto-desab)',marginTop:'0.25rem'}}>{k.suf}</p>
           </div>
         ))}
       </div>
 
-      {/* ── KPI CARDS ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.75rem' }}>
-        <Link href="/relatorios" className="card-click">
-          <p className="kpi-label">Faturamento Hoje</p>
-          <p className="kpi-valor-verde">{formatCurrency(kpis.faturamentoHoje)}</p>
-          <p className="kpi-sub">+12% vs. ontem ↑</p>
-        </Link>
-        <Link href="/vendas" className="card-click">
-          <p className="kpi-label">Vendas Hoje</p>
-          <p className="kpi-valor">{kpis.vendasHoje}</p>
-          <p className="kpi-sub">+3 vs. ontem</p>
-        </Link>
-        <Link href="/financeiro" className="card-click">
-          <p className="kpi-label">Despesas (mês)</p>
-          <p className="kpi-valor" style={{ color: 'var(--vermelho)' }}>{formatCurrency(kpis.despesasMes)}</p>
-          <p className="kpi-sub">Aluguel + funcionários</p>
-        </Link>
-        <Link href="/financeiro" className="card-click">
-          <p className="kpi-label">Lucro Líquido (mês)</p>
-          <p className="kpi-valor-verde">{formatCurrency(kpis.lucroMes)}</p>
-          <p className="kpi-sub">↑ Acima da meta</p>
-        </Link>
-      </div>
-
-      {/* ── GRID PRINCIPAL ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '0.875rem' }}>
-
-        {/* ESQUERDA */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem', minWidth: 0 }}>
-
-          {/* Gráfico semanal */}
-          <div className="card">
-            <div className="sec-header" style={{ borderRadius: '5px 5px 0 0', margin: '-1rem -1.125rem 1rem' }}>
-              <span>📊 Faturamento — Últimos 7 dias</span>
-              <span style={{ fontWeight: 400, color: '#8fa3bf' }}>Total: {formatCurrency(weekData.reduce((a,b)=>a+b,0))}</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '6px', height: '120px' }}>
-              {weekData.map((v, i) => (
-                <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                  <span style={{ fontSize: '0.6rem', fontWeight: 700, color: 'var(--verde)' }}>
-                    {(v/1000).toFixed(1)}k
-                  </span>
-                  <div style={{
-                    width: '100%', borderRadius: '3px 3px 0 0',
-                    height: `${(v/maxW)*100}%`,
-                    background: i === 5 ? 'var(--verde)' : 'var(--verde-claro)',
-                    border: `1px solid ${i === 5 ? 'var(--verde-esc)' : 'var(--verde-borda)'}`,
-                    minHeight: '4px'
-                  }} />
-                  <span style={{ fontSize: '0.65rem', color: 'var(--texto-desab)', fontWeight: 600 }}>{days[i]}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Últimas vendas */}
-          <div>
-            <div className="sec-header">
-              <span>🛒 Últimas Vendas</span>
-              <Link href="/vendas" style={{ color: '#8fa3bf', fontSize: '0.7rem', fontWeight: 600, textDecoration: 'none' }}>
-                Ver todas →
-              </Link>
-            </div>
-            <div className="tabela-wrap" style={{ borderRadius: '0 0 5px 5px', borderTop: 'none' }}>
-              <table className="tabela">
-                <thead>
-                  <tr style={{ background: '#364a60' }}>
-                    <th>#</th><th>Hora</th><th>Cliente</th><th>Pagamento</th><th style={{textAlign:'right'}}>Total</th><th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ultimasVendas.map(v => (
-                    <tr key={v.num}>
-                      <td><Link href={`/vendas/${v.num.replace('#','')}`} style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '0.8rem', color: 'var(--verde)' }}>{v.num}</Link></td>
-                      <td className="txt-desab" style={{ fontSize: '0.8rem' }}>{v.hora}</td>
-                      <td style={{ fontWeight: 600 }}>{v.cliente}</td>
-                      <td style={{ fontSize: '0.8rem' }}>{v.pgto}</td>
-                      <td style={{ textAlign: 'right', fontWeight: 800, color: 'var(--verde)' }}>{formatCurrency(v.total)}</td>
-                      <td className={v.status === 'concluida' ? 'status-ok' : 'status-erro'} style={{ fontSize: '0.8rem' }}>
-                        {v.status === 'concluida' ? '● Concluída' : '● Cancelada'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+      {/* Gráfico de barras — últimos 7 dias */}
+      <div className="card">
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem'}}>
+          <p style={{fontWeight:800}}>📈 Vendas — últimos 7 dias</p>
+          <Link href="/relatorios" style={{fontSize:'0.78rem',color:'var(--verde)',fontWeight:600,textDecoration:'none'}}>Ver relatório →</Link>
         </div>
-
-        {/* DIREITA */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
-
-          {/* Estoque crítico com botão ligar */}
-          <div>
-            <div className="sec-header">
-              <span>🚫 Estoque Crítico</span>
-              <Link href="/estoque" style={{ color: '#8fa3bf', fontSize: '0.7rem', textDecoration: 'none' }}>Gerenciar</Link>
+        <div style={{display:'flex',gap:'0.5rem',alignItems:'flex-end',height:'120px'}}>
+          {kpis.vendasSemana.map((d,i)=>(
+            <div key={i} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:'0.25rem',height:'100%',justifyContent:'flex-end'}}>
+              <p style={{fontSize:'0.65rem',fontWeight:700,color:'var(--verde)',opacity:d.total>0?1:0}}>
+                {formatCurrency(d.total).replace('R$','').trim()}
+              </p>
+              <div style={{
+                width:'100%',background: d.total>0 ? 'var(--verde)' : 'var(--surface-alt)',
+                height:`${Math.max((d.total/maxVenda)*100,4)}%`,
+                borderRadius:'4px 4px 0 0',transition:'height 0.3s ease'
+              }}/>
+              <p style={{fontSize:'0.68rem',color:'var(--texto-desab)',fontWeight:600,textTransform:'capitalize'}}>{d.dia}</p>
             </div>
-            <div style={{ background: 'var(--surface)', border: '1px solid var(--borda)', borderTop: 'none', borderRadius: '0 0 5px 5px' }}>
-              {estoquesCriticos.map((e, i) => (
-                <div key={e.nome} style={{
-                  padding: '0.625rem 0.875rem', display: 'flex', alignItems: 'center',
-                  justifyContent: 'space-between', gap: '0.5rem',
-                  borderBottom: i < estoquesCriticos.length - 1 ? '1px solid var(--borda-leve)' : 'none'
-                }}>
-                  <div style={{ minWidth: 0 }}>
-                    <p style={{ fontWeight: 700, fontSize: '0.8rem', color: e.atual === 0 ? 'var(--vermelho)' : 'var(--amarelo)' }}>
-                      {e.atual === 0 ? '✕ ZERADO' : `▼ ${e.atual} un.`}
-                    </p>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--texto-sec)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.nome}</p>
-                  </div>
-                  <a
-                    href={`https://wa.me/55${e.fornecedor.replace(/\D/g,'')}`}
-                    target="_blank" rel="noopener noreferrer"
-                    className="btn btn-secondary"
-                    style={{ fontSize: '0.7rem', padding: '0.3rem 0.5rem', flexShrink: 0 }}
-                  >
-                    <PhoneCall size={12} /> Ligar
-                  </a>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Acesso rápido */}
-          <div className="card">
-            <p style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--texto-desab)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.625rem' }}>Acesso Rápido</p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.375rem' }}>
-              {[
-                { href: '/vendas/nova',           emoji: '🛒', label: 'Nova Venda' },
-                { href: '/produtos/novo',          emoji: '📦', label: 'Produto' },
-                { href: '/financeiro/despesas',    emoji: '💸', label: 'Despesa' },
-                { href: '/financeiro/fechamento',  emoji: '🔒', label: 'Fechar Caixa' },
-                { href: '/garantias',              emoji: '🛡️', label: 'Garantias' },
-                { href: '/clientes/inativos',      emoji: '👤', label: 'Sumidos' },
-              ].map(item => (
-                <Link key={item.href} href={item.href} className="btn-pdv">
-                  <span style={{ fontSize: '1.375rem' }}>{item.emoji}</span>
-                  <span>{item.label}</span>
-                </Link>
-              ))}
-            </div>
-          </div>
+          ))}
         </div>
       </div>
+
+      {/* Ações rápidas */}
+      <div>
+        <p style={{fontWeight:800,marginBottom:'0.625rem'}}>⚡ Ações Rápidas</p>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'0.625rem'}}>
+          {[
+            {href:'/vendas/nova',        icon:<ShoppingCart size={20}/>, label:'Nova Venda',     desc:'Registrar venda no PDV'},
+            {href:'/financeiro/fiado',   icon:<BookOpen size={20}/>,     label:'Ver Fiado',      desc:`${formatCurrency(kpis.fiadoAberto)} em aberto`},
+            {href:'/financeiro/despesas',icon:<TrendingUp size={20}/>,   label:'Lançar Despesa', desc:'Registrar saída de caixa'},
+            {href:'/financeiro/fechamento',icon:<FileText size={20}/>,   label:'Fechar Caixa',  desc:'Conferência do período'},
+          ].map(a=>(
+            <Link key={a.href} href={a.href} style={{
+              display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
+              gap:'0.375rem',padding:'1rem',textDecoration:'none',textAlign:'center',
+              background:'var(--surface)',border:'1px solid var(--borda)',borderRadius:'var(--radius)',
+              color:'var(--texto)',transition:'border-color 0.15s, background 0.15s',cursor:'pointer'
+            }}>
+              <span style={{color:'var(--verde)'}}>{a.icon}</span>
+              <p style={{fontWeight:700,fontSize:'0.85rem'}}>{a.label}</p>
+              <p style={{fontSize:'0.72rem',color:'var(--texto-desab)'}}>{a.desc}</p>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* Alertas */}
+      {kpis.produtosCriticos > 0 && (
+        <div className="alerta alerta-perigo" style={{display:'flex',gap:'0.625rem',alignItems:'center'}}>
+          <AlertTriangle size={16}/>
+          <span><strong>{kpis.produtosCriticos} produto(s)</strong> com estoque abaixo do mínimo.{' '}
+            <Link href="/estoque" style={{color:'var(--vermelho)',fontWeight:700}}>Ver estoque →</Link>
+          </span>
+        </div>
+      )}
+      {kpis.fiadoAberto > 0 && (
+        <div className="alerta alerta-aviso" style={{display:'flex',gap:'0.625rem',alignItems:'center'}}>
+          <BookOpen size={16}/>
+          <span>{formatCurrency(kpis.fiadoAberto)} em fiado pendente.{' '}
+            <Link href="/financeiro/fiado" style={{color:'var(--amarelo)',fontWeight:700}}>Cobrar agora →</Link>
+          </span>
+        </div>
+      )}
     </div>
   )
 }
