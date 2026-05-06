@@ -39,18 +39,21 @@ export default function DashboardPage() {
 
     const [
       { data: vendasHoje },
-      { data: criticos },
+      { data: todosProdutos },
       { data: fiados },
       { data: despesas },
       { data: vendasSemana },
     ] = await Promise.all([
       supabase.from('vendas').select('total').eq('empresa_id', eid).gte('criado_em', hoje).eq('status','concluida'),
-      supabase.from('produtos').select('id').eq('empresa_id', eid).filter('qtd_atual','lte','qtd_minima').gt('qtd_minima',0),
+      supabase.from('produtos').select('id,qtd_atual,qtd_minima').eq('empresa_id', eid).gt('qtd_minima',0),
       supabase.from('fiados').select('valor_aberto').eq('empresa_id', eid).eq('status','aberto'),
       supabase.from('despesas').select('valor').eq('empresa_id', eid).gte('data', inicioMes.slice(0,10)),
       supabase.from('vendas').select('criado_em,total').eq('empresa_id', eid).eq('status','concluida')
         .gte('criado_em', new Date(Date.now()-6*86400000).toISOString()).order('criado_em'),
     ])
+
+    // Filtra críticos em JS (PostgREST não suporta comparação coluna-vs-coluna)
+    const criticos = (todosProdutos||[]).filter(p => p.qtd_atual <= p.qtd_minima)
 
     const totalHoje = (vendasHoje||[]).reduce((a,v)=>a+(v.total||0),0)
     const qtdHoje   = (vendasHoje||[]).length
