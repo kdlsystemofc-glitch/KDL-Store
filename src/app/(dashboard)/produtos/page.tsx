@@ -1,123 +1,157 @@
-import type { Metadata } from 'next'
+'use client'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Search } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+import { garantirEmpresa } from '@/lib/garantirEmpresa'
 import { formatCurrency } from '@/lib/utils'
+import { Plus, Search, AlertTriangle, Loader2 } from 'lucide-react'
 
-export const metadata: Metadata = { title: 'Produtos' }
-
-const produtos = [
-  { id: '1', emoji: '🔊', nome: 'Som JBL Stage 200', sku: 'JBL001', categoria: 'Eletrônicos', custo: 280, venda: 450, margem: 37.8, estoque: 1, minimo: 5, status: 'critico' },
-  { id: '2', emoji: '🚗', nome: 'Moldura Honda Civic 2019', sku: 'MOL001', categoria: 'Acessórios', custo: 35, venda: 89, margem: 60.7, estoque: 0, minimo: 3, status: 'zerado' },
-  { id: '3', emoji: '📷', nome: 'Câmera de Ré Universal', sku: 'CAM001', categoria: 'Eletrônicos', custo: 55, venda: 120, margem: 54.2, estoque: 12, minimo: 10, status: 'normal' },
-  { id: '4', emoji: '📻', nome: 'Amplificador Taramps DS800', sku: 'AMP001', categoria: 'Eletrônicos', custo: 420, venda: 780, margem: 46.2, estoque: 4, minimo: 3, status: 'normal' },
-  { id: '5', emoji: '🔌', nome: 'Cabo RCA 5m', sku: 'CAB001', categoria: 'Acessórios', custo: 8, venda: 25, margem: 68, estoque: 35, minimo: 20, status: 'normal' },
-]
-
-const criticos = produtos.filter(p => p.status === 'critico' || p.status === 'zerado').length
+type Produto = {
+  id: string; nome: string; sku: string | null; categoria: string | null
+  preco_varejo: number; preco_custo: number; qtd_atual: number; qtd_minima: number; ativo: boolean
+}
 
 export default function ProdutosPage() {
+  const [produtos,   setProdutos]   = useState<Produto[]>([])
+  const [busca,      setBusca]      = useState('')
+  const [loading,    setLoading]    = useState(true)
+  const [erro,       setErro]       = useState<string | null>(null)
+
+  useEffect(() => { carregar() }, [])
+
+  async function carregar() {
+    setLoading(true)
+    setErro(null)
+    const supabase = createClient()
+    await garantirEmpresa()
+    const { data, error } = await supabase
+      .from('produtos')
+      .select('id,nome,sku,categoria,preco_varejo,preco_custo,qtd_atual,qtd_minima,ativo')
+      .order('nome')
+    if (error) { setErro('Erro ao carregar produtos.'); setLoading(false); return }
+    setProdutos(data || [])
+    setLoading(false)
+  }
+
+  const filtrados = produtos.filter(p =>
+    p.nome.toLowerCase().includes(busca.toLowerCase()) ||
+    (p.sku || '').toLowerCase().includes(busca.toLowerCase()) ||
+    (p.categoria || '').toLowerCase().includes(busca.toLowerCase())
+  )
+
+  const criticos   = produtos.filter(p => p.qtd_atual <= p.qtd_minima && p.qtd_minima > 0)
+  const totalItens = produtos.reduce((a, p) => a + p.qtd_atual, 0)
+  const valorEstoque = produtos.reduce((a, p) => a + p.qtd_atual * p.preco_custo, 0)
+
   return (
-    <div className="anim-fade" style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+    <div className="anim-fade" style={{ display:'flex', flexDirection:'column', gap:'0.875rem' }}>
 
       <div className="pg-header">
         <div>
           <h1 className="pg-titulo">📦 Produtos</h1>
-          <p className="pg-sub">{produtos.length} produtos cadastrados · {criticos > 0 ? `${criticos} com estoque crítico` : 'estoque OK'}</p>
+          <p className="pg-sub">{produtos.length} produtos cadastrados · {totalItens} itens em estoque</p>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button className="btn btn-secondary">⬇ Exportar</button>
-          <Link href="/produtos/novo" className="btn btn-primary">+ Novo Produto</Link>
-        </div>
+        <Link href="/produtos/novo" className="btn btn-primary" style={{ display:'flex', alignItems:'center', gap:'0.375rem' }}>
+          <Plus size={15}/> Novo Produto
+        </Link>
       </div>
 
-      {criticos > 0 && (
-        <div className="alerta alerta-aviso">
-          <span>⚠️</span>
-          <span><strong>{criticos} produto(s)</strong> com estoque abaixo do mínimo precisam de reposição.</span>
-          <Link href="/estoque" style={{ fontWeight: 700, fontSize: '0.82rem', color: 'inherit', textDecoration: 'underline' }}>Ver estoque →</Link>
+      {/* KPIs */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'0.625rem' }}>
+        {[
+          { label:'Total de produtos', valor: produtos.length, suf:'cadastros', cor:'var(--verde)' },
+          { label:'Valor do estoque',  valor: formatCurrency(valorEstoque), suf:'(preço de custo)', cor:'var(--texto)' },
+          { label:'Abaixo do mínimo', valor: criticos.length, suf:'produtos críticos', cor: criticos.length > 0 ? 'var(--vermelho)' : 'var(--verde)' },
+        ].map(k => (
+          <div key={k.label} className="card" style={{ padding:'0.875rem' }}>
+            <p style={{ fontSize:'0.78rem', color:'var(--texto-desab)', marginBottom:'0.25rem' }}>{k.label}</p>
+            <p style={{ fontWeight:900, fontSize:'1.5rem', color:k.cor, fontFamily:'monospace' }}>{k.valor}</p>
+            <p style={{ fontSize:'0.72rem', color:'var(--texto-desab)' }}>{k.suf}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Alerta críticos */}
+      {criticos.length > 0 && (
+        <div className="alerta alerta-perigo" style={{ display:'flex', gap:'0.625rem', alignItems:'center' }}>
+          <AlertTriangle size={16}/>
+          <span><strong>{criticos.length} produto(s)</strong> abaixo do estoque mínimo: {criticos.map(p=>p.nome).join(', ')}</span>
         </div>
       )}
 
-      {/* Filtros */}
-      <div className="card" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', padding: '0.75rem 0.875rem' }}>
-        <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
-          <Search size={14} style={{ position: 'absolute', left: '0.5rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--texto-desab)' }} />
-          <input className="campo" style={{ paddingLeft: '1.75rem' }} placeholder="Buscar por nome, SKU ou código de barras..." />
-        </div>
-        <select className="campo" style={{ width: 'auto' }}>
-          <option>Todas categorias</option><option>Eletrônicos</option><option>Acessórios</option>
-        </select>
-        <select className="campo" style={{ width: 'auto' }}>
-          <option>Todos status</option><option>Normal</option><option>Crítico</option><option>Zerado</option>
-        </select>
-        <button className="btn btn-secondary">Limpar filtros</button>
+      {/* Busca */}
+      <div style={{ position:'relative', maxWidth:'380px' }}>
+        <Search size={14} style={{ position:'absolute', left:'0.75rem', top:'50%', transform:'translateY(-50%)', color:'var(--texto-desab)' }}/>
+        <input className="campo" placeholder="Buscar por nome, SKU ou categoria..."
+          style={{ paddingLeft:'2.25rem' }}
+          value={busca} onChange={e => setBusca(e.target.value)} />
       </div>
 
-      {/* Tabela */}
-      <div className="tabela-wrap">
-        <table className="tabela">
-          <thead>
-            <tr>
-              <th>Produto</th>
-              <th>SKU</th>
-              <th>Categoria</th>
-              <th style={{ textAlign: 'right' }}>Custo</th>
-              <th style={{ textAlign: 'right' }}>Venda</th>
-              <th style={{ textAlign: 'right' }}>Margem</th>
-              <th style={{ textAlign: 'center' }}>Estoque</th>
-              <th>Status</th>
-              <th style={{ textAlign: 'center' }}>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {produtos.map(p => (
-              <tr key={p.id}>
-                <td>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{ fontSize: '1.25rem' }}>{p.emoji}</span>
-                    <span style={{ fontWeight: 700 }}>{p.nome}</span>
-                  </div>
-                </td>
-                <td style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: 'var(--texto-desab)' }}>{p.sku}</td>
-                <td style={{ fontSize: '0.82rem', color: 'var(--azul)', fontWeight: 600 }}>{p.categoria}</td>
-                <td style={{ textAlign: 'right', color: 'var(--texto-sec)' }}>{formatCurrency(p.custo)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 800, color: 'var(--verde)' }}>{formatCurrency(p.venda)}</td>
-                <td style={{ textAlign: 'right' }}>
-                  <span className={p.margem >= 50 ? 'status-ok' : p.margem >= 30 ? 'status-info' : 'status-alerta'} style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>
-                    {p.margem.toFixed(0)}%
-                  </span>
-                </td>
-                <td style={{ textAlign: 'center' }}>
-                  <span style={{ fontWeight: 900, fontSize: '1rem', color: p.estoque === 0 ? 'var(--vermelho)' : p.estoque <= p.minimo ? 'var(--amarelo)' : 'var(--texto)' }}>
-                    {p.estoque}
-                  </span>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--texto-desab)', marginLeft: '2px' }}>/ mín.{p.minimo}</span>
-                </td>
-                <td>
-                  {p.status === 'zerado' && <span className="status-erro">✕ Sem estoque</span>}
-                  {p.status === 'critico' && <span className="status-alerta">▼ Crítico</span>}
-                  {p.status === 'normal' && <span className="status-ok">✓ Normal</span>}
-                </td>
-                <td style={{ textAlign: 'center' }}>
-                  <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'center' }}>
-                    <Link href={`/produtos/${p.id}/editar`} className="btn btn-secondary" style={{ fontSize: '0.72rem', padding: '0.25rem 0.5rem' }}>✏ Editar</Link>
-                    <button className="btn btn-danger" style={{ fontSize: '0.72rem', padding: '0.25rem 0.5rem' }}>✕</button>
-                  </div>
-                </td>
+      {/* Lista */}
+      {loading ? (
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'center', padding:'3rem', gap:'0.75rem', color:'var(--texto-desab)' }}>
+          <Loader2 size={20} style={{ animation:'spin 1s linear infinite' }}/> Carregando produtos...
+        </div>
+      ) : erro ? (
+        <div className="alerta alerta-perigo">{erro}</div>
+      ) : filtrados.length === 0 ? (
+        <div style={{ textAlign:'center', padding:'3rem', color:'var(--texto-desab)' }}>
+          {busca ? `Nenhum produto encontrado para "${busca}"` : (
+            <div>
+              <p style={{ fontSize:'2rem', marginBottom:'0.5rem' }}>📦</p>
+              <p style={{ fontWeight:700, marginBottom:'0.25rem' }}>Nenhum produto cadastrado ainda</p>
+              <p style={{ fontSize:'0.85rem', marginBottom:'1rem' }}>Comece cadastrando seu primeiro produto</p>
+              <Link href="/produtos/novo" className="btn btn-primary">+ Cadastrar primeiro produto</Link>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="tabela-wrap">
+          <table className="tabela">
+            <thead>
+              <tr style={{ background:'#364a60' }}>
+                <th>Produto</th><th>SKU</th><th>Categoria</th>
+                <th style={{ textAlign:'right' }}>Custo</th>
+                <th style={{ textAlign:'right' }}>Venda</th>
+                <th style={{ textAlign:'center' }}>Estoque</th>
+                <th style={{ textAlign:'center' }}>Status</th>
+                <th style={{ textAlign:'center' }}>Ações</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', color: 'var(--texto-desab)', padding: '0 0.25rem' }}>
-        <span>Exibindo {produtos.length} produtos</span>
-        <div style={{ display: 'flex', gap: '0.375rem' }}>
-          <button className="btn btn-secondary" style={{ fontSize: '0.75rem', padding: '0.3rem 0.625rem' }}>← Anterior</button>
-          <span style={{ padding: '0.3rem 0.625rem', fontWeight: 700, color: 'var(--texto)' }}>Página 1 de 1</span>
-          <button className="btn btn-secondary" style={{ fontSize: '0.75rem', padding: '0.3rem 0.625rem' }}>Próxima →</button>
+            </thead>
+            <tbody>
+              {filtrados.map(p => {
+                const critico = p.qtd_atual <= p.qtd_minima && p.qtd_minima > 0
+                const margem  = p.preco_varejo > 0 ? ((p.preco_varejo - p.preco_custo) / p.preco_varejo * 100) : 0
+                return (
+                  <tr key={p.id}>
+                    <td><span style={{ fontWeight:700 }}>{p.nome}</span></td>
+                    <td><code style={{ fontSize:'0.78rem' }}>{p.sku || '—'}</code></td>
+                    <td style={{ fontSize:'0.82rem' }}>{p.categoria || '—'}</td>
+                    <td style={{ textAlign:'right', fontFamily:'monospace', fontSize:'0.85rem' }}>{formatCurrency(p.preco_custo)}</td>
+                    <td style={{ textAlign:'right', fontWeight:800, color:'var(--verde)', fontFamily:'monospace' }}>{formatCurrency(p.preco_varejo)}</td>
+                    <td style={{ textAlign:'center' }}>
+                      <span style={{ fontWeight:800, color: critico ? 'var(--vermelho)' : 'var(--verde)', fontFamily:'monospace' }}>
+                        {p.qtd_atual}
+                      </span>
+                      {critico && <span style={{ fontSize:'0.7rem', color:'var(--vermelho)', display:'block' }}>⚠ mínimo</span>}
+                    </td>
+                    <td style={{ textAlign:'center' }}>
+                      <span className={p.ativo ? 'status-ok' : 'status-neutro'} style={{ fontSize:'0.8rem' }}>
+                        {p.ativo ? '● Ativo' : '○ Inativo'}
+                      </span>
+                    </td>
+                    <td style={{ textAlign:'center' }}>
+                      <Link href={`/produtos/${p.id}/editar`} className="btn btn-secondary" style={{ fontSize:'0.75rem', padding:'0.25rem 0.625rem' }}>
+                        Editar
+                      </Link>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         </div>
-      </div>
+      )}
     </div>
   )
 }

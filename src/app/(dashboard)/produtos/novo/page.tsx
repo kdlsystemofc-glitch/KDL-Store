@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Save, Loader2 } from 'lucide-react'
 import { generateSKU } from '@/lib/utils'
+import { createClient } from '@/lib/supabase/client'
+import { garantirEmpresa } from '@/lib/garantirEmpresa'
 
 const categorias = ['Eletrônicos', 'Acessórios', 'Serviços', 'Vestuário', 'Papelaria', 'Outros']
 
@@ -17,13 +19,40 @@ export default function NovoProdutoPage() {
   const [brinde,       setBrinde]       = useState(false)
   const [modoCompleto, setModoCompleto] = useState(false)
   const [salvando,     setSalvando]     = useState(false)
+  const [erro,         setErro]         = useState<string|null>(null)
 
   const margem = venda > 0 ? ((venda - custo) / venda) * 100 : 0
 
   const salvar = async () => {
+    setErro(null)
+    const nome = (document.getElementById('prod-nome') as HTMLInputElement)?.value?.trim()
+    if (!nome) { setErro('O nome do produto é obrigatório.'); return }
+    if (venda <= 0) { setErro('Informe o preço de venda.'); return }
     setSalvando(true)
-    await new Promise(r => setTimeout(r, 900))
+    const supabase = createClient()
+    const empresaId = await garantirEmpresa()
+    if (!empresaId) { setErro('Erro ao identificar sua empresa.'); setSalvando(false); return }
+    const { error } = await supabase.from('produtos').insert({
+      empresa_id:  empresaId,
+      nome,
+      sku:         (document.getElementById('prod-sku') as HTMLInputElement)?.value || sku,
+      categoria:   (document.getElementById('prod-categoria') as HTMLSelectElement)?.value || null,
+      descricao:   (document.getElementById('prod-descricao') as HTMLTextAreaElement)?.value || null,
+      preco_custo: custo,
+      preco_varejo: venda,
+      preco_atacado: parseFloat((document.getElementById('prod-atacado') as HTMLInputElement)?.value) || null,
+      preco_vip:    parseFloat((document.getElementById('prod-vip') as HTMLInputElement)?.value) || null,
+      preco_minimo: parseFloat((document.getElementById('prod-minimo') as HTMLInputElement)?.value) || null,
+      qtd_atual:   parseInt((document.getElementById('prod-estoque') as HTMLInputElement)?.value) || 0,
+      qtd_minima:  parseInt((document.getElementById('prod-estoque-min') as HTMLInputElement)?.value) || 0,
+      localizacao: (document.getElementById('prod-local') as HTMLInputElement)?.value || null,
+      pode_ser_brinde: brinde,
+      tem_garantia: garantia,
+      dias_garantia: garantia ? parseInt((document.getElementById('prod-prazo') as HTMLInputElement)?.value) || null : null,
+      texto_garantia: garantia ? (document.getElementById('prod-texto-garantia') as HTMLTextAreaElement)?.value || null : null,
+    })
     setSalvando(false)
+    if (error) { setErro('Erro ao salvar: ' + error.message); return }
     router.push('/produtos')
   }
 

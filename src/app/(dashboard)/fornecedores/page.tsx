@@ -1,141 +1,171 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Search } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+import { garantirEmpresa } from '@/lib/garantirEmpresa'
+import { Plus, Search, Loader2 } from 'lucide-react'
 
-const fornecedores = [
-  { id: '1', nome: 'JBL Distribuidora SP', contato: 'Sandro',  telefone: '(11) 99999-0001', categoria: 'Eletrônicos', cidade: 'São Paulo',   prazo: '24h', pedidoMin: 'R$ 500', status: 'ativo' },
-  { id: '2', nome: 'Auto Peças Central',   contato: 'Marcão',  telefone: '(11) 99999-0002', categoria: 'Acessórios',  cidade: 'Santo André',  prazo: '48h', pedidoMin: 'R$ 200', status: 'ativo' },
-  { id: '3', nome: 'Taramps Distribuidora',contato: 'Fábio',   telefone: '(11) 99999-0003', categoria: 'Eletrônicos', cidade: 'São Paulo',   prazo: '72h', pedidoMin: 'R$ 800', status: 'ativo' },
-  { id: '4', nome: 'Acessórios Brasil',    contato: 'Cláudia', telefone: '(11) 99999-0004', categoria: 'Acessórios',  cidade: 'Osasco',       prazo: '48h', pedidoMin: 'R$ 150', status: 'inativo' },
-]
-
-const mockPedidos = [
-  { id: '1', produto: 'Som JBL Stage 200',     fornecedor: 'JBL Distribuidora SP', qty: 3,  data: '05/05/2026', status: 'aguardando' },
-  { id: '2', produto: 'Cabo RCA 5m',           fornecedor: 'Auto Peças Central',   qty: 10, data: '04/05/2026', status: 'confirmado' },
-]
+type Fornecedor = {
+  id: string; nome: string; contato: string | null; telefone: string | null
+  categoria: string | null; cidade: string | null; prazo_entrega: string | null; ativo: boolean
+}
+type Pedido = {
+  id: string; produto: string; quantidade: number
+  status: string; criado_em: string
+  fornecedores: { nome: string }[] | null
+}
 
 export default function FornecedoresPage() {
-  const [aba, setAba]         = useState<'lista'|'pedidos'>('lista')
-  const [pedidos, setPedidos] = useState(mockPedidos)
+  const [aba,         setAba]         = useState<'lista'|'pedidos'>('lista')
+  const [fornecedores,setFornecedores] = useState<Fornecedor[]>([])
+  const [pedidos,     setPedidos]     = useState<Pedido[]>([])
+  const [busca,       setBusca]       = useState('')
+  const [loading,     setLoading]     = useState(true)
 
-  function avancarStatus(id: string) {
-    setPedidos(prev => prev.map(p => {
-      if (p.id !== id) return p
-      const next = p.status === 'aguardando' ? 'confirmado' : 'entregue'
-      return { ...p, status: next }
-    }))
+  useEffect(() => { carregar() }, [])
+
+  async function carregar() {
+    setLoading(true)
+    await garantirEmpresa()
+    const supabase = createClient()
+    const [{ data: forn }, { data: peds }] = await Promise.all([
+      supabase.from('fornecedores').select('id,nome,contato,telefone,categoria,cidade,prazo_entrega,ativo').order('nome'),
+      supabase.from('pedidos_fornecedor').select('id,produto,quantidade,status,criado_em,fornecedores(nome)').order('criado_em', { ascending: false }),
+    ])
+    setFornecedores(forn || [])
+    setPedidos(peds || [])
+    setLoading(false)
   }
 
-  return (
-    <div className="anim-fade" style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+  async function avancarStatus(id: string, atual: string) {
+    const next = atual === 'aguardando' ? 'confirmado' : 'entregue'
+    const supabase = createClient()
+    await supabase.from('pedidos_fornecedor').update({ status: next }).eq('id', id)
+    setPedidos(prev => prev.map(p => p.id === id ? { ...p, status: next } : p))
+  }
 
+  const filtrados = fornecedores.filter(f =>
+    f.nome.toLowerCase().includes(busca.toLowerCase()) ||
+    (f.categoria || '').toLowerCase().includes(busca.toLowerCase())
+  )
+
+  const pendentes = pedidos.filter(p => p.status !== 'entregue').length
+
+  return (
+    <div className="anim-fade" style={{ display:'flex', flexDirection:'column', gap:'0.875rem' }}>
       <div className="pg-header">
         <div>
-          <h1 className="pg-titulo">🚚 Fornecedores</h1>
-          <p className="pg-sub">{fornecedores.length} fornecedores cadastrados</p>
+          <h1 className="pg-titulo">🏭 Fornecedores</h1>
+          <p className="pg-sub">{fornecedores.length} fornecedores · {pendentes} pedido(s) pendente(s)</p>
         </div>
-        <Link href="/fornecedores/novo" className="btn btn-primary">+ Novo Fornecedor</Link>
+        <Link href="/fornecedores/novo" className="btn btn-primary" style={{ display:'flex', alignItems:'center', gap:'0.375rem' }}>
+          <Plus size={15}/> Novo Fornecedor
+        </Link>
       </div>
 
       {/* Abas */}
-      <div style={{ display: 'flex', borderBottom: '2px solid var(--borda)' }}>
-        {(['lista','pedidos'] as const).map((t, i) => (
-          <button key={t} onClick={() => setAba(t)} style={{
-            padding: '0.5rem 1rem', background: aba===t ? 'var(--surface)' : 'transparent',
-            border: aba===t ? '1px solid var(--borda)' : 'none',
-            borderBottom: aba===t ? '2px solid var(--surface)' : 'none',
-            fontWeight: aba===t ? 800 : 600, cursor: 'pointer', fontFamily: 'inherit',
-            color: aba===t ? 'var(--verde)' : 'var(--texto-sec)', fontSize: '0.875rem',
-            marginBottom: aba===t ? '-2px' : 0, borderRadius: '5px 5px 0 0',
-          }}>
-            {t === 'lista' ? 'Fornecedores' : <>Pedidos Pendentes {pedidos.filter(p=>p.status!=='entregue').length > 0 && <span style={{ background:'var(--vermelho)',color:'#fff',borderRadius:'10px',padding:'0 5px',fontSize:'0.7rem',fontWeight:900,marginLeft:'4px' }}>{pedidos.filter(p=>p.status!=='entregue').length}</span>}</>}
-          </button>
+      <div style={{ display:'flex', gap:'0.25rem', background:'var(--surface)', border:'1px solid var(--borda)', borderRadius:'var(--radius)', padding:'0.25rem', width:'fit-content' }}>
+        {([['lista','📋 Fornecedores'],['pedidos',`📦 Pedidos Pendentes${pendentes>0?' ('+pendentes+')':''}`]] as const).map(([v,l])=>(
+          <button key={v} onClick={()=>setAba(v)}
+            className={aba===v?'btn btn-primary':'btn btn-ghost'}
+            style={{ fontSize:'0.82rem', padding:'0.3rem 0.75rem' }}>{l}</button>
         ))}
       </div>
 
-      {aba === 'lista' && (<>
-        {/* Filtros */}
-        <div className="card" style={{ display: 'flex', gap: '0.5rem', padding: '0.75rem', flexWrap: 'wrap' }}>
-          <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
-            <Search size={14} style={{ position: 'absolute', left: '0.5rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--texto-desab)' }} />
-            <input className="campo" style={{ paddingLeft: '1.75rem' }} placeholder="Buscar fornecedor..." />
+      {loading ? (
+        <div style={{ display:'flex', justifyContent:'center', padding:'3rem', gap:'0.75rem', color:'var(--texto-desab)' }}>
+          <Loader2 size={20} style={{ animation:'spin 1s linear infinite' }}/> Carregando...
+        </div>
+      ) : aba === 'lista' ? (
+        <>
+          <div style={{ position:'relative', maxWidth:'360px' }}>
+            <Search size={14} style={{ position:'absolute', left:'0.75rem', top:'50%', transform:'translateY(-50%)', color:'var(--texto-desab)' }}/>
+            <input className="campo" placeholder="Buscar fornecedor..."
+              style={{ paddingLeft:'2.25rem' }} value={busca} onChange={e=>setBusca(e.target.value)}/>
           </div>
-          <select className="campo" style={{ width: 'auto' }}>
-            <option>Todas categorias</option><option>Eletrônicos</option><option>Acessórios</option>
-          </select>
-        </div>
-
+          {filtrados.length === 0 ? (
+            <div style={{ textAlign:'center', padding:'3rem', color:'var(--texto-desab)' }}>
+              {busca ? 'Nenhum fornecedor encontrado.' : (
+                <div>
+                  <p style={{ fontSize:'2rem', marginBottom:'0.5rem' }}>🏭</p>
+                  <p style={{ fontWeight:700, marginBottom:'0.25rem' }}>Nenhum fornecedor cadastrado</p>
+                  <Link href="/fornecedores/novo" className="btn btn-primary" style={{ marginTop:'0.5rem', display:'inline-flex' }}>+ Cadastrar fornecedor</Link>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="tabela-wrap">
+              <table className="tabela">
+                <thead>
+                  <tr style={{ background:'#364a60' }}>
+                    <th>Fornecedor</th><th>Contato</th><th>Categoria</th>
+                    <th>Cidade</th><th>Prazo</th><th style={{ textAlign:'center' }}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtrados.map(f => (
+                    <tr key={f.id}>
+                      <td style={{ fontWeight:700 }}>{f.nome}</td>
+                      <td>
+                        {f.telefone
+                          ? <a href={`https://wa.me/55${f.telefone.replace(/\D/g,'')}`} target="_blank" rel="noopener noreferrer"
+                              className="btn btn-secondary" style={{ fontSize:'0.75rem', padding:'0.2rem 0.5rem' }}>
+                              💬 {f.contato || f.telefone}
+                            </a>
+                          : <span style={{ color:'var(--texto-desab)' }}>{f.contato || '—'}</span>
+                        }
+                      </td>
+                      <td style={{ fontSize:'0.82rem' }}>{f.categoria || '—'}</td>
+                      <td style={{ fontSize:'0.82rem' }}>{f.cidade || '—'}</td>
+                      <td style={{ fontSize:'0.82rem' }}>{f.prazo_entrega || '—'}</td>
+                      <td style={{ textAlign:'center' }}>
+                        <span className={f.ativo?'status-ok':'status-neutro'} style={{ fontSize:'0.78rem' }}>
+                          {f.ativo?'● Ativo':'○ Inativo'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      ) : (
         <div className="tabela-wrap">
           <table className="tabela">
             <thead>
-              <tr>
-                <th>Fornecedor</th><th>Contato</th><th>Telefone</th>
-                <th>Categoria</th><th>Cidade</th><th>Prazo Entrega</th>
-                <th>Pedido Mínimo</th><th>Status</th>
-                <th style={{ textAlign:'center' }}>Ações</th>
+              <tr style={{ background:'#364a60' }}>
+                <th>Produto</th><th>Fornecedor</th><th style={{ textAlign:'center' }}>Qtd</th>
+                <th>Data</th><th style={{ textAlign:'center' }}>Status</th><th style={{ textAlign:'center' }}>Ação</th>
               </tr>
             </thead>
             <tbody>
-              {fornecedores.map(f => (
-                <tr key={f.id}>
-                  <td style={{ fontWeight: 700 }}>{f.nome}</td>
-                  <td style={{ color:'var(--texto-sec)' }}>{f.contato}</td>
-                  <td style={{ fontSize:'0.82rem' }}>{f.telefone}</td>
-                  <td><span className="tag tag-azul">{f.categoria}</span></td>
-                  <td style={{ fontSize:'0.82rem', color:'var(--texto-sec)' }}>{f.cidade}</td>
-                  <td style={{ fontWeight: 600 }}>{f.prazo}</td>
-                  <td style={{ fontWeight: 600 }}>{f.pedidoMin}</td>
-                  <td><span className={f.status === 'ativo' ? 'status-ok' : 'status-neutro'} style={{ fontSize:'0.82rem' }}>{f.status === 'ativo' ? '● Ativo' : '● Inativo'}</span></td>
-                  <td style={{ textAlign:'center' }}>
-                    <div style={{ display:'flex', gap:'0.25rem', justifyContent:'center' }}>
-                      <a href={`https://wa.me/55${f.telefone.replace(/\D/g,'')}`} target="_blank" rel="noopener noreferrer"
-                        className="btn btn-primary" style={{ fontSize:'0.7rem', padding:'0.25rem 0.625rem', background:'#25D366', border:'none' }}>
-                        💬 WhatsApp
-                      </a>
-                      <button className="btn btn-secondary" style={{ fontSize:'0.7rem', padding:'0.25rem 0.5rem' }}>✏</button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </>)}
-
-      {aba === 'pedidos' && (
-        <div className="tabela-wrap">
-          <table className="tabela">
-            <thead>
-              <tr>
-                <th>Produto</th><th>Fornecedor</th><th style={{textAlign:'center'}}>Qtd</th>
-                <th>Data</th><th>Status</th><th style={{textAlign:'center'}}>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pedidos.map(p => (
+              {pedidos.length === 0 ? (
+                <tr><td colSpan={6} style={{ textAlign:'center', padding:'2rem', color:'var(--texto-desab)' }}>
+                  Nenhum pedido pendente
+                </td></tr>
+              ) : pedidos.map(p => (
                 <tr key={p.id}>
-                  <td style={{ fontWeight: 700 }}>{p.produto}</td>
-                  <td style={{ color: 'var(--texto-sec)' }}>{p.fornecedor}</td>
-                  <td style={{ textAlign:'center', fontWeight: 700 }}>{p.qty}x</td>
-                  <td style={{ fontSize:'0.82rem', color:'var(--texto-desab)' }}>{p.data}</td>
-                  <td>
-                    <span className={p.status==='aguardando'?'status-alerta':p.status==='confirmado'?'status-info':'status-ok'} style={{ fontSize:'0.82rem' }}>
-                      {p.status==='aguardando'?'● Aguardando':p.status==='confirmado'?'● Confirmado':'● Entregue'}
+                  <td style={{ fontWeight:700 }}>{p.produto}</td>
+                  <td style={{ fontSize:'0.85rem' }}>{Array.isArray(p.fornecedores) ? p.fornecedores[0]?.nome : '—'}</td>
+                  <td style={{ textAlign:'center', fontWeight:800 }}>{p.quantidade}x</td>
+                  <td style={{ fontSize:'0.82rem' }}>{new Date(p.criado_em).toLocaleDateString('pt-BR')}</td>
+                  <td style={{ textAlign:'center' }}>
+                    <span className={p.status==='entregue'?'status-ok':p.status==='confirmado'?'status-aviso':'status-neutro'}
+                      style={{ fontSize:'0.78rem', textTransform:'capitalize' }}>
+                      {p.status==='aguardando'?'⏳ Aguardando':p.status==='confirmado'?'✓ Confirmado':'✅ Entregue'}
                     </span>
                   </td>
                   <td style={{ textAlign:'center' }}>
                     {p.status !== 'entregue' && (
-                      <button onClick={() => avancarStatus(p.id)} className="btn btn-primary" style={{ fontSize:'0.7rem', padding:'0.25rem 0.5rem' }}>
-                        {p.status === 'aguardando' ? '✓ Confirmar' : '✓ Entregue'}
+                      <button onClick={()=>avancarStatus(p.id, p.status)}
+                        className="btn btn-secondary" style={{ fontSize:'0.72rem', padding:'0.2rem 0.5rem' }}>
+                        {p.status==='aguardando'?'✓ Confirmar':'✅ Entregue'}
                       </button>
                     )}
                   </td>
                 </tr>
               ))}
-              {pedidos.length === 0 && (
-                <tr><td colSpan={6} style={{ textAlign:'center', padding:'2rem', color:'var(--texto-desab)' }}>Nenhum pedido pendente</td></tr>
-              )}
             </tbody>
           </table>
         </div>
