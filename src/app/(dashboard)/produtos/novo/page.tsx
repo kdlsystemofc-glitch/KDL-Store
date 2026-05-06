@@ -6,12 +6,13 @@ import Link from 'next/link'
 import { ArrowLeft, Save, Loader2 } from 'lucide-react'
 import { generateSKU } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
-import { garantirEmpresa } from '@/lib/garantirEmpresa'
+import { useEmpresaId } from '@/lib/useEmpresaId'
 
 const categorias = ['Eletrônicos', 'Acessórios', 'Serviços', 'Vestuário', 'Papelaria', 'Outros']
 
 export default function NovoProdutoPage() {
   const router = useRouter()
+  const { empresaId } = useEmpresaId()
   const [sku,          setSku]          = useState(generateSKU())
   const [custo,        setCusto]        = useState(0)
   const [venda,        setVenda]        = useState(0)
@@ -30,7 +31,6 @@ export default function NovoProdutoPage() {
     if (venda <= 0) { setErro('Informe o preço de venda.'); return }
     setSalvando(true)
     const supabase = createClient()
-    const empresaId = await garantirEmpresa()
     if (!empresaId) { setErro('Erro ao identificar sua empresa.'); setSalvando(false); return }
     const { error } = await supabase.from('produtos').insert({
       empresa_id:  empresaId,

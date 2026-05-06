@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { garantirEmpresa } from '@/lib/garantirEmpresa'
+import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
 import { Plus, Search, AlertTriangle, Loader2 } from 'lucide-react'
 
@@ -12,21 +12,21 @@ type Produto = {
 }
 
 export default function ProdutosPage() {
+  const { empresaId } = useEmpresaId()
   const [produtos,   setProdutos]   = useState<Produto[]>([])
   const [busca,      setBusca]      = useState('')
   const [loading,    setLoading]    = useState(true)
   const [erro,       setErro]       = useState<string | null>(null)
 
-  useEffect(() => { carregar() }, [])
+  useEffect(() => { if (empresaId) carregar(empresaId) }, [empresaId])
 
-  async function carregar() {
+  async function carregar(eid: string) {
     setLoading(true)
     setErro(null)
-    const supabase = createClient()
-    await garantirEmpresa()
-    const { data, error } = await supabase
+    const { data, error } = await createClient()
       .from('produtos')
       .select('id,nome,sku,categoria,preco_varejo,preco_custo,qtd_atual,qtd_minima,ativo')
+      .eq('empresa_id', eid)
       .order('nome')
     if (error) { setErro('Erro ao carregar produtos.'); setLoading(false); return }
     setProdutos(data || [])

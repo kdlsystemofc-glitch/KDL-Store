@@ -4,10 +4,11 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Save, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { garantirEmpresa } from '@/lib/garantirEmpresa'
+import { useEmpresaId } from '@/lib/useEmpresaId'
 
 export default function NovoClientePage() {
   const router = useRouter()
+  const { empresaId } = useEmpresaId()
   const [salvando, setSalvando] = useState(false)
   const [tipo,     setTipo]     = useState<'varejo'|'atacado'|'vip'>('varejo')
   const [erro,     setErro]     = useState<string|null>(null)
@@ -18,7 +19,6 @@ export default function NovoClientePage() {
     if (!nome) { setErro('O nome do cliente é obrigatório.'); return }
     setSalvando(true)
     const supabase = createClient()
-    const empresaId = await garantirEmpresa()
     if (!empresaId) { setErro('Erro ao identificar sua empresa.'); setSalvando(false); return }
     const { error } = await supabase.from('clientes').insert({
       empresa_id: empresaId,

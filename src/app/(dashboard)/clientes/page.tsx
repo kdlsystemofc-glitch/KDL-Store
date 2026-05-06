@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { garantirEmpresa } from '@/lib/garantirEmpresa'
+import { useEmpresaId } from '@/lib/useEmpresaId'
 import { Plus, Search, Loader2 } from 'lucide-react'
 
 type Cliente = {
@@ -11,20 +11,20 @@ type Cliente = {
 }
 
 export default function ClientesPage() {
+  const { empresaId } = useEmpresaId()
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [busca,    setBusca]    = useState('')
   const [loading,  setLoading]  = useState(true)
   const [filtro,   setFiltro]   = useState<'todos'|'varejo'|'atacado'|'vip'|'inativos'>('todos')
 
-  useEffect(() => { carregar() }, [])
+  useEffect(() => { if (empresaId) carregar(empresaId) }, [empresaId])
 
-  async function carregar() {
+  async function carregar(eid: string) {
     setLoading(true)
-    await garantirEmpresa()
-    const supabase = createClient()
-    const { data } = await supabase
+    const { data } = await createClient()
       .from('clientes')
       .select('id,nome,telefone,tipo,ultima_compra,ativo')
+      .eq('empresa_id', eid)
       .order('nome')
     setClientes(data || [])
     setLoading(false)

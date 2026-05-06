@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { garantirEmpresa } from '@/lib/garantirEmpresa'
+import { useEmpresaId } from '@/lib/useEmpresaId'
 import { Plus, Search, Loader2 } from 'lucide-react'
 
 type Fornecedor = {
@@ -16,21 +16,21 @@ type Pedido = {
 }
 
 export default function FornecedoresPage() {
+  const { empresaId } = useEmpresaId()
   const [aba,         setAba]         = useState<'lista'|'pedidos'>('lista')
   const [fornecedores,setFornecedores] = useState<Fornecedor[]>([])
   const [pedidos,     setPedidos]     = useState<Pedido[]>([])
   const [busca,       setBusca]       = useState('')
   const [loading,     setLoading]     = useState(true)
 
-  useEffect(() => { carregar() }, [])
+  useEffect(() => { if (empresaId) carregar(empresaId) }, [empresaId])
 
-  async function carregar() {
+  async function carregar(eid: string) {
     setLoading(true)
-    await garantirEmpresa()
     const supabase = createClient()
     const [{ data: forn }, { data: peds }] = await Promise.all([
-      supabase.from('fornecedores').select('id,nome,contato,telefone,categoria,cidade,prazo_entrega,ativo').order('nome'),
-      supabase.from('pedidos_fornecedor').select('id,produto,quantidade,status,criado_em,fornecedores(nome)').order('criado_em', { ascending: false }),
+      supabase.from('fornecedores').select('id,nome,contato,telefone,categoria,cidade,prazo_entrega,ativo').eq('empresa_id', eid).order('nome'),
+      supabase.from('pedidos_fornecedor').select('id,produto,quantidade,status,criado_em,fornecedores(nome)').eq('empresa_id', eid).order('criado_em', { ascending: false }),
     ])
     setFornecedores(forn || [])
     setPedidos(peds || [])
