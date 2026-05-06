@@ -2,165 +2,217 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { Eye, EyeOff, Loader2, Check, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
-const schema = z.object({
-  nome_loja: z.string().min(3, 'Mínimo 3 caracteres'),
-  email: z.string().email('E-mail inválido'),
-  senha: z.string()
-    .min(8, 'Mínimo 8 caracteres')
-    .regex(/[A-Z]/, 'Precisa ter uma letra maiúscula')
-    .regex(/[0-9]/, 'Precisa ter um número'),
-  confirmar_senha: z.string(),
-  tipo_negocio: z.string().min(1, 'Selecione o tipo'),
-}).refine(d => d.senha === d.confirmar_senha, {
-  message: 'As senhas não coincidem', path: ['confirmar_senha']
-})
-
-type Form = z.infer<typeof schema>
-
-function PwdStrength({ senha }: { senha: string }) {
-  const checks = [
-    { label: '8+ caracteres', ok: senha.length >= 8 },
-    { label: 'Letra maiúscula', ok: /[A-Z]/.test(senha) },
-    { label: 'Número', ok: /[0-9]/.test(senha) },
-  ]
-  const score = checks.filter(c => c.ok).length
-  const colors = ['#ef4444', '#f59e0b', '#22c55e']
-  const labels = ['Fraca', 'Média', 'Forte']
-  return (
-    <div className="mt-2 space-y-2">
-      <div className="flex gap-1.5">
-        {[0, 1, 2].map(i => (
-          <div key={i} className="flex-1 h-1.5 rounded-full transition-all"
-            style={{ background: i < score ? colors[score - 1] : '#e5e7eb' }} />
-        ))}
-      </div>
-      {senha && <p className="text-xs font-bold" style={{ color: colors[score - 1] || '#9ca3af' }}>
-        Senha {labels[score - 1] || ''}
-      </p>}
-      <div className="flex flex-wrap gap-2">
-        {checks.map(c => (
-          <span key={c.label} className={`flex items-center gap-1 text-xs font-medium ${c.ok ? 'text-green-600' : 'text-gray-400'}`}>
-            {c.ok ? <Check size={11} /> : <X size={11} />} {c.label}
-          </span>
-        ))}
-      </div>
-    </div>
-  )
-}
+const tiposNegocio = [
+  { v: '', l: 'Selecione seu negócio...' },
+  { v: 'eletronicos',  l: '🔊 Eletrônicos / Som Automotivo' },
+  { v: 'acessorios',   l: '🚗 Acessórios para Veículos' },
+  { v: 'roupas',       l: '👕 Roupas e Calçados' },
+  { v: 'alimentacao',  l: '🍕 Alimentação' },
+  { v: 'papelaria',    l: '📚 Papelaria / Livraria' },
+  { v: 'geral',        l: '🏪 Comércio Geral' },
+  { v: 'outro',        l: 'Outro' },
+]
 
 export default function CadastroPage() {
-  const router = useRouter()
-  const [showPwd, setShowPwd] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [senhaVal, setSenhaVal] = useState('')
+  const [nomeLoja,   setNomeLoja]   = useState('')
+  const [tipo,       setTipo]       = useState('')
+  const [email,      setEmail]      = useState('')
+  const [senha,      setSenha]      = useState('')
+  const [confirmar,  setConfirmar]  = useState('')
+  const [showPwd,    setShowPwd]    = useState(false)
+  const [loading,    setLoading]    = useState(false)
+  const [erro,       setErro]       = useState<string | null>(null)
+  const [sucesso,    setSucesso]    = useState(false)
 
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<Form>({
-    resolver: zodResolver(schema),
-  })
+  const senhaForte = senha.length >= 8 && /[A-Z]/.test(senha) && /[0-9]/.test(senha)
 
-  const onSubmit = async (data: Form) => {
-    setError(null)
+  const cadastrar = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setErro(null)
+
+    if (!nomeLoja || !tipo || !email || !senha || !confirmar) {
+      setErro('Preencha todos os campos.'); return
+    }
+    if (senha !== confirmar) { setErro('As senhas não coincidem.'); return }
+    if (!senhaForte) { setErro('Senha fraca. Use 8+ caracteres, 1 maiúscula e 1 número.'); return }
+
+    setLoading(true)
     const supabase = createClient()
-    const { error: e } = await supabase.auth.signUp({
-      email: data.email, password: data.senha,
-      options: { data: { nome_loja: data.nome_loja, tipo_negocio: data.tipo_negocio } }
+    const { error } = await supabase.auth.signUp({
+      email,
+      password: senha,
+      options: { data: { nome_loja: nomeLoja, tipo_negocio: tipo } }
     })
-    if (e) { setError(e.message); return }
-    router.push('/dashboard')
+    setLoading(false)
+
+    if (error) { setErro(error.message); return }
+    setSucesso(true)
   }
 
-  return (
-    <div className="animate-fade-in">
-      <h2 className="text-3xl font-black text-gray-900 mb-1">Criar conta grátis</h2>
-      <p className="text-gray-500 mb-6">30 dias gratuitos · Sem cartão de crédito</p>
+  const inp: React.CSSProperties = {
+    width: '100%', padding: '0.75rem 0.875rem', borderRadius: '8px',
+    border: '1.5px solid #d1d5db', fontSize: '0.9rem', outline: 'none',
+    background: '#fff', color: '#1a1a1a', fontFamily: 'inherit',
+    boxSizing: 'border-box', transition: 'border-color 0.15s',
+  }
 
-      {/* Benefícios */}
-      <div className="rounded-xl p-3 mb-6 flex flex-wrap gap-2"
-        style={{ background: '#f0fdf4', border: '1.5px solid #bbf7d0' }}>
+  if (sucesso) return (
+    <div style={{ textAlign: 'center' }}>
+      <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📧</div>
+      <h2 style={{ fontWeight: 900, fontSize: '1.5rem', color: '#1a1a1a', marginBottom: '0.5rem' }}>
+        Verifique seu e-mail!
+      </h2>
+      <p style={{ color: '#6b7280', fontSize: '0.9rem', lineHeight: 1.6, marginBottom: '1.5rem' }}>
+        Enviamos um link de confirmação para <strong>{email}</strong>.
+        <br />Clique no link para ativar sua conta e entrar no sistema.
+      </p>
+      <div style={{
+        background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px',
+        padding: '0.875rem', marginBottom: '1.5rem', fontSize: '0.83rem', color: '#15803d', fontWeight: 600
+      }}>
+        ✉️ Verifique também a pasta de spam se não encontrar o e-mail.
+      </div>
+      <Link href="/login" style={{
+        display: 'block', width: '100%', padding: '0.875rem', borderRadius: '8px',
+        background: '#15803d', color: '#fff', fontWeight: 800, fontSize: '1rem',
+        textDecoration: 'none', textAlign: 'center', boxSizing: 'border-box'
+      }}>
+        → Ir para o Login
+      </Link>
+    </div>
+  )
+
+  return (
+    <div>
+      <h2 style={{ fontWeight: 900, fontSize: '1.75rem', color: '#1a1a1a', marginBottom: '0.25rem' }}>
+        Criar conta grátis
+      </h2>
+      <p style={{ color: '#6b7280', marginBottom: '1rem', fontSize: '0.875rem' }}>
+        30 dias gratuitos · Sem cartão de crédito
+      </p>
+
+      <div style={{
+        background: '#f0fdf4', border: '1.5px solid #bbf7d0', borderRadius: '8px',
+        padding: '0.625rem 1rem', marginBottom: '1.25rem',
+        display: 'flex', flexWrap: 'wrap', gap: '0.5rem'
+      }}>
         {['✓ PDV ilimitado', '✓ Controle de estoque', '✓ Garantias digitais', '✓ Suporte grátis'].map(b => (
-          <span key={b} className="text-xs font-bold" style={{ color: '#15803d' }}>{b}</span>
+          <span key={b} style={{ fontSize: '0.75rem', fontWeight: 700, color: '#15803d' }}>{b}</span>
         ))}
       </div>
 
-      {error && <div className="alert-danger mb-4">⚠️ {error}</div>}
+      {erro && (
+        <div style={{
+          background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px',
+          padding: '0.75rem 1rem', marginBottom: '1rem', color: '#dc2626',
+          fontSize: '0.85rem', fontWeight: 600
+        }}>
+          ⚠️ {erro}
+        </div>
+      )}
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={cadastrar} style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
         <div>
-          <label className="label-base" htmlFor="cad-nome-loja">Nome da sua loja *</label>
-          <input id="cad-nome-loja" className={`input-base text-base ${errors.nome_loja ? 'error' : ''}`}
-            placeholder="Ex: Eletrônicos do João" {...register('nome_loja')} />
-          {errors.nome_loja && <p className="mt-1 text-xs font-medium text-red-600">{errors.nome_loja.message}</p>}
+          <label style={{ display: 'block', fontWeight: 700, fontSize: '0.82rem', color: '#374151', marginBottom: '0.375rem' }}>
+            Nome da sua loja *
+          </label>
+          <input id="cad-nome-loja" style={inp} placeholder="Ex: Eletrônicos do João"
+            value={nomeLoja} onChange={e => setNomeLoja(e.target.value)} />
         </div>
 
         <div>
-          <label className="label-base" htmlFor="cad-tipo">Tipo de negócio *</label>
-          <select id="cad-tipo" className={`select-base text-base ${errors.tipo_negocio ? 'error' : ''}`}
-            {...register('tipo_negocio')}>
-            <option value="">Selecione seu negócio...</option>
-            <option value="eletronicos">🔊 Eletrônicos / Som Automotivo</option>
-            <option value="acessorios">🚗 Acessórios para Veículos</option>
-            <option value="roupas">👕 Roupas e Calçados</option>
-            <option value="alimentacao">🍕 Alimentação</option>
-            <option value="papelaria">📚 Papelaria / Livraria</option>
-            <option value="geral">🏪 Comércio Geral</option>
-            <option value="outro">Outro</option>
+          <label style={{ display: 'block', fontWeight: 700, fontSize: '0.82rem', color: '#374151', marginBottom: '0.375rem' }}>
+            Tipo de negócio *
+          </label>
+          <select id="cad-tipo" style={{ ...inp, cursor: 'pointer' }}
+            value={tipo} onChange={e => setTipo(e.target.value)}>
+            {tiposNegocio.map(t => <option key={t.v} value={t.v}>{t.l}</option>)}
           </select>
-          {errors.tipo_negocio && <p className="mt-1 text-xs font-medium text-red-600">{errors.tipo_negocio.message}</p>}
         </div>
 
         <div>
-          <label className="label-base" htmlFor="cad-email">E-mail *</label>
-          <input id="cad-email" type="email" className={`input-base text-base ${errors.email ? 'error' : ''}`}
-            placeholder="seu@email.com" {...register('email')} />
-          {errors.email && <p className="mt-1 text-xs font-medium text-red-600">{errors.email.message}</p>}
+          <label style={{ display: 'block', fontWeight: 700, fontSize: '0.82rem', color: '#374151', marginBottom: '0.375rem' }}>
+            E-mail *
+          </label>
+          <input id="cad-email" type="email" style={inp} placeholder="seu@email.com"
+            value={email} onChange={e => setEmail(e.target.value)} />
         </div>
 
         <div>
-          <label className="label-base" htmlFor="cad-senha">Senha *</label>
-          <div className="relative">
+          <label style={{ display: 'block', fontWeight: 700, fontSize: '0.82rem', color: '#374151', marginBottom: '0.375rem' }}>
+            Senha * <span style={{ fontWeight: 400, color: '#9ca3af' }}>(mín. 8 chars, 1 maiúscula, 1 número)</span>
+          </label>
+          <div style={{ position: 'relative' }}>
             <input id="cad-senha" type={showPwd ? 'text' : 'password'}
-              className={`input-base text-base pr-11 ${errors.senha ? 'error' : ''}`}
+              style={{ ...inp, paddingRight: '2.75rem' }}
               placeholder="Mínimo 8 caracteres"
-              {...register('senha', { onChange: e => setSenhaVal(e.target.value) })} />
-            <button type="button" onClick={() => setShowPwd(!showPwd)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 btn-icon p-1.5">
-              {showPwd ? <EyeOff size={18} /> : <Eye size={18} />}
+              value={senha} onChange={e => setSenha(e.target.value)} />
+            <button type="button" onClick={() => setShowPwd(v => !v)} style={{
+              position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)',
+              background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', lineHeight: 1
+            }}>
+              {showPwd ? '🙈' : '👁'}
             </button>
           </div>
-          {senhaVal && <PwdStrength senha={senhaVal} />}
-          {errors.senha && <p className="mt-1 text-xs font-medium text-red-600">{errors.senha.message}</p>}
+          {senha.length > 0 && (
+            <div style={{ marginTop: '0.375rem', display: 'flex', gap: '0.375rem' }}>
+              {[
+                { ok: senha.length >= 8, l: '8+ chars' },
+                { ok: /[A-Z]/.test(senha), l: 'Maiúscula' },
+                { ok: /[0-9]/.test(senha), l: 'Número' },
+              ].map(c => (
+                <span key={c.l} style={{
+                  fontSize: '0.72rem', fontWeight: 600,
+                  color: c.ok ? '#15803d' : '#9ca3af'
+                }}>
+                  {c.ok ? '✓' : '○'} {c.l}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         <div>
-          <label className="label-base" htmlFor="cad-confirmar">Confirmar senha *</label>
-          <input id="cad-confirmar" type={showPwd ? 'text' : 'password'}
-            className={`input-base text-base ${errors.confirmar_senha ? 'error' : ''}`}
-            placeholder="Repita a senha" {...register('confirmar_senha')} />
-          {errors.confirmar_senha && <p className="mt-1 text-xs font-medium text-red-600">{errors.confirmar_senha.message}</p>}
+          <label style={{ display: 'block', fontWeight: 700, fontSize: '0.82rem', color: '#374151', marginBottom: '0.375rem' }}>
+            Confirmar senha *
+          </label>
+          <input id="cad-confirmar" type={showPwd ? 'text' : 'password'} style={{
+            ...inp,
+            borderColor: confirmar && confirmar !== senha ? '#ef4444' : '#d1d5db'
+          }}
+            placeholder="Repita a senha"
+            value={confirmar} onChange={e => setConfirmar(e.target.value)} />
+          {confirmar && confirmar !== senha && (
+            <p style={{ fontSize: '0.78rem', color: '#ef4444', marginTop: '0.25rem', fontWeight: 600 }}>
+              As senhas não coincidem
+            </p>
+          )}
         </div>
 
-        <button id="btn-register-submit" type="submit" disabled={isSubmitting}
-          className="btn-primary w-full py-4 text-base mt-2">
-          {isSubmitting ? <><Loader2 size={18} className="animate-spin" /> Criando conta...</> : '🚀 Criar minha conta grátis'}
+        <button id="btn-register-submit" type="submit" disabled={loading} style={{
+          width: '100%', padding: '0.875rem', borderRadius: '8px', border: 'none',
+          background: loading ? '#6b7280' : '#15803d', color: '#fff',
+          fontWeight: 800, fontSize: '1rem', cursor: loading ? 'not-allowed' : 'pointer',
+          fontFamily: 'inherit', marginTop: '0.25rem'
+        }}>
+          {loading ? 'Criando conta...' : '🚀 Criar minha conta grátis'}
         </button>
 
-        <p className="text-xs text-gray-400 text-center">
-          Ao criar sua conta você concorda com os <span className="font-semibold text-gray-600 cursor-pointer">Termos de Uso</span> e{' '}
-          <span className="font-semibold text-gray-600 cursor-pointer">Política de Privacidade</span>
+        <p style={{ fontSize: '0.75rem', color: '#9ca3af', textAlign: 'center' }}>
+          Ao criar sua conta você concorda com os{' '}
+          <span style={{ color: '#6b7280', fontWeight: 600, cursor: 'pointer' }}>Termos de Uso</span>
+          {' '}e{' '}
+          <span style={{ color: '#6b7280', fontWeight: 600, cursor: 'pointer' }}>Política de Privacidade</span>
         </p>
       </form>
 
-      <div className="mt-6 pt-5 border-t border-gray-200 text-center">
-        <p className="text-sm text-gray-500">
+      <div style={{ borderTop: '1px solid #e5e7eb', marginTop: '1.25rem', paddingTop: '1rem', textAlign: 'center' }}>
+        <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>
           Já tem uma conta?{' '}
-          <Link id="link-go-to-login" href="/login" className="font-bold" style={{ color: '#16a34a' }}>
+          <Link id="link-go-to-login" href="/login"
+            style={{ color: '#15803d', fontWeight: 700, textDecoration: 'none' }}>
             Entrar no sistema
           </Link>
         </p>

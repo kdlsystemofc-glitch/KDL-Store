@@ -2,93 +2,110 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
-  title: { default: 'NexoCommerce', template: '%s | NexoCommerce' },
+  title: { default: 'KDL Store', template: '%s | KDL Store' },
   description: 'Sistema de gestão para pequeno comércio',
 }
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen flex">
-      {/* Left — Branding verde forte */}
-      <div className="hidden lg:flex lg:w-5/12 flex-col justify-between p-12 relative overflow-hidden"
-        style={{ background: 'linear-gradient(160deg, #14532d 0%, #15803d 40%, #16a34a 100%)' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', fontFamily: "'Inter', sans-serif" }}>
 
-        {/* Pattern decorativo */}
-        <div className="absolute inset-0 opacity-5"
-          style={{
-            backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)',
-            backgroundSize: '32px 32px'
-          }} />
+      {/* LEFT — Branding */}
+      <div style={{
+        width: '42%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+        padding: '3rem', position: 'relative', overflow: 'hidden',
+        background: 'linear-gradient(160deg, #0d2218 0%, #14532d 50%, #15803d 100%)'
+      }}>
+        {/* Dots decorativos */}
+        <div style={{
+          position: 'absolute', inset: 0, opacity: 0.06,
+          backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)',
+          backgroundSize: '28px 28px'
+        }} />
 
         {/* Logo */}
-        <div className="relative">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-lg">
-              <span className="text-2xl font-black" style={{ color: '#15803d' }}>N</span>
-            </div>
-            <div>
-              <p className="text-white font-black text-xl leading-none">NexoCommerce</p>
-              <p className="text-green-200 text-xs font-medium">Gestão para o seu balcão</p>
-            </div>
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{
+            width: '46px', height: '46px', background: '#fff', borderRadius: '10px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.25)'
+          }}>
+            <span style={{ color: '#15803d', fontWeight: 900, fontSize: '1.25rem' }}>K</span>
+          </div>
+          <div>
+            <p style={{ color: '#fff', fontWeight: 800, fontSize: '1.1rem', lineHeight: 1 }}>KDL Store</p>
+            <p style={{ color: '#86efac', fontSize: '0.72rem', marginTop: '2px' }}>Sistema de Gestão</p>
           </div>
         </div>
 
         {/* Centro */}
-        <div className="relative space-y-8">
-          <div>
-            <h1 className="text-4xl font-black text-white leading-tight mb-3">
-              Seu negócio organizado.<br />
-              <span className="text-green-200">Do jeito certo.</span>
-            </h1>
-            <p className="text-green-100 text-base leading-relaxed">
-              Controle vendas, estoque, garantias e fornecedores em minutos. 
-              Simples como um caixa de mercado.
-            </p>
-          </div>
-
-          {/* Features */}
-          <div className="space-y-3">
+        <div style={{ position: 'relative' }}>
+          <h1 style={{ color: '#fff', fontWeight: 900, fontSize: '2rem', lineHeight: 1.25, marginBottom: '0.75rem' }}>
+            Seu negócio<br />
+            <span style={{ color: '#86efac' }}>organizado.</span>
+          </h1>
+          <p style={{ color: '#bbf7d0', fontSize: '0.9rem', lineHeight: 1.6, marginBottom: '2rem' }}>
+            Controle vendas, estoque, garantias e fornecedores em minutos.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             {[
-              { emoji: '🛒', text: 'Registre uma venda em menos de 30 segundos' },
-              { emoji: '📦', text: 'Estoque atualizado automaticamente a cada venda' },
-              { emoji: '🛡️', text: 'Garantia digital gerada na hora da venda' },
-              { emoji: '📊', text: 'Veja quanto faturou hoje ao abrir o sistema' },
+              { e: '🛒', t: 'Venda registrada em menos de 30 segundos' },
+              { e: '📦', t: 'Estoque atualizado a cada venda' },
+              { e: '🛡️', t: 'Garantia digital gerada na hora' },
+              { e: '💸', t: 'Fiado, despesas e fechamento integrados' },
             ].map(f => (
-              <div key={f.text} className="flex items-center gap-3">
-                <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center text-lg flex-shrink-0">
-                  {f.emoji}
-                </div>
-                <span className="text-green-50 text-sm font-medium">{f.text}</span>
+              <div key={f.t} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{
+                  width: '34px', height: '34px', background: 'rgba(255,255,255,0.15)',
+                  borderRadius: '8px', display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', fontSize: '1rem', flexShrink: 0
+                }}>{f.e}</div>
+                <span style={{ color: '#dcfce7', fontSize: '0.83rem', fontWeight: 500 }}>{f.t}</span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Rodapé */}
-        <div className="relative bg-white/10 rounded-2xl p-4 border border-white/20">
-          <p className="text-green-100 text-sm italic leading-relaxed">
+        {/* Rodapé depoimento */}
+        <div style={{
+          position: 'relative', background: 'rgba(255,255,255,0.1)',
+          borderRadius: '10px', padding: '1rem', border: '1px solid rgba(255,255,255,0.15)'
+        }}>
+          <p style={{ color: '#d1fae5', fontSize: '0.82rem', fontStyle: 'italic', lineHeight: 1.5 }}>
             "Antes eu perdia produto sem saber. Agora sei o estoque exato e quanto entrou no dia."
           </p>
-          <div className="flex items-center gap-2 mt-3">
-            <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-xs font-black" style={{ color: '#15803d' }}>J</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.625rem' }}>
+            <div style={{
+              width: '30px', height: '30px', background: '#fff', borderRadius: '50%',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '0.75rem', fontWeight: 900, color: '#15803d', flexShrink: 0
+            }}>J</div>
             <div>
-              <p className="text-white text-xs font-bold">José Aparecido</p>
-              <p className="text-green-300 text-xs">Loja de eletrônicos, 25 de Março SP</p>
+              <p style={{ color: '#fff', fontSize: '0.75rem', fontWeight: 700 }}>José Aparecido</p>
+              <p style={{ color: '#86efac', fontSize: '0.7rem' }}>Loja de eletrônicos — 25 de Março SP</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Right — Form */}
-      <div className="flex-1 flex items-center justify-center p-6 lg:p-16" style={{ background: '#f4f6f8' }}>
-        <div className="w-full max-w-sm">
+      {/* RIGHT — Formulário */}
+      <div style={{
+        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '2rem', background: '#f8f9fa'
+      }}>
+        <div style={{ width: '100%', maxWidth: '380px' }}>
+
           {/* Mobile logo */}
-          <div className="flex items-center gap-2 mb-8 lg:hidden">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: '#15803d' }}>
-              <span className="text-white font-black text-lg">N</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '2rem' }}>
+            <div style={{
+              width: '36px', height: '36px', background: '#15803d', borderRadius: '8px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}>
+              <span style={{ color: '#fff', fontWeight: 900, fontSize: '1rem' }}>K</span>
             </div>
-            <span className="font-black text-lg text-gray-900">NexoCommerce</span>
+            <span style={{ fontWeight: 800, fontSize: '1.1rem', color: '#1a1a1a' }}>KDL Store</span>
           </div>
+
           {children}
         </div>
       </div>

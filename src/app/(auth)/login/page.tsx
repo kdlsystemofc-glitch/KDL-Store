@@ -3,88 +3,113 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-
-const schema = z.object({
-  email: z.string().email('E-mail inválido'),
-  senha: z.string().min(1, 'Senha obrigatória'),
-})
-type Form = z.infer<typeof schema>
 
 export default function LoginPage() {
   const router = useRouter()
-  const [showPwd, setShowPwd] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [email,      setEmail]      = useState('')
+  const [senha,      setSenha]      = useState('')
+  const [showPwd,    setShowPwd]    = useState(false)
+  const [erro,       setErro]       = useState<string | null>(null)
+  const [loading,    setLoading]    = useState(false)
 
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<Form>({
-    resolver: zodResolver(schema),
-  })
-
-  const onSubmit = async (data: Form) => {
-    setError(null)
+  const entrar = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!email || !senha) { setErro('Preencha e-mail e senha.'); return }
+    setErro(null)
+    setLoading(true)
     const supabase = createClient()
-    const { error: e } = await supabase.auth.signInWithPassword({ email: data.email, password: data.senha })
-    if (e) { setError('E-mail ou senha incorretos.'); return }
+    const { error } = await supabase.auth.signInWithPassword({ email, password: senha })
+    setLoading(false)
+    if (error) {
+      if (error.message.includes('Email not confirmed'))
+        setErro('Confirme seu e-mail antes de entrar. Verifique a caixa de entrada.')
+      else
+        setErro('E-mail ou senha incorretos.')
+      return
+    }
     router.push('/dashboard')
     router.refresh()
   }
 
-  return (
-    <div className="animate-fade-in">
-      <h2 className="text-3xl font-black text-gray-900 mb-1">Entrar no sistema</h2>
-      <p className="text-gray-500 mb-8">Acesse sua conta para continuar</p>
+  const inp: React.CSSProperties = {
+    width: '100%', padding: '0.75rem 0.875rem', borderRadius: '8px',
+    border: '1.5px solid #d1d5db', fontSize: '0.95rem', outline: 'none',
+    background: '#fff', color: '#1a1a1a', fontFamily: 'inherit', boxSizing: 'border-box',
+    transition: 'border-color 0.15s',
+  }
 
-      {error && (
-        <div className="alert-danger mb-5">
-          ⚠️ {error}
+  return (
+    <div>
+      <h2 style={{ fontWeight: 900, fontSize: '1.75rem', color: '#1a1a1a', marginBottom: '0.25rem' }}>
+        Entrar no sistema
+      </h2>
+      <p style={{ color: '#6b7280', marginBottom: '1.75rem', fontSize: '0.9rem' }}>
+        Acesse sua conta para continuar
+      </p>
+
+      {erro && (
+        <div style={{
+          background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px',
+          padding: '0.75rem 1rem', marginBottom: '1rem', color: '#dc2626',
+          fontSize: '0.85rem', fontWeight: 600, display: 'flex', gap: '0.5rem', alignItems: 'center'
+        }}>
+          ⚠️ {erro}
         </div>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={entrar} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         <div>
-          <label className="label-base" htmlFor="login-email">E-mail</label>
-          <input id="login-email" type="email" className={`input-base text-base ${errors.email ? 'error' : ''}`}
-            placeholder="seu@email.com" {...register('email')} />
-          {errors.email && <p className="mt-1.5 text-xs font-medium text-red-600">{errors.email.message}</p>}
+          <label style={{ display: 'block', fontWeight: 700, fontSize: '0.82rem', color: '#374151', marginBottom: '0.375rem' }}>
+            E-mail
+          </label>
+          <input id="login-email" type="email" style={inp} placeholder="seu@email.com"
+            value={email} onChange={e => setEmail(e.target.value)} required />
         </div>
 
         <div>
-          <label className="label-base" htmlFor="login-senha">Senha</label>
-          <div className="relative">
-            <input id="login-senha" type={showPwd ? 'text' : 'password'}
-              className={`input-base text-base pr-11 ${errors.senha ? 'error' : ''}`}
-              placeholder="••••••••" {...register('senha')} />
-            <button type="button" onClick={() => setShowPwd(!showPwd)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 btn-icon p-1.5">
-              {showPwd ? <EyeOff size={18} /> : <Eye size={18} />}
+          <label style={{ display: 'block', fontWeight: 700, fontSize: '0.82rem', color: '#374151', marginBottom: '0.375rem' }}>
+            Senha
+          </label>
+          <div style={{ position: 'relative' }}>
+            <input id="login-senha" type={showPwd ? 'text' : 'password'} style={{ ...inp, paddingRight: '2.75rem' }}
+              placeholder="••••••••" value={senha} onChange={e => setSenha(e.target.value)} required />
+            <button type="button" onClick={() => setShowPwd(v => !v)} style={{
+              position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)',
+              background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', fontSize: '1rem', lineHeight: 1
+            }}>
+              {showPwd ? '🙈' : '👁'}
             </button>
           </div>
-          {errors.senha && <p className="mt-1.5 text-xs font-medium text-red-600">{errors.senha.message}</p>}
-          <div className="text-right mt-2">
-            <button type="button" id="link-forgot-password" className="text-xs font-semibold" style={{ color: '#16a34a' }}>
+          <div style={{ textAlign: 'right', marginTop: '0.375rem' }}>
+            <button type="button" id="link-forgot-password"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#15803d', fontSize: '0.78rem', fontWeight: 600 }}>
               Esqueci minha senha
             </button>
           </div>
         </div>
 
-        <button id="btn-login-submit" type="submit" disabled={isSubmitting}
-          className="btn-primary w-full py-4 text-base mt-2">
-          {isSubmitting ? <><Loader2 size={18} className="animate-spin" /> Entrando...</> : '→ Entrar'}
+        <button id="btn-login-submit" type="submit" disabled={loading} style={{
+          width: '100%', padding: '0.875rem', borderRadius: '8px', border: 'none',
+          background: loading ? '#6b7280' : '#15803d', color: '#fff',
+          fontWeight: 800, fontSize: '1rem', cursor: loading ? 'not-allowed' : 'pointer',
+          fontFamily: 'inherit', marginTop: '0.25rem', transition: 'background 0.15s'
+        }}>
+          {loading ? 'Entrando...' : '→ Entrar'}
         </button>
       </form>
 
-      <div className="mt-8 pt-6 border-t border-gray-200 text-center">
-        <p className="text-sm text-gray-500">
+      <div style={{ borderTop: '1px solid #e5e7eb', marginTop: '1.5rem', paddingTop: '1.25rem', textAlign: 'center' }}>
+        <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>
           Não tem conta?{' '}
-          <Link id="link-go-to-register" href="/cadastro" className="font-bold" style={{ color: '#16a34a' }}>
+          <Link id="link-go-to-register" href="/cadastro"
+            style={{ color: '#15803d', fontWeight: 700, textDecoration: 'none' }}>
             Criar conta grátis
           </Link>
         </p>
-        <p className="text-xs text-gray-300 mt-4">30 dias grátis · Sem cartão de crédito</p>
+        <p style={{ fontSize: '0.75rem', color: '#d1d5db', marginTop: '0.75rem' }}>
+          30 dias grátis · Sem cartão de crédito
+        </p>
       </div>
     </div>
   )
