@@ -1,337 +1,276 @@
 'use client'
-
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Save, Loader2 } from 'lucide-react'
+import { ArrowLeft, Save, Loader2, ChevronDown } from 'lucide-react'
 import { generateSKU } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
 
-const categorias = ['Eletrônicos', 'Acessórios', 'Serviços', 'Vestuário', 'Papelaria', 'Outros']
+type Categoria = { id: string; nome: string }
+
+const SECAO = ({ titulo, children }: { titulo: string; children: React.ReactNode }) => (
+  <div style={{ display:'flex', flexDirection:'column', gap:'0.75rem' }}>
+    <p style={{ fontWeight:800, fontSize:'0.85rem', color:'var(--texto-desab)', textTransform:'uppercase', letterSpacing:'0.05em', borderBottom:'1px solid var(--borda)', paddingBottom:'0.375rem' }}>{titulo}</p>
+    {children}
+  </div>
+)
+
+const Campo = ({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) => (
+  <div style={{ display:'flex', flexDirection:'column', gap:'0.375rem' }}>
+    <label style={{ fontSize:'0.82rem', fontWeight:600, color:'var(--texto-sec)' }}>
+      {label}{required && <span style={{ color:'var(--vermelho)', marginLeft:'2px' }}>*</span>}
+    </label>
+    {children}
+  </div>
+)
 
 export default function NovoProdutoPage() {
-  const router = useRouter()
+  const router  = useRouter()
   const { empresaId } = useEmpresaId()
+  const [categorias, setCategorias] = useState<Categoria[]>([])
+  const [salvando,   setSalvando]   = useState(false)
+  const [erro,       setErro]       = useState<string|null>(null)
+
+  // Campos controlados
+  const [nome,         setNome]         = useState('')
   const [sku,          setSku]          = useState(generateSKU())
-  const [custo,        setCusto]        = useState(0)
-  const [venda,        setVenda]        = useState(0)
-  const [garantia,     setGarantia]     = useState(false)
-  const [brinde,       setBrinde]       = useState(false)
-  const [modoCompleto, setModoCompleto] = useState(false)
-  const [salvando,     setSalvando]     = useState(false)
-  const [erro,         setErro]         = useState<string|null>(null)
+  const [codigoBarras, setCodigoBarras] = useState('')
+  const [descricao,    setDescricao]    = useState('')
+  const [categoria,    setCategoria]    = useState('')
+  const [custo,        setCusto]        = useState('')
+  const [varejo,       setVarejo]       = useState('')
+  const [atacado,      setAtacado]      = useState('')
+  const [vip,          setVip]          = useState('')
+  const [minimo,       setMinimo]       = useState('')
+  const [qtdAtual,     setQtdAtual]     = useState('0')
+  const [qtdMin,       setQtdMin]       = useState('0')
+  const [qtdMax,       setQtdMax]       = useState('')
+  const [qtdMinAtacado,setQtdMinAtacado]= useState('')
+  const [localizacao,  setLocalizacao]  = useState('')
+  const [podeBrinde,   setPodeBrinde]   = useState(false)
+  const [temSerie,     setTemSerie]     = useState(false)
+  const [ativoCatalogo,setAtivoCatalogo]= useState(true)
+  const [destaque,     setDestaque]     = useState(false)
+  const [temGarantia,  setTemGarantia]  = useState(false)
+  const [diasGarantia, setDiasGarantia] = useState('')
+  const [textoGarantia,setTextoGarantia]= useState('')
 
-  const margem = venda > 0 ? ((venda - custo) / venda) * 100 : 0
+  const custoN  = parseFloat(custo.replace(',','.'))  || 0
+  const varejoN = parseFloat(varejo.replace(',','.')) || 0
+  const margem  = varejoN > 0 ? ((varejoN - custoN) / varejoN * 100).toFixed(1) : '0.0'
 
-  const salvar = async () => {
+  useEffect(() => {
+    if (!empresaId) return
+    createClient()
+      .from('categorias_produto')
+      .select('id,nome')
+      .eq('empresa_id', empresaId)
+      .order('nome')
+      .then(({ data }) => setCategorias(data || []))
+  }, [empresaId])
+
+  async function salvar() {
     setErro(null)
-    const nome = (document.getElementById('prod-nome') as HTMLInputElement)?.value?.trim()
-    if (!nome) { setErro('O nome do produto é obrigatório.'); return }
-    if (venda <= 0) { setErro('Informe o preço de venda.'); return }
+    if (!nome.trim())  { setErro('O nome do produto é obrigatório.'); return }
+    if (varejoN <= 0)  { setErro('Informe o preço de venda (varejo).'); return }
+    if (!empresaId)    { setErro('Erro ao identificar sua empresa.'); return }
     setSalvando(true)
-    const supabase = createClient()
-    if (!empresaId) { setErro('Erro ao identificar sua empresa.'); setSalvando(false); return }
-    const { error } = await supabase.from('produtos').insert({
-      empresa_id:  empresaId,
-      nome,
-      sku:         (document.getElementById('prod-sku') as HTMLInputElement)?.value || sku,
-      categoria:   (document.getElementById('prod-categoria') as HTMLSelectElement)?.value || null,
-      descricao:   (document.getElementById('prod-descricao') as HTMLTextAreaElement)?.value || null,
-      preco_custo: custo,
-      preco_varejo: venda,
-      preco_atacado: parseFloat((document.getElementById('prod-atacado') as HTMLInputElement)?.value) || null,
-      preco_vip:    parseFloat((document.getElementById('prod-vip') as HTMLInputElement)?.value) || null,
-      preco_minimo: parseFloat((document.getElementById('prod-minimo') as HTMLInputElement)?.value) || null,
-      qtd_atual:   parseInt((document.getElementById('prod-estoque') as HTMLInputElement)?.value) || 0,
-      qtd_minima:  parseInt((document.getElementById('prod-estoque-min') as HTMLInputElement)?.value) || 0,
-      localizacao: (document.getElementById('prod-local') as HTMLInputElement)?.value || null,
-      pode_ser_brinde: brinde,
-      tem_garantia: garantia,
-      dias_garantia: garantia ? parseInt((document.getElementById('prod-prazo') as HTMLInputElement)?.value) || null : null,
-      texto_garantia: garantia ? (document.getElementById('prod-texto-garantia') as HTMLTextAreaElement)?.value || null : null,
+    const { error } = await createClient().from('produtos').insert({
+      empresa_id:   empresaId,
+      nome:         nome.trim(),
+      sku:          sku || null,
+      codigo_barras:codigoBarras || null,
+      descricao:    descricao || null,
+      categoria:    categoria || null,
+      preco_custo:  custoN || null,
+      preco_varejo: varejoN,
+      preco_atacado:parseFloat(atacado.replace(',','.'))  || null,
+      preco_vip:    parseFloat(vip.replace(',','.'))      || null,
+      preco_minimo: parseFloat(minimo.replace(',','.'))   || null,
+      qtd_atual:    parseInt(qtdAtual)   || 0,
+      qtd_minima:   parseInt(qtdMin)     || 0,
+      qtd_maxima:   parseInt(qtdMax)     || null,
+      qtd_min_atacado: parseInt(qtdMinAtacado) || null,
+      localizacao:  localizacao || null,
+      pode_ser_brinde: podeBrinde,
+      tem_serie:    temSerie,
+      ativo_catalogo:  ativoCatalogo,
+      destaque:     destaque,
+      tem_garantia: temGarantia,
+      dias_garantia:temGarantia ? parseInt(diasGarantia) || null : null,
+      texto_garantia:temGarantia ? textoGarantia || null : null,
+      ativo:        true,
     })
     setSalvando(false)
     if (error) { setErro('Erro ao salvar: ' + error.message); return }
     router.push('/produtos')
   }
 
-  return (
-    <div className="anim-fade" style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem', maxWidth: '780px' }}>
+  const toggle = (val: boolean, setter: (v:boolean)=>void) => (
+    <button type="button" onClick={() => setter(!val)}
+      style={{ width:'44px', height:'24px', borderRadius:'12px', border:'none', cursor:'pointer',
+        background: val ? 'var(--verde)' : 'var(--borda)', position:'relative', transition:'background 0.2s', flexShrink:0 }}>
+      <span style={{ position:'absolute', top:'2px', left: val?'22px':'2px', width:'20px', height:'20px',
+        borderRadius:'50%', background:'#fff', transition:'left 0.2s', display:'block' }}/>
+    </button>
+  )
 
-      {/* Header */}
+  return (
+    <div className="anim-fade" style={{ display:'flex', flexDirection:'column', gap:'1rem', maxWidth:'800px' }}>
       <div className="pg-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-          <button onClick={() => router.back()} className="btn btn-secondary" style={{ padding: '0.4rem 0.625rem' }}>
-            <ArrowLeft size={15} />
-          </button>
+        <div style={{ display:'flex', alignItems:'center', gap:'0.625rem' }}>
+          <Link href="/produtos" style={{ color:'var(--texto-desab)', display:'flex' }}><ArrowLeft size={18}/></Link>
           <div>
-            <h1 className="pg-titulo">📦 Novo Produto</h1>
-            <p className="pg-sub">Preencha as informações do produto</p>
+            <h1 className="pg-titulo">+ Novo Produto</h1>
+            <p className="pg-sub">Preencha todos os campos necessários</p>
           </div>
         </div>
-      </div>
-
-      {/* Toggle modo */}
-      <div className="card" style={{ padding: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
-        <div>
-          <p style={{ fontWeight: 700, fontSize: '0.875rem' }}>
-            {modoCompleto ? '📦 Modo Completo' : '⚡ Modo Rápido (Recomendado para começar)'}
-          </p>
-          <p style={{ fontSize: '0.78rem', color: 'var(--texto-desab)' }}>
-            {modoCompleto ? 'Todos os campos disponíveis' : 'Só o essencial: nome, preço e quantidade'}
-          </p>
-        </div>
-        <button type="button" onClick={() => setModoCompleto(v => !v)}
-          className="btn btn-secondary" style={{ fontSize: '0.8rem', flexShrink: 0 }}>
-          {modoCompleto ? '− Modo Rápido' : '+ Configurações avançadas'}
+        <button onClick={salvar} disabled={salvando} className="btn btn-primary" style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}>
+          {salvando ? <Loader2 size={14} style={{ animation:'spin 1s linear infinite' }}/> : <Save size={14}/>}
+          Salvar Produto
         </button>
       </div>
 
-      {/* 1. Identificação */}
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div className="sec-header"><span>🏷️ Identificação</span></div>
-        <div style={{ padding: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+      {erro && <div className="alerta alerta-perigo">{erro}</div>}
 
-          <div>
-            <label className="campo-label">Nome do produto *</label>
-            <input id="prod-nome" className="campo" style={{ marginTop: '0.375rem' }}
-              placeholder="Ex: Som JBL Stage 200" />
-          </div>
-
-          {modoCompleto && (
-            <>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.625rem' }}>
-                <div>
-                  <label className="campo-label">SKU / Código *</label>
-                  <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.375rem' }}>
-                    <input className="campo" style={{ flex: 1, fontFamily: 'monospace' }}
-                      value={sku} onChange={e => setSku(e.target.value)} placeholder="Ex: SOM-001" />
-                    <button type="button" onClick={() => setSku(generateSKU())}
-                      className="btn btn-secondary" style={{ padding: '0.375rem 0.5rem', flexShrink: 0 }}>↺</button>
-                  </div>
-                </div>
-                <div>
-                  <label className="campo-label">Código de barras (opcional)</label>
-                  <input id="prod-barcode" className="campo" style={{ marginTop: '0.375rem', fontFamily: 'monospace' }}
-                    placeholder="EAN-13" />
-                </div>
-                <div>
-                  <label className="campo-label">Categoria</label>
-                  <select id="prod-categoria" className="campo" style={{ marginTop: '0.375rem' }}>
-                    <option value="">Selecionar...</option>
-                    {categorias.map(c => <option key={c}>{c}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="campo-label">Descrição (opcional)</label>
-                <textarea id="prod-descricao" className="campo" rows={2}
-                  style={{ marginTop: '0.375rem', resize: 'none' }}
-                  placeholder="Descrição curta do produto..." />
-              </div>
-            </>
-          )}
-
-          {/* Toggle brinde */}
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', cursor: 'pointer',
-            userSelect: 'none', padding: '0.625rem', background: 'var(--surface-alt)',
-            borderRadius: 'var(--radius-sm)', border: '1px solid var(--borda)' }}>
-            <input type="checkbox" checked={brinde} onChange={e => setBrinde(e.target.checked)}
-              style={{ accentColor: 'var(--verde)', width: '16px', height: '16px' }} />
-            <div>
-              <p style={{ fontWeight: 700, fontSize: '0.875rem' }}>🎁 Pode ser usado como brinde</p>
-              <p style={{ fontSize: '0.75rem', color: 'var(--texto-desab)' }}>
-                Aparece primeiro na busca de brindes no PDV
-              </p>
-            </div>
-          </label>
-
-        </div>
-      </div>
-
-      {/* 2. Preços */}
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div className="sec-header"><span>💰 Preços</span></div>
-        <div style={{ padding: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.625rem' }}>
-            {/* Custo */}
-            <div>
-              <label className="campo-label">Preço de custo *</label>
-              <div style={{ position: 'relative', marginTop: '0.375rem' }}>
-                <span style={{ position: 'absolute', left: '0.625rem', top: '50%', transform: 'translateY(-50%)',
-                  fontWeight: 700, color: 'var(--texto-desab)', fontSize: '0.875rem' }}>R$</span>
-                <input id="prod-custo" type="number" step="0.01" min="0" className="campo"
-                  style={{ paddingLeft: '2rem', fontWeight: 800, fontSize: '1.1rem' }}
-                  placeholder="0,00" onChange={e => setCusto(parseFloat(e.target.value) || 0)} />
-              </div>
-            </div>
-            {/* Venda varejo */}
-            <div>
-              <label className="campo-label">Preço de venda — Varejo *</label>
-              <div style={{ position: 'relative', marginTop: '0.375rem' }}>
-                <span style={{ position: 'absolute', left: '0.625rem', top: '50%', transform: 'translateY(-50%)',
-                  fontWeight: 700, color: 'var(--texto-desab)', fontSize: '0.875rem' }}>R$</span>
-                <input id="prod-venda" type="number" step="0.01" min="0" className="campo"
-                  style={{ paddingLeft: '2rem', fontWeight: 800, fontSize: '1.1rem', color: 'var(--verde)' }}
-                  placeholder="0,00" onChange={e => setVenda(parseFloat(e.target.value) || 0)} />
-              </div>
-            </div>
-            {/* Margem */}
-            <div>
-              <label className="campo-label">Margem de lucro</label>
-              <div className="campo" style={{ marginTop: '0.375rem', display: 'flex', alignItems: 'center',
-                justifyContent: 'center', fontWeight: 900, fontSize: '1.25rem', cursor: 'default',
-                color: margem >= 30 ? 'var(--verde)' : margem > 0 ? 'var(--amarelo)' : 'var(--texto-desab)' }}>
-                {margem > 0 ? `${margem.toFixed(1)}%` : '—'}
-              </div>
-              {margem > 0 && (
-                <p style={{ fontSize: '0.72rem', fontWeight: 700, marginTop: '3px',
-                  color: margem >= 50 ? 'var(--verde)' : margem >= 30 ? 'var(--amarelo)' : 'var(--vermelho)' }}>
-                  {margem >= 50 ? '● Ótima margem' : margem >= 30 ? '● Boa margem' : '● Margem baixa'}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {modoCompleto && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.625rem' }}>
-              <div>
-                <label className="campo-label">Preço Atacado</label>
-                <div style={{ position: 'relative', marginTop: '0.375rem' }}>
-                  <span style={{ position: 'absolute', left: '0.625rem', top: '50%', transform: 'translateY(-50%)',
-                    fontWeight: 700, color: 'var(--texto-desab)', fontSize: '0.875rem' }}>R$</span>
-                  <input id="prod-atacado" type="number" step="0.01" min="0" className="campo"
-                    style={{ paddingLeft: '2rem' }} placeholder="0,00" />
-                </div>
-              </div>
-              <div>
-                <label className="campo-label">Preço VIP</label>
-                <div style={{ position: 'relative', marginTop: '0.375rem' }}>
-                  <span style={{ position: 'absolute', left: '0.625rem', top: '50%', transform: 'translateY(-50%)',
-                    fontWeight: 700, color: 'var(--texto-desab)', fontSize: '0.875rem' }}>R$</span>
-                  <input id="prod-vip" type="number" step="0.01" min="0" className="campo"
-                    style={{ paddingLeft: '2rem' }} placeholder="0,00" />
-                </div>
-              </div>
-              <div>
-                <label className="campo-label">Preço mínimo (PDV)</label>
-                <div style={{ position: 'relative', marginTop: '0.375rem' }}>
-                  <span style={{ position: 'absolute', left: '0.625rem', top: '50%', transform: 'translateY(-50%)',
-                    fontWeight: 700, color: 'var(--texto-desab)', fontSize: '0.875rem' }}>R$</span>
-                  <input id="prod-minimo" type="number" step="0.01" min="0" className="campo"
-                    style={{ paddingLeft: '2rem' }} placeholder="limite de desconto" />
-                </div>
-              </div>
-            </div>
-          )}
-
-        </div>
-      </div>
-
-      {/* 3. Estoque */}
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div className="sec-header"><span>📉 Estoque</span></div>
-        <div style={{ padding: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.625rem' }}>
-            <div>
-              <label className="campo-label">Quantidade inicial</label>
-              <input id="prod-estoque" type="number" min="0" className="campo"
-                style={{ marginTop: '0.375rem', textAlign: 'center', fontWeight: 900, fontSize: '1.25rem' }}
-                defaultValue={0} />
-            </div>
-            <div>
-              <label className="campo-label">Estoque mínimo</label>
-              <input id="prod-estoque-min" type="number" min="0" className="campo"
-                style={{ marginTop: '0.375rem', textAlign: 'center', fontWeight: 700 }}
-                defaultValue={5} />
-              <p style={{ fontSize: '0.72rem', color: 'var(--amarelo)', marginTop: '3px', fontWeight: 600 }}>
-                ⚠ Alerta abaixo deste valor
-              </p>
-            </div>
-            <div>
-              <label className="campo-label">Localização</label>
-              <input id="prod-local" className="campo" style={{ marginTop: '0.375rem' }}
-                placeholder="Ex: Prateleira A3, Gaveta C2" />
-            </div>
-          </div>
-
-          {modoCompleto && (
-            <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', cursor: 'pointer',
-              padding: '0.75rem', background: 'var(--surface-alt)', border: '1px solid var(--borda)',
-              borderRadius: 'var(--radius-sm)' }}>
-              <input id="prod-serie" type="checkbox"
-                style={{ marginTop: '2px', width: '16px', height: '16px', accentColor: 'var(--verde)', flexShrink: 0 }} />
-              <div>
-                <p style={{ fontWeight: 700 }}>Rastrear número de série</p>
-                <p style={{ fontSize: '0.75rem', color: 'var(--texto-desab)', marginTop: '2px' }}>
-                  Habilita campo de nº de série ao registrar uma venda (recomendado para eletrônicos)
-                </p>
-              </div>
-            </label>
-          )}
-        </div>
-      </div>
-
-      {/* 4. Garantia (só modo completo) */}
-      {modoCompleto && (
-        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          <div className="sec-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>🛡️ Garantia</span>
-            <button type="button" onClick={() => setGarantia(v => !v)}
-              style={{ position: 'relative', width: '44px', height: '24px', borderRadius: '12px',
-                border: 'none', cursor: 'pointer', flexShrink: 0,
-                background: garantia ? 'var(--verde)' : '#666', transition: 'background 0.2s' }}>
-              <span style={{ position: 'absolute', top: '2px', width: '20px', height: '20px',
-                borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
-                left: garantia ? '22px' : '2px', transition: 'left 0.2s' }} />
-            </button>
-          </div>
-          <div style={{ padding: '0.875rem' }}>
-            {!garantia
-              ? <p style={{ fontSize: '0.82rem', color: 'var(--texto-desab)' }}>
-                  Ative para configurar garantia automática neste produto.
-                </p>
-              : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <div>
-                    <label className="campo-label">Prazo de garantia (dias) *</label>
-                    <input id="prod-prazo" type="number" min="1" className="campo"
-                      style={{ marginTop: '0.375rem', textAlign: 'center', fontWeight: 700, fontSize: '1.1rem', maxWidth: '160px' }}
-                      placeholder="90" />
-                    <p style={{ fontSize: '0.72rem', color: 'var(--texto-desab)', marginTop: '3px' }}>
-                      Ex: 90 dias = 3 meses
-                    </p>
-                  </div>
-                  <div>
-                    <label className="campo-label">Texto do termo de garantia</label>
-                    <textarea id="prod-texto-garantia" className="campo" rows={3}
-                      style={{ marginTop: '0.375rem', resize: 'none' }}
-                      placeholder="Ex: Garantia contra defeitos de fabricação por 90 dias. Não cobre danos físicos ou mau uso." />
-                  </div>
-                </div>
-              )
-            }
-          </div>
+      {/* Cálculo de margem */}
+      {varejoN > 0 && custoN > 0 && (
+        <div style={{ display:'flex', gap:'0.75rem', padding:'0.625rem 1rem', background:'var(--verde-claro)', border:'1px solid var(--verde-borda)', borderRadius:'var(--radius-sm)', alignItems:'center' }}>
+          <span style={{ fontWeight:700, color:'var(--verde-esc)', fontSize:'0.82rem' }}>📊 Margem de lucro:</span>
+          <span style={{ fontWeight:900, color:'var(--verde-esc)', fontFamily:'monospace', fontSize:'1rem' }}>{margem}%</span>
+          <span style={{ fontSize:'0.75rem', color:'var(--verde-esc)' }}>sobre o preço de venda</span>
         </div>
       )}
 
-      {/* Ações */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '1rem' }}>
-        <Link href="/produtos" className="btn btn-ghost">Cancelar</Link>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button type="button" className="btn btn-secondary">Salvar e criar outro</button>
-          <button id="btn-salvar-produto" type="button" onClick={salvar} disabled={salvando} className="btn btn-primary">
-            {salvando
-              ? <><Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} /> Salvando...</>
-              : <><Save size={15} /> Salvar produto</>
-            }
-          </button>
-        </div>
+      <div className="card" style={{ display:'flex', flexDirection:'column', gap:'1.25rem' }}>
+
+        {/* ── Identificação ── */}
+        <SECAO titulo="📦 Identificação">
+          <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap:'0.75rem' }}>
+            <Campo label="Nome do Produto" required>
+              <input className="campo" value={nome} onChange={e=>setNome(e.target.value)} placeholder="Ex: Som JBL Stage 200"/>
+            </Campo>
+            <Campo label="SKU (Código interno)">
+              <input className="campo" value={sku} onChange={e=>setSku(e.target.value)} style={{ minWidth:'130px' }}/>
+            </Campo>
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.75rem' }}>
+            <Campo label="Código de Barras (EAN/ISBN)">
+              <input className="campo" value={codigoBarras} onChange={e=>setCodigoBarras(e.target.value)} placeholder="Ex: 7891234567890"/>
+            </Campo>
+            <Campo label="Categoria">
+              <select className="campo" value={categoria} onChange={e=>setCategoria(e.target.value)}>
+                <option value="">— Selecionar —</option>
+                {categorias.length === 0 && <option disabled>Nenhuma categoria cadastrada</option>}
+                {categorias.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
+              </select>
+              {categorias.length === 0 && (
+                <p style={{ fontSize:'0.72rem', color:'var(--amarelo)', marginTop:'2px' }}>
+                  ⚠ <Link href="/configuracoes/categorias" style={{ color:'var(--amarelo)' }}>Cadastre categorias</Link> primeiro
+                </p>
+              )}
+            </Campo>
+          </div>
+          <Campo label="Descrição">
+            <textarea className="campo" rows={3} value={descricao} onChange={e=>setDescricao(e.target.value)}
+              placeholder="Descreva o produto, especificações, detalhes importantes..." style={{ resize:'vertical', minHeight:'80px' }}/>
+          </Campo>
+        </SECAO>
+
+        {/* ── Preços ── */}
+        <SECAO titulo="💰 Preços">
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'0.75rem' }}>
+            <Campo label="Preço de Custo (R$)">
+              <input className="campo" type="number" min="0" step="0.01" value={custo} onChange={e=>setCusto(e.target.value)} placeholder="0,00"/>
+            </Campo>
+            <Campo label="Preço Varejo (R$)" required>
+              <input className="campo" type="number" min="0" step="0.01" value={varejo} onChange={e=>setVarejo(e.target.value)} placeholder="0,00"/>
+            </Campo>
+            <Campo label="Preço Mínimo PDV (R$)">
+              <input className="campo" type="number" min="0" step="0.01" value={minimo} onChange={e=>setMinimo(e.target.value)} placeholder="Piso de desconto"/>
+            </Campo>
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.75rem' }}>
+            <Campo label="Preço Atacado (R$)">
+              <input className="campo" type="number" min="0" step="0.01" value={atacado} onChange={e=>setAtacado(e.target.value)} placeholder="Para clientes atacado"/>
+            </Campo>
+            <Campo label="Preço VIP (R$)">
+              <input className="campo" type="number" min="0" step="0.01" value={vip} onChange={e=>setVip(e.target.value)} placeholder="Para clientes VIP"/>
+            </Campo>
+          </div>
+        </SECAO>
+
+        {/* ── Estoque ── */}
+        <SECAO titulo="📊 Estoque e Localização">
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'0.75rem' }}>
+            <Campo label="Qtd Atual">
+              <input className="campo" type="number" min="0" value={qtdAtual} onChange={e=>setQtdAtual(e.target.value)} placeholder="0"/>
+            </Campo>
+            <Campo label="Qtd Mínima (alerta)">
+              <input className="campo" type="number" min="0" value={qtdMin} onChange={e=>setQtdMin(e.target.value)} placeholder="0"/>
+            </Campo>
+            <Campo label="Qtd Máxima">
+              <input className="campo" type="number" min="0" value={qtdMax} onChange={e=>setQtdMax(e.target.value)} placeholder="Opcional"/>
+            </Campo>
+            <Campo label="Qtd Mín p/ Atacado">
+              <input className="campo" type="number" min="0" value={qtdMinAtacado} onChange={e=>setQtdMinAtacado(e.target.value)} placeholder="Ex: 5"/>
+            </Campo>
+          </div>
+          <Campo label="Localização no estoque">
+            <input className="campo" value={localizacao} onChange={e=>setLocalizacao(e.target.value)} placeholder="Ex: Prateleira A3, Gaveta 2..."/>
+          </Campo>
+        </SECAO>
+
+        {/* ── Opções ── */}
+        <SECAO titulo="⚙️ Opções do Produto">
+          {[
+            { label:'Pode ser usado como brinde', desc:'Permite dar como brinde em vendas', val:podeBrinde, setter:setPodeBrinde },
+            { label:'Rastrear número de série', desc:'Solicita nº de série ao vender', val:temSerie, setter:setTemSerie },
+            { label:'Visível no catálogo online', desc:'Aparece no link público da loja', val:ativoCatalogo, setter:setAtivoCatalogo },
+            { label:'Produto em destaque', desc:'Aparece em primeiro no catálogo', val:destaque, setter:setDestaque },
+          ].map(op => (
+            <div key={op.label} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0.5rem 0', borderBottom:'1px solid var(--borda-leve)' }}>
+              <div>
+                <p style={{ fontWeight:600, fontSize:'0.875rem' }}>{op.label}</p>
+                <p style={{ fontSize:'0.75rem', color:'var(--texto-desab)', marginTop:'1px' }}>{op.desc}</p>
+              </div>
+              {toggle(op.val, op.setter)}
+            </div>
+          ))}
+        </SECAO>
+
+        {/* ── Garantia ── */}
+        <SECAO titulo="🛡️ Garantia">
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0.5rem 0' }}>
+            <div>
+              <p style={{ fontWeight:600, fontSize:'0.875rem' }}>Este produto tem garantia</p>
+              <p style={{ fontSize:'0.75rem', color:'var(--texto-desab)', marginTop:'1px' }}>Será gerado registro de garantia a cada venda</p>
+            </div>
+            {toggle(temGarantia, setTemGarantia)}
+          </div>
+          {temGarantia && (
+            <div style={{ display:'flex', flexDirection:'column', gap:'0.75rem', padding:'0.875rem', background:'var(--surface-alt)', borderRadius:'var(--radius-sm)', border:'1px solid var(--borda-leve)' }}>
+              <Campo label="Prazo da garantia (dias)" required>
+                <input className="campo" type="number" min="1" value={diasGarantia} onChange={e=>setDiasGarantia(e.target.value)} placeholder="Ex: 90"/>
+              </Campo>
+              <Campo label="Texto da garantia (impresso no recibo)">
+                <textarea className="campo" rows={2} value={textoGarantia} onChange={e=>setTextoGarantia(e.target.value)}
+                  placeholder="Ex: Garantia de 90 dias contra defeitos de fabricação." style={{ resize:'vertical' }}/>
+              </Campo>
+            </div>
+          )}
+        </SECAO>
+
       </div>
 
+      <div style={{ display:'flex', gap:'0.5rem', justifyContent:'flex-end' }}>
+        <Link href="/produtos" className="btn btn-ghost">Cancelar</Link>
+        <button onClick={salvar} disabled={salvando} className="btn btn-primary" style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}>
+          {salvando ? <Loader2 size={14} style={{ animation:'spin 1s linear infinite' }}/> : <Save size={14}/>}
+          Salvar Produto
+        </button>
+      </div>
     </div>
   )
 }

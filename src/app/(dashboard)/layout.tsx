@@ -7,7 +7,7 @@ import {
   Shield, Wrench, BarChart3, Settings, LogOut, X, Menu, Bell,
   ChevronRight, Zap, DollarSign, UserX, Globe, Award, BookOpen
 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 const navGroups = [
@@ -169,6 +169,36 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) 
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const router = useRouter()
+
+  // Realtime: detecta congelamento ou exclusão e faz logout imediato
+  useEffect(() => {
+    const supabase = createClient()
+    let userId = ''
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      userId = user.id
+      const channel = supabase
+        .channel('profile-status-' + userId)
+        .on('postgres_changes', {
+          event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${userId}`
+        }, async (payload) => {
+          const novo = payload.new as { status?: string; empresa_id?: string | null }
+          if (novo.status === 'congelado' || novo.status === 'excluido' || !novo.empresa_id) {
+            await supabase.auth.signOut()
+            router.push('/login')
+          }
+        })
+        .on('postgres_changes', {
+          event: 'DELETE', schema: 'public', table: 'profiles', filter: `id=eq.${userId}`
+        }, async () => {
+          await supabase.auth.signOut()
+          router.push('/login')
+        })
+        .subscribe()
+      return () => { supabase.removeChannel(channel) }
+    })
+  }, [])
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--fundo)' }}>
