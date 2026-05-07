@@ -309,7 +309,7 @@
 
 ---
 
-## ITENS TODO (fases futuras)
+## ITENS TODO (fases futuras
 
 | Item | Onde |
 |---|---|
