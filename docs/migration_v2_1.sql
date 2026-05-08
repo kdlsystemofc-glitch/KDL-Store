@@ -30,9 +30,10 @@ alter table public.comissoes
 alter table public.itens_venda
   add column if not exists empresa_id uuid references public.empresas(id);
 
--- ordens_servico: cliente_tel (campo usado no formulário)
+-- ordens_servico: cliente_tel e venda_id (vínculo com venda de origem)
 alter table public.ordens_servico
-  add column if not exists cliente_tel text;
+  add column if not exists cliente_tel text,
+  add column if not exists venda_id uuid references public.vendas(id);
 
 -- garantias: produto_id (inserido automaticamente pelo PDV)
 alter table public.garantias

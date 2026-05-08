@@ -13,6 +13,7 @@ export default function FinanceiroPage() {
   const [receita,    setReceita]    = useState(0)
   const [despesas,   setDespesas]   = useState(0)
   const [fiado,      setFiado]      = useState(0)
+  const [brindes,    setBrindes]    = useState(0)
   const [despLista,  setDespLista]  = useState<{categoria:string|null;tipo:string;valor:number}[]>([])
   const [formas,     setFormas]     = useState<{forma:string;total:number}[]>([])
   const [diasGraf,   setDiasGraf]   = useState<{dia:string;total:number}[]>([])
@@ -23,17 +24,25 @@ export default function FinanceiroPage() {
     setLoading(true)
     const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0,10)
     const supabase  = createClient()
-    const [{ data: vendas }, { data: desps }, { data: fiados }, { data: vendasMes }] = await Promise.all([
+    const [{ data: vendas }, { data: desps }, { data: fiados }, { data: vendasMes }, { data: brindesMov }] = await Promise.all([
       supabase.from('vendas').select('total,forma_pagamento,criado_em').eq('empresa_id', eid).eq('status','concluida').gte('criado_em', inicioMes),
       supabase.from('despesas').select('categoria,tipo,valor').eq('empresa_id', eid).gte('data', inicioMes),
       supabase.from('fiados').select('valor_aberto').eq('empresa_id', eid).eq('status','aberto'),
       supabase.from('vendas').select('criado_em,total').eq('empresa_id', eid).eq('status','concluida').gte('criado_em', new Date(Date.now()-29*86400000).toISOString()),
+      supabase.from('estoque_movimentacoes').select('quantidade,produto_id,produtos(preco_custo)').eq('empresa_id', eid).eq('tipo','brinde').gte('criado_em', inicioMes),
     ])
 
     const totalReceita = (vendas||[]).reduce((a,v)=>a+v.total,0)
     const totalDesp    = (desps||[]).reduce((a,d)=>a+d.valor,0)
     const totalFiado   = (fiados||[]).reduce((a,f)=>a+f.valor_aberto,0)
-    setReceita(totalReceita); setDespesas(totalDesp); setFiado(totalFiado)
+    // Custo dos brindes = quantidade * preco_custo do produto
+    const totalBrindes = (brindesMov||[]).reduce((a, m) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const prod = m.produtos as any
+      const custo = Array.isArray(prod) ? (prod[0]?.preco_custo || 0) : (prod?.preco_custo || 0)
+      return a + Math.abs(m.quantidade) * custo
+    }, 0)
+    setReceita(totalReceita); setDespesas(totalDesp); setFiado(totalFiado); setBrindes(totalBrindes)
     setDespLista(desps||[])
 
     // Formas
@@ -153,9 +162,10 @@ export default function FinanceiroPage() {
           <div className="card">
             <p style={{fontWeight:800,marginBottom:'0.875rem'}}>📋 DRE Simplificado — {new Date().toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}</p>
             {[
-              {l:'(+) Receita de Vendas', v:receita, c:'var(--verde)', neg:false},
-              {l:'(-) Despesas Totais',   v:despesas, c:'var(--vermelho)', neg:true},
-              {l:'(=) Lucro Líquido Estimado', v:lucro, c:lucro>=0?'var(--verde)':'var(--vermelho)', neg:false},
+              {l:'(+) Receita de Vendas',       v:receita,  c:'var(--verde)',    neg:false},
+              {l:'(-) Brindes Concedidos',       v:brindes,  c:'var(--amarelo)', neg:true},
+              {l:'(-) Despesas Totais',          v:despesas, c:'var(--vermelho)', neg:true},
+              {l:'(=) Lucro Líquido Estimado',   v:receita - brindes - despesas, c:(receita-brindes-despesas)>=0?'var(--verde)':'var(--vermelho)', neg:false},
             ].map(r=>(
               <div key={r.l} style={{display:'flex',justifyContent:'space-between',padding:'0.5rem 0',borderBottom:'1px solid var(--borda-leve)'}}>
                 <span style={{fontWeight:r.l.startsWith('(=)')?800:400,fontSize:'0.9rem'}}>{r.l}</span>

@@ -10,9 +10,10 @@ type KPIs = {
   vendasHoje: number; faturamentoHoje: number; ticketMedio: number
   produtosCriticos: number; fiadoAberto: number; despesasMes: number
   vendasSemana: { dia: string; total: number }[]
+  totalProdutos: number; totalVendas: number
 }
 
-const EMPTY: KPIs = { vendasHoje:0, faturamentoHoje:0, ticketMedio:0, produtosCriticos:0, fiadoAberto:0, despesasMes:0, vendasSemana:[] }
+const EMPTY: KPIs = { vendasHoje:0, faturamentoHoje:0, ticketMedio:0, produtosCriticos:0, fiadoAberto:0, despesasMes:0, vendasSemana:[], totalProdutos:0, totalVendas:0 }
 
 export default function DashboardPage() {
   const { empresaId, loading: loadingEmpresa } = useEmpresaId()
@@ -43,6 +44,8 @@ export default function DashboardPage() {
       { data: fiados },
       { data: despesas },
       { data: vendasSemana },
+      { count: totalProdutos },
+      { count: totalVendas },
     ] = await Promise.all([
       supabase.from('vendas').select('total').eq('empresa_id', eid).gte('criado_em', hoje).eq('status','concluida'),
       supabase.from('produtos').select('id,qtd_atual,qtd_minima').eq('empresa_id', eid).gt('qtd_minima',0),
@@ -50,6 +53,8 @@ export default function DashboardPage() {
       supabase.from('despesas').select('valor').eq('empresa_id', eid).gte('data', inicioMes.slice(0,10)),
       supabase.from('vendas').select('criado_em,total').eq('empresa_id', eid).eq('status','concluida')
         .gte('criado_em', new Date(Date.now()-6*86400000).toISOString()).order('criado_em'),
+      supabase.from('produtos').select('*', { count: 'exact', head: true }).eq('empresa_id', eid),
+      supabase.from('vendas').select('*', { count: 'exact', head: true }).eq('empresa_id', eid),
     ])
 
     // Filtra críticos em JS (PostgREST não suporta comparação coluna-vs-coluna)
@@ -77,6 +82,8 @@ export default function DashboardPage() {
       produtosCriticos: (criticos||[]).length,
       fiadoAberto: fiadoTotal, despesasMes: despTotal,
       vendasSemana: dias,
+      totalProdutos: totalProdutos || 0,
+      totalVendas: totalVendas || 0,
     })
     setLoading(false)
   }
@@ -94,7 +101,30 @@ export default function DashboardPage() {
   return (
     <div className="anim-fade" style={{display:'flex',flexDirection:'column',gap:'1rem'}}>
 
-      {/* Header */}
+      {/* ── ONBOARDING: primeiros passos ── */}
+      {kpis.totalProdutos === 0 && (
+        <div className="card" style={{padding:'1.5rem',border:'2px solid var(--verde)',background:'var(--verde-claro)'}}>
+          <p style={{fontWeight:900,fontSize:'1.1rem',color:'var(--verde-esc)',marginBottom:'0.25rem'}}>👋 Bem-vindo ao NexoCommerce!</p>
+          <p style={{fontSize:'0.85rem',color:'var(--verde-esc)',marginBottom:'1.25rem',opacity:0.85}}>Siga os 3 passos abaixo para começar a usar o sistema:</p>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'0.75rem'}}>
+            {[
+              { n:'1', titulo:'Cadastre um produto', desc:'Adicione o que você vende ao seu estoque', href:'/produtos', btn:'Cadastrar produto →' },
+              { n:'2', titulo:'Faça sua primeira venda', desc:'Registre uma venda no PDV para testar o fluxo', href:'/vendas/nova', btn:'Abrir PDV →' },
+              { n:'3', titulo:'Configure seus fornecedores', desc:'Cadastre de quem você compra para acionar rápido', href:'/fornecedores', btn:'Cadastrar fornecedor →' },
+            ].map(p => (
+              <div key={p.n} style={{background:'var(--surface)',borderRadius:'var(--radius)',padding:'1rem',border:'1px solid var(--verde-borda)'}}>
+                <div style={{display:'flex',alignItems:'center',gap:'0.5rem',marginBottom:'0.5rem'}}>
+                  <div style={{width:'28px',height:'28px',borderRadius:'50%',background:'var(--verde)',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:900,fontSize:'0.9rem',flexShrink:0}}>{p.n}</div>
+                  <p style={{fontWeight:800,fontSize:'0.875rem'}}>{p.titulo}</p>
+                </div>
+                <p style={{fontSize:'0.78rem',color:'var(--texto-desab)',marginBottom:'0.75rem'}}>{p.desc}</p>
+                <Link href={p.href} className="btn btn-primary" style={{fontSize:'0.78rem',padding:'0.375rem 0.75rem',display:'inline-flex'}}>{p.btn}</Link>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
         <div>
           <h1 className="pg-titulo">📊 Dashboard</h1>

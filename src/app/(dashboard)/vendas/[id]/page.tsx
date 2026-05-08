@@ -3,19 +3,38 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
-import { ArrowLeft, Printer } from 'lucide-react'
+import { ArrowLeft, Printer, X, Loader2, Package, Wrench } from 'lucide-react'
 
-type Venda = { id:string; numero:number; cliente_nome:string|null; forma_pagamento:string; subtotal:number; desconto:number; total:number; status:string; criado_em:string }
-type Item  = { id:string; produto_nome:string; quantidade:number; preco_unitario:number; brinde:boolean; num_serie:string|null }
+type Venda    = { id:string; numero:number; cliente_nome:string|null; forma_pagamento:string; subtotal:number; desconto:number; total:number; status:string; criado_em:string }
+type Item     = { id:string; produto_nome:string; quantidade:number; preco_unitario:number; brinde:boolean; num_serie:string|null }
+type Fornecedor = { id:string; nome:string; telefone:string|null }
 
 const FORMA_ICON: Record<string,string> = { PIX:'📱', Dinheiro:'💵', Crédito:'💳', Débito:'💴', Fiado:'📒' }
 
 export default function VendaReciboPage() {
-  const { id }   = useParams() as { id: string }
+  const { id }          = useParams() as { id: string }
+  const { empresaId }   = useEmpresaId()
   const [venda,  setVenda]  = useState<Venda|null>(null)
   const [itens,  setItens]  = useState<Item[]>([])
   const [loading,setLoading]= useState(true)
+
+  // Modal Acionar Fornecedor
+  const [showForn,    setShowForn]    = useState(false)
+  const [fornecedores,setFornecedores]= useState<Fornecedor[]>([])
+  const [fornSel,     setFornSel]     = useState('')
+  const [fornItem,    setFornItem]    = useState('')
+  const [salvandoForn,setSalvandoForn]= useState(false)
+
+  // Modal Abrir OS
+  const [showOS,    setShowOS]    = useState(false)
+  const [osEquip,   setOsEquip]   = useState('')
+  const [osDefeito, setOsDefeito] = useState('')
+  const [osTecnico, setOsTecnico] = useState('')
+  const [osObs,     setOsObs]     = useState('')
+  const [salvandoOS,setSalvandoOS]= useState(false)
+  const [osSucesso, setOsSucesso] = useState<string|null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -30,6 +49,71 @@ export default function VendaReciboPage() {
     })
   }, [id])
 
+  async function abrirModalForn() {
+    setShowForn(true)
+    if (!empresaId || fornecedores.length > 0) return
+    const { data } = await createClient().from('fornecedores').select('id,nome,telefone').eq('empresa_id', empresaId).eq('ativo', true).order('nome')
+    setFornecedores(data || [])
+  }
+
+  async function acionarFornecedor() {
+    if (!venda || !fornSel || !fornItem.trim() || !empresaId) return
+    setSalvandoForn(true)
+    const forn = fornecedores.find(f => f.id === fornSel)
+
+    // Salva pedido vinculado à venda
+    await createClient().from('pedidos_fornecedor').insert({
+      empresa_id:    empresaId,
+      fornecedor_id: fornSel,
+      produto:       fornItem.trim(),
+      quantidade:    1,
+      status:        'aguardando',
+      venda_id:      venda.id,
+      obs:           `Venda #${String(venda.numero).padStart(4,'0')} — ${venda.cliente_nome || 'Anônimo'}`,
+    })
+
+    // Abre WhatsApp com contexto completo
+    if (forn?.telefone) {
+      const produtosList = itens.filter(i => !i.brinde).map(i => `• ${i.produto_nome} (${i.quantidade}x)`).join('\n')
+      const msg = encodeURIComponent(
+        `Olá ${forn.nome}! 👋\n\n` +
+        `Preciso de um item com urgência para complementar uma venda que acabei de fechar:\n\n` +
+        `📦 *Item necessário:* ${fornItem.trim()}\n\n` +
+        `🧾 *Contexto da venda:*\n` +
+        `• Venda #${String(venda.numero).padStart(4,'0')}\n` +
+        `• Cliente: ${venda.cliente_nome || 'Anônimo'}\n` +
+        `• Produtos vendidos:\n${produtosList}\n\n` +
+        `Por favor confirmar disponibilidade e prazo! 🙏`
+      )
+      window.open(`https://wa.me/55${forn.telefone.replace(/\D/g, '')}?text=${msg}`, '_blank')
+    }
+
+    setSalvandoForn(false)
+    setShowForn(false)
+    setFornItem('')
+    setFornSel('')
+  }
+
+  async function abrirOS() {
+    if (!venda || !osEquip.trim() || !empresaId) return
+    setSalvandoOS(true)
+    const { data } = await createClient().from('ordens_servico').insert({
+      empresa_id:       empresaId,
+      cliente_nome:     venda.cliente_nome || 'Anônimo',
+      equipamento:      osEquip.trim(),
+      defeito_relatado: osDefeito.trim() || null,
+      tecnico:          osTecnico.trim() || null,
+      observacoes:      osObs.trim() || null,
+      venda_id:         venda.id,
+      status:           'aberta',
+    }).select('id').single()
+    setSalvandoOS(false)
+    if (data) {
+      setOsSucesso(`OS criada com sucesso! Vinculada à Venda #${String(venda.numero).padStart(4,'0')}.`)
+      setShowOS(false)
+    }
+  }
+
   if (loading) return (
     <div style={{display:'flex',justifyContent:'center',padding:'3rem',color:'var(--texto-desab)'}}>Carregando recibo...</div>
   )
@@ -37,6 +121,100 @@ export default function VendaReciboPage() {
 
   return (
     <div className="anim-fade" style={{display:'flex',flexDirection:'column',gap:'0.875rem',maxWidth:'560px'}}>
+
+      {/* Modal Acionar Fornecedor */}
+      {showForn && (
+        <div style={{position:'fixed',inset:0,zIndex:100,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',justifyContent:'center',padding:'1rem'}}
+          onClick={e=>{if(e.target===e.currentTarget)setShowForn(false)}}>
+          <div className="card anim-pop" style={{width:'100%',maxWidth:'460px',padding:0}}>
+            <div style={{padding:'1.25rem',borderBottom:'1px solid var(--borda)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <div>
+                <p style={{fontWeight:900,fontSize:'1.1rem'}}>📦 Acionar Fornecedor</p>
+                <p style={{fontSize:'0.82rem',color:'var(--texto-desab)'}}>Venda #{String(venda.numero).padStart(4,'0')} · {venda.cliente_nome || 'Anônimo'}</p>
+              </div>
+              <button onClick={()=>setShowForn(false)} className="btn-icon"><X size={18}/></button>
+            </div>
+            <div style={{padding:'1.25rem',display:'flex',flexDirection:'column',gap:'0.875rem'}}>
+              <div>
+                <label className="campo-label">Fornecedor *</label>
+                <select className="campo" style={{marginTop:'0.375rem'}} value={fornSel} onChange={e=>setFornSel(e.target.value)}>
+                  <option value="">— Selecionar fornecedor —</option>
+                  {fornecedores.map(f=><option key={f.id} value={f.id}>{f.nome}{f.telefone?` · ${f.telefone}`:''}</option>)}
+                </select>
+                {fornecedores.length === 0 && <p style={{fontSize:'0.75rem',color:'var(--texto-desab)',marginTop:'4px'}}>Nenhum fornecedor ativo cadastrado.</p>}
+              </div>
+              <div>
+                <label className="campo-label">Item necessário *</label>
+                <input className="campo" style={{marginTop:'0.375rem'}} value={fornItem} onChange={e=>setFornItem(e.target.value)}
+                  placeholder="Ex: Moldura para Palio 2010 preta"/>
+              </div>
+              <div className="alerta alerta-info" style={{fontSize:'0.78rem'}}>
+                💬 Será aberto o WhatsApp do fornecedor com a mensagem já preenchida, incluindo o contexto da venda.
+              </div>
+              <div style={{display:'flex',gap:'0.5rem',justifyContent:'flex-end'}}>
+                <button onClick={()=>setShowForn(false)} className="btn btn-ghost">Cancelar</button>
+                <button onClick={acionarFornecedor} disabled={!fornSel||!fornItem.trim()||salvandoForn} className="btn btn-primary"
+                  style={{display:'flex',alignItems:'center',gap:'0.375rem'}}>
+                  {salvandoForn?<Loader2 size={14} style={{animation:'spin 1s linear infinite'}}/>:<Package size={14}/>}
+                  Acionar via WhatsApp
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Abrir OS */}
+      {showOS && (
+        <div style={{position:'fixed',inset:0,zIndex:100,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',justifyContent:'center',padding:'1rem'}}
+          onClick={e=>{if(e.target===e.currentTarget)setShowOS(false)}}>
+          <div className="card anim-pop" style={{width:'100%',maxWidth:'480px',padding:0}}>
+            <div style={{padding:'1.25rem',borderBottom:'1px solid var(--borda)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <div>
+                <p style={{fontWeight:900,fontSize:'1.1rem'}}>🔧 Abrir Ordem de Serviço</p>
+                <p style={{fontSize:'0.82rem',color:'var(--texto-desab)'}}>Vinculada à Venda #{String(venda.numero).padStart(4,'0')}</p>
+              </div>
+              <button onClick={()=>setShowOS(false)} className="btn-icon"><X size={18}/></button>
+            </div>
+            <div style={{padding:'1.25rem',display:'flex',flexDirection:'column',gap:'0.75rem'}}>
+              <div>
+                <label className="campo-label">Cliente</label>
+                <input className="campo" value={venda.cliente_nome||''} readOnly
+                  style={{marginTop:'0.375rem',opacity:0.7,cursor:'not-allowed'}}/>
+              </div>
+              <div>
+                <label className="campo-label">Equipamento / Produto *</label>
+                <input className="campo" style={{marginTop:'0.375rem'}} value={osEquip} onChange={e=>setOsEquip(e.target.value)}
+                  placeholder={itens.filter(i=>!i.brinde)[0]?.produto_nome || 'Ex: Som JBL Stage 200'}/>
+              </div>
+              <div>
+                <label className="campo-label">Defeito / Serviço Solicitado</label>
+                <textarea className="campo" rows={2} style={{marginTop:'0.375rem',resize:'none'}} value={osDefeito} onChange={e=>setOsDefeito(e.target.value)}
+                  placeholder="Ex: Instalação do equipamento no veículo"/>
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.625rem'}}>
+                <div>
+                  <label className="campo-label">Técnico responsável</label>
+                  <input className="campo" style={{marginTop:'0.375rem'}} value={osTecnico} onChange={e=>setOsTecnico(e.target.value)} placeholder="Nome do técnico"/>
+                </div>
+                <div>
+                  <label className="campo-label">Observações</label>
+                  <input className="campo" style={{marginTop:'0.375rem'}} value={osObs} onChange={e=>setOsObs(e.target.value)} placeholder="Opcional"/>
+                </div>
+              </div>
+              <div style={{display:'flex',gap:'0.5rem',justifyContent:'flex-end',marginTop:'0.25rem'}}>
+                <button onClick={()=>setShowOS(false)} className="btn btn-ghost">Cancelar</button>
+                <button onClick={abrirOS} disabled={!osEquip.trim()||salvandoOS} className="btn btn-primary"
+                  style={{display:'flex',alignItems:'center',gap:'0.375rem'}}>
+                  {salvandoOS?<Loader2 size={14} style={{animation:'spin 1s linear infinite'}}/>:<Wrench size={14}/>}
+                  Criar OS
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="pg-header">
         <div style={{display:'flex',alignItems:'center',gap:'0.625rem'}}>
           <Link href="/vendas" className="btn btn-secondary" style={{padding:'0.4rem 0.625rem'}}><ArrowLeft size={15}/></Link>
@@ -47,6 +225,25 @@ export default function VendaReciboPage() {
         </div>
         <button onClick={()=>window.print()} className="btn btn-secondary" style={{display:'flex',alignItems:'center',gap:'0.375rem'}}>
           <Printer size={14}/> Imprimir
+        </button>
+      </div>
+
+      {/* Sucesso OS */}
+      {osSucesso && (
+        <div className="alerta alerta-ok" style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <span>✅ {osSucesso}</span>
+          <Link href="/ordens-de-servico" style={{fontWeight:700,color:'var(--verde)',fontSize:'0.82rem'}}>Ver OS →</Link>
+        </div>
+      )}
+
+      {/* Botões de ação pós-venda */}
+      <div style={{display:'flex',gap:'0.5rem',flexWrap:'wrap'}}>
+        <button onClick={abrirModalForn} className="btn btn-secondary" style={{display:'flex',alignItems:'center',gap:'0.375rem',fontSize:'0.82rem'}}>
+          <Package size={14}/> Acionar Fornecedor
+        </button>
+        <button onClick={()=>{setShowOS(true);setOsEquip(itens.filter(i=>!i.brinde)[0]?.produto_nome||'')}} className="btn btn-secondary"
+          style={{display:'flex',alignItems:'center',gap:'0.375rem',fontSize:'0.82rem'}}>
+          <Wrench size={14}/> Abrir Ordem de Serviço
         </button>
       </div>
 

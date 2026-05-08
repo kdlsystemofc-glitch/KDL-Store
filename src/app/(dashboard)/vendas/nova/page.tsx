@@ -7,7 +7,7 @@ import { formatCurrency } from '@/lib/utils'
 import { X, Loader2, Plus } from 'lucide-react'
 import { FormCliente } from '@/components/FormCliente'
 
-type ProdDB = { id:string; nome:string; sku:string|null; preco_varejo:number; preco_atacado:number|null; preco_vip:number|null; qtd_atual:number; tem_garantia:boolean; dias_garantia:number|null; texto_garantia:string|null }
+type ProdDB = { id:string; nome:string; sku:string|null; preco_varejo:number; preco_atacado:number|null; preco_vip:number|null; preco_minimo:number|null; qtd_atual:number; tem_garantia:boolean; dias_garantia:number|null; texto_garantia:string|null }
 type TipoCliente = 'varejo'|'atacado'|'vip'
 type Item = { produto:ProdDB; qty:number; serie:string; brinde:boolean; precoUsado:number }
 
@@ -39,7 +39,7 @@ export default function NovaPdvPage() {
   const carregar = useCallback(async (eid: string) => {
     const { data } = await createClient()
       .from('produtos')
-      .select('id,nome,sku,preco_varejo,preco_atacado,preco_vip,qtd_atual,tem_garantia,dias_garantia,texto_garantia')
+      .select('id,nome,sku,preco_varejo,preco_atacado,preco_vip,preco_minimo,qtd_atual,tem_garantia,dias_garantia,texto_garantia')
       .eq('empresa_id', eid)
       .eq('ativo', true)
       .order('nome')
@@ -265,15 +265,44 @@ export default function NovaPdvPage() {
                             <span style={{width:'32px',textAlign:'center',fontWeight:800}}>{item.qty}</span>
                             <button onClick={()=>updateQty(idx,+1)} className="btn btn-secondary" style={{padding:'0.2rem 0.5rem',fontWeight:900}}>+</button>
                           </div>
-                          <div style={{display:'flex',alignItems:'center',gap:'0.5rem'}}>
-                            <button onClick={()=>toggleBrinde(idx)}
-                              className={item.brinde?'btn btn-primary':'btn btn-secondary'}
-                              style={{fontSize:'0.7rem',padding:'0.25rem 0.5rem'}}>
-                              🎁 {item.brinde?'Brinde ON':'Brinde'}
-                            </button>
-                            <span style={{fontWeight:900,fontFamily:'monospace',fontSize:'0.95rem',color:item.brinde?'var(--verde)':'var(--texto)'}}>
-                              {item.brinde?'R$ 0,00':formatCurrency(item.precoUsado*item.qty)}
-                            </span>
+                          <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:'2px'}}>
+                            <div style={{display:'flex',alignItems:'center',gap:'0.5rem'}}>
+                              <button onClick={()=>toggleBrinde(idx)}
+                                className={item.brinde?'btn btn-primary':'btn btn-secondary'}
+                                style={{fontSize:'0.7rem',padding:'0.25rem 0.5rem'}}>
+                                🎁 {item.brinde?'Brinde ON':'Brinde'}
+                              </button>
+                              {item.brinde ? (
+                                <span style={{fontWeight:900,fontFamily:'monospace',fontSize:'0.95rem',color:'var(--verde)'}}>R$ 0,00</span>
+                              ) : (
+                                <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end'}}>
+                                  <div style={{display:'flex',alignItems:'center',gap:'0.25rem'}}>
+                                    <span style={{fontSize:'0.72rem',color:'var(--texto-desab)'}}>R$</span>
+                                    <input
+                                      type="number" step="0.01" min="0"
+                                      value={item.precoUsado}
+                                      onChange={e => {
+                                        const novo = parseFloat(e.target.value) || 0
+                                        const copy = [...itens]; copy[idx] = {...copy[idx], precoUsado: novo}; setItens(copy)
+                                      }}
+                                      style={{
+                                        width:'80px', padding:'0.2rem 0.4rem', fontFamily:'monospace', fontWeight:800, fontSize:'0.875rem',
+                                        border:`1.5px solid ${item.produto.preco_minimo && item.precoUsado < item.produto.preco_minimo ? 'var(--vermelho)' : 'var(--borda)'}`,
+                                        borderRadius:'var(--radius-sm)', background:'var(--surface)', color:'var(--texto)', textAlign:'right'
+                                      }}
+                                    />
+                                  </div>
+                                  {item.produto.preco_minimo && item.precoUsado < item.produto.preco_minimo && (
+                                    <span style={{fontSize:'0.65rem',color:'var(--vermelho)',fontWeight:700,marginTop:'1px'}}>⚠ Abaixo do preço mínimo</span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                            {!item.brinde && (
+                              <span style={{fontSize:'0.75rem',color:'var(--texto-desab)',fontFamily:'monospace'}}>
+                                = {formatCurrency(item.precoUsado * item.qty)}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
