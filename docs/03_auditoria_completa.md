@@ -95,17 +95,17 @@
 ### `/vendas/nova` (PDV)
 | Elemento | Ação / Destino |
 |---|---|
-| Banner onboarding (1ª vez) | Mostra ao abrir, fecha c/ X, salva `localStorage.pdv_onboarding` |
+| Banner onboarding (1ª vez) | Mostra ao abrir, fecha c/ X, salva no banco |
 | Busca produto: resultado vazio | Aparece botão "📦 Pedir ao Fornecedor" |
 | Btn "📦 Pedir ao Fornecedor" | Abre modal inline (produto pré-preenchido) |
 | Modal: select Fornecedor | Lista fornecedores cadastrados |
-| Modal: Btn "💬 Abrir WhatsApp" | Monta msg + salva em `localStorage.pedidosPendentes` |
+| Modal: Btn "💬 Abrir WhatsApp" | Monta msg + salva em `pedidos_fornecedor` (Supabase) |
 | Toggle Brinde ON | Preço → R$0, exibe custo real do brinde |
 | Tipo cliente Varejo/Atacado/VIP | Atualiza preços do carrinho |
-| Campo Comissionado | Registra indicação |
+| Campo Comissionado | Registra indicação na venda |
 | Pgto = Fiado | Campo cliente torna-se **obrigatório** + borda vermelha + aviso |
 | Btn "Anônimo" | Desabilitado quando Fiado selecionado |
-| Btn "📒 REGISTRAR NO FIADO" | Salva em `localStorage.fiadosAbertos` + finaliza venda |
+| Btn "📒 REGISTRAR NO FIADO" | Salva em `fiados` (Supabase) + finaliza venda |
 | Btns PIX/Dinheiro/Crédito/Débito/Fiado | Seleciona forma pgto |
 | Btn FINALIZAR VENDA | Processa → tela sucesso |
 | Sucesso: Btn Ver Recibo | → `/vendas/[id]` |
@@ -211,9 +211,9 @@
 |---|---|
 | Btn `+ Cadastrar Comissionado` | Abre modal inline |
 | Modal Btn Cancelar | Fecha modal |
-| Modal Btn `Salvar` | Adiciona à lista (estado local) |
+| Modal Btn `Salvar` | Adiciona à tabela `comissoes` (Supabase) |
 | Btn 💬 WhatsApp | `wa.me/55{tel}` |
-| Btn `✓ Marcar Pago` | Atualiza estado local |
+| Btn `✓ Marcar Pago` | Atualiza status no banco (Supabase) |
 
 ### `/catalogo`
 | Elemento | Ação / Destino |
@@ -327,3 +327,9 @@
 4. **SKU Editável:** O SKU agora é editável em FormProduto, mantendo geração aleatória via botão, com validação de unicidade.
 5. **Schema e Banco:** Adicionada coluna ean e índice único na tabela produtos. Inseridas colunas faltantes na tabela empresas (cnpj, email, etc.).
 6. **Correções:** Resolvido o loop de autenticação no layout, erro 400 em despesas e problemas de encoding.
+
+## Resumo Final da Auditoria
+1.  **Fiado:** Refatorado para usar a tabela `fiados` no Supabase, com suporte a relatórios no Dashboard e cálculo em DRE.
+2.  **Acionar Fornecedor:** Refatorado para salvar pedidos diretamente na tabela `pedidos_fornecedor` no Supabase e enviar WhatsApp.
+3.  **Comissões:** Usa a tabela `comissoes` do Supabase de forma nativa e calcula as comissões dinamicamente associando com o ID da Venda (`comissionado_id`).
+4.  **Tudo 100% no Banco:** O sistema **NÃO utiliza** `localStorage` nem estado local temporário para armazenamento persistente de dados. Qualquer dado financeiro, venda, cliente, produto e comissões são restritos ao PostgreSQL (Supabase) garantindo sincronização e segurança.
