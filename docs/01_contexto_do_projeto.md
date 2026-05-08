@@ -100,24 +100,26 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 
 ---
 
-## 6. Design System — "PDV Clássico Brasileiro"
+## 6. Design System — "Neobrutalismo (Premium Modern Retro)"
 
-Inspirado em Bematech, Linx, sistemas de mercado dos anos 2000.
+Inspirado em sistemas clássicos de mercado dos anos 90, mas refinado com tendências de design premium para SaaS B2B moderno.
 
 **Princípios:**
-- Status: apenas texto colorido com ponto (`● Concluída`) — SEM badges com bordas
-- Tabelas com zebra stripes + header escuro `#2c3e50`
-- Fundo cinza claro `#e8e8e8` (Windows-like)
-- Texto preto real `#111111`
+- **Contraste Forte:** Fundo cinza claro (`#f3f4f6`) com cartões em branco puro (`#ffffff`).
+- **Bordas Grossas e Sombras Secas:** Componentes como botões, cartões e abas possuem `border: 2px solid #111827` e sombras sólidas (ex: `4px 4px 0px #111827`), criando uma sensação de interface tátil e física.
+- **Tabelas:** Design zebrado leve, mas envolto em bordas pesadas e um cabeçalho muito escuro para legibilidade máxima.
+- **Abas Estilo "Pasta":** Navegação horizontal imitando divisórias físicas de pastas de arquivo, aumentando a clareza para usuários com pouca intimidade tecnológica.
 
 **Cores principais:**
-```
---verde:    #1a7a3c   ← dinheiro, sucesso
---vermelho: #c0392b   ← erro, zerado
---amarelo:  #b7860b   ← alerta, crítico
---azul:     #1a5fa8   ← info, atacado
---fundo:    #e8e8e8   ← fundo geral
---sidebar:  #1a2535   ← sidebar escura
+```css
+--verde:        #059669; /* Emerald - Dinheiro, sucesso, moderno */
+--vermelho:     #dc2626; /* Erro, zerado */
+--amarelo:      #d97706; /* Alerta, crítico */
+--azul:         #2563eb; /* Info, atacado */
+--fundo:        #f3f4f6; /* Fundo geral claro */
+--surface:      #ffffff; /* Fundo de formulários */
+--borda:        #111827; /* Preto puro para bordas (Stark Contrast) */
+--sidebar-bg:   #111827; /* Sidebar bem escura */
 ```
 
 ---
@@ -147,6 +149,7 @@ Inspirado em Bematech, Linx, sistemas de mercado dos anos 2000.
 | **Fechamento Multi-Período** | Diário, quinzenal, mensal, anual |
 | **Brindes no PDV** | Item brinde aparece no recibo |
 | **Recibo com Garantia** | Termos + nº de série no recibo |
+| **Leitor EAN Inteligente** | Leitura via Câmera (zxing) no mobile ou leitor físico no PDV |
 
 ---
 

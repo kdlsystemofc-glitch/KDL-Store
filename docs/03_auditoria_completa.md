@@ -317,3 +317,13 @@
 | Subpáginas `/configuracoes/*` | Configurações | TODO |
 | Esqueceu a senha? | Login | TODO |
 
+
+## Atualizações de Maio/2026 (Refatoração Neobrutalista e Barcode)
+1. **Design System:** Migrado de "Clássico" para "Neobrutalismo (Premium Modern Retro)", com bordas grossas, sombras sólidas e cores vibrantes.
+2. **Dashboard KPIs:** ComoFoiPainel agora possui modais interativos para detalhamento de vendas e despesas.
+3. **Leitura EAN (Barcode):** 
+   - FormProduto e PDV (/vendas/nova) agora suportam leitura via Câmera Mobile (zxing) e leitores físicos de código de barras.
+   - O campo de busca do PDV processa o auto-submit (Enter) para scanners físicos.
+4. **SKU Editável:** O SKU agora é editável em FormProduto, mantendo geração aleatória via botão, com validação de unicidade.
+5. **Schema e Banco:** Adicionada coluna ean e índice único na tabela produtos. Inseridas colunas faltantes na tabela empresas (cnpj, email, etc.).
+6. **Correções:** Resolvido o loop de autenticação no layout, erro 400 em despesas e problemas de encoding.
