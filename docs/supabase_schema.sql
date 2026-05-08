@@ -28,7 +28,8 @@ create table public.profiles (
   id          uuid primary key references auth.users(id) on delete cascade,
   empresa_id  uuid references public.empresas(id) on delete cascade,
   nome        text,
-  papel       text not null default 'vendedor', -- 'admin' | 'vendedor'
+  papel       text not null default 'vendedor', -- 'admin' | 'vendedor' | 'estoquista'
+  status      text not null default 'ativo',   -- ADICIONADO: 'ativo'|'congelado'|'excluido'
   criado_em   timestamptz not null default now()
 );
 
@@ -106,8 +107,11 @@ create table public.fornecedores (
   nome          text not null,
   contato       text,
   telefone      text,
+  email         text,           -- ADICIONADO: usado no FormFornecedor
+  cnpj          text,           -- ADICIONADO: usado no FormFornecedor
   categoria     text,
   cidade        text,
+  estado        text,           -- ADICIONADO: usado no FormFornecedor
   prazo_entrega text,
   pedido_minimo numeric(10,2),
   anotacoes     text,
@@ -126,6 +130,34 @@ create table public.pedidos_fornecedor (
   quantidade    integer not null default 1,
   status        text not null default 'aguardando', -- 'aguardando'|'confirmado'|'entregue'
   criado_em     timestamptz not null default now()
+);
+
+-- ----------------------------------------------------------------
+-- CATEGORIAS DE PRODUTO (dinâmicas por empresa)
+-- ADICIONADO: a outra IA implementou categorias dinâmicas no commit 7b9c0bc
+-- ----------------------------------------------------------------
+create table public.categorias_produto (
+  id          uuid primary key default uuid_generate_v4(),
+  empresa_id  uuid not null references public.empresas(id) on delete cascade,
+  nome        text not null,
+  criado_em   timestamptz not null default now(),
+  unique (empresa_id, nome)
+);
+
+-- ----------------------------------------------------------------
+-- CONVITES DE USUÁRIO (sistema de acesso por link)
+-- ADICIONADO: a outra IA implementou convites no commit 7b9c0bc
+-- ----------------------------------------------------------------
+create table public.convites (
+  id          uuid primary key default uuid_generate_v4(),
+  empresa_id  uuid not null references public.empresas(id) on delete cascade,
+  email       text not null,
+  nome        text,
+  papel       text not null default 'vendedor', -- 'admin'|'vendedor'|'estoquista'
+  status      text not null default 'pendente', -- 'pendente'|'cancelado'|'aceito'
+  token       uuid not null default uuid_generate_v4(),
+  expira_em   timestamptz not null default (now() + interval '7 days'),
+  criado_em   timestamptz not null default now()
 );
 
 -- ----------------------------------------------------------------
@@ -308,6 +340,8 @@ alter table public.ordens_servico         enable row level security;
 alter table public.despesas               enable row level security;
 alter table public.fiados                 enable row level security;
 alter table public.fechamentos_caixa      enable row level security;
+alter table public.categorias_produto     enable row level security;  -- ADICIONADO
+alter table public.convites               enable row level security;  -- ADICIONADO
 
 -- Helper: retorna empresa_id do usuário logado
 create or replace function public.minha_empresa_id()
@@ -382,8 +416,8 @@ create policy "Empresa atualiza fiados"    on public.fiados for update using (em
 create policy "Empresa vê fechamentos"     on public.fechamentos_caixa for select using (empresa_id = minha_empresa_id());
 create policy "Empresa insere fechamentos" on public.fechamentos_caixa for insert with check (empresa_id = minha_empresa_id());
 
--- PROFILES
-create policy "Usuário vê seu profile"     on public.profiles for select using (id = auth.uid());
+-- PROFILES (lojistas da mesma empresa podem ver outros membros)
+create policy "Usuário vê seu profile"     on public.profiles for select using (id = auth.uid() or empresa_id = minha_empresa_id());
 create policy "Usuário atualiza profile"   on public.profiles for update using (id = auth.uid());
 
 -- EMPRESAS
@@ -391,3 +425,16 @@ create policy "Usuário vê sua empresa"     on public.empresas for select
   using (id = minha_empresa_id());
 create policy "Usuário atualiza empresa"   on public.empresas for update
   using (id = minha_empresa_id());
+
+-- CATEGORIAS DE PRODUTO -- ADICIONADO
+create policy "Empresa vê categorias"      on public.categorias_produto for select using (empresa_id = minha_empresa_id());
+create policy "Empresa insere categorias"  on public.categorias_produto for insert with check (empresa_id = minha_empresa_id());
+create policy "Empresa deleta categorias"  on public.categorias_produto for delete using (empresa_id = minha_empresa_id());
+
+-- CONVITES -- ADICIONADO
+create policy "Empresa vê convites"        on public.convites for select using (empresa_id = minha_empresa_id());
+create policy "Empresa insere convites"    on public.convites for insert with check (empresa_id = minha_empresa_id());
+create policy "Empresa atualiza convites"  on public.convites for update using (empresa_id = minha_empresa_id());
+-- Usuário convidado pode ler o convite pelo token (sem estar logado)
+create policy "Público lê convite por token" on public.convites for select using (true);
+
