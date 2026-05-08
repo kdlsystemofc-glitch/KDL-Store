@@ -5,10 +5,10 @@ import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
 import { Loader2, Printer, Download } from 'lucide-react'
 
-type Venda = { id: string; total: number; desconto: number; forma_pagamento: string; status: string }
+type Venda = { id: string; total: number; desconto: number; forma_pagamento: string; status: string; comissionado_id?: string; comissionado_nome?: string }
 type ItemVenda = { produto_id: string; produto_nome: string; quantidade: number; preco_unitario: number; preco_custo: number; brinde: boolean }
 type Despesa = { valor: number }
-type Comissao = { vendedor: string; valor: number; status: string }
+type Comissionado = { id: string; nome: string; tipo_comissao: string; taxa: number }
 
 export default function RelatoriosPage() {
   const { empresaId } = useEmpresaId()
@@ -23,7 +23,7 @@ export default function RelatoriosPage() {
   const [vendas, setVendas] = useState<Venda[]>([])
   const [itens, setItens] = useState<ItemVenda[]>([])
   const [despesas, setDespesas] = useState<Despesa[]>([])
-  const [comissoes, setComissoes] = useState<Comissao[]>([])
+  const [comissionados, setComissionados] = useState<Comissionado[]>([])
 
   useEffect(() => { if (empresaId) carregar(empresaId, mesAno) }, [empresaId, mesAno])
 
@@ -35,10 +35,10 @@ export default function RelatoriosPage() {
 
     const supabase = createClient()
     const [ { data: v }, { data: i }, { data: d }, { data: c } ] = await Promise.all([
-      supabase.from('vendas').select('id,total,desconto,forma_pagamento,status').eq('empresa_id', eid).eq('status', 'concluida').gte('criado_em', inicioMes).lte('criado_em', fimMes),
+      supabase.from('vendas').select('id,total,desconto,forma_pagamento,status,comissionado_id,comissionado_nome').eq('empresa_id', eid).eq('status', 'concluida').gte('criado_em', inicioMes).lte('criado_em', fimMes),
       supabase.from('itens_venda').select('venda_id,produto_id,produto_nome,quantidade,preco_unitario,preco_custo,brinde').eq('empresa_id', eid).gte('criado_em', inicioMes).lte('criado_em', fimMes),
       supabase.from('despesas').select('valor').eq('empresa_id', eid).gte('data', inicioMes.slice(0,10)).lte('data', fimMes.slice(0,10)),
-      supabase.from('comissoes').select('vendedor,valor,status').eq('empresa_id', eid).gte('criado_em', inicioMes).lte('criado_em', fimMes)
+      supabase.from('comissoes').select('id,nome,tipo_comissao,taxa').eq('empresa_id', eid)
     ])
 
     // Filtra itens para considerar apenas os de vendas concluídas
@@ -48,7 +48,7 @@ export default function RelatoriosPage() {
     setVendas(v || [])
     setItens(itensConcluidos)
     setDespesas(d || [])
-    setComissoes(c || [])
+    setComissionados(c || [])
     setLoading(false)
   }
 
@@ -82,15 +82,24 @@ export default function RelatoriosPage() {
   const formas = Object.entries(fMap).sort((a,b) => b[1] - a[1])
 
   // Seção 4: Comissões
-  const comPago = comissoes.filter(c => c.status === 'pago').reduce((a,c) => a + c.valor, 0)
-  const comPendente = comissoes.filter(c => c.status === 'pendente').reduce((a,c) => a + c.valor, 0)
-  const cMap: Record<string, { pago:number; pendente:number }> = {}
-  comissoes.forEach(c => {
-    if (!cMap[c.vendedor]) cMap[c.vendedor] = { pago:0, pendente:0 }
-    if (c.status === 'pago') cMap[c.vendedor].pago += c.valor
-    else cMap[c.vendedor].pendente += c.valor
+  const cMap: Record<string, { nome:string; valor:number }> = {}
+  let totalComissoes = 0
+  
+  const mapCom = Object.fromEntries(comissionados.map(c => [c.id, c]))
+  
+  // Como não há tabela separada de status de pagamento por venda no DB ainda,
+  // somamos o valor gerado pelas vendas comissionadas do mês.
+  vendas.forEach(v => {
+    if (v.comissionado_id && mapCom[v.comissionado_id]) {
+      const c = mapCom[v.comissionado_id]
+      const valor = c.tipo_comissao === 'percentual' ? (v.total * c.taxa) / 100 : c.taxa
+      if (!cMap[c.id]) cMap[c.id] = { nome: c.nome, valor: 0 }
+      cMap[c.id].valor += valor
+      totalComissoes += valor
+    }
   })
-  const listaComissoes = Object.entries(cMap).sort((a,b) => (b[1].pago+b[1].pendente) - (a[1].pago+a[1].pendente))
+  
+  const listaComissoes = Object.values(cMap).sort((a,b) => b.valor - a.valor)
 
   return (
     <div className="anim-fade" style={{display:'flex',flexDirection:'column',gap:'1.25rem'}}>
@@ -188,20 +197,18 @@ export default function RelatoriosPage() {
 
               {/* Seção 4: Comissões */}
               <div className="card">
-                <h2 style={{fontWeight:900,fontSize:'1.1rem',marginBottom:'1rem'}}>4. Comissões do Período</h2>
+                <h2 style={{fontWeight:900,fontSize:'1.1rem',marginBottom:'1rem'}}>4. Comissões Geradas no Período</h2>
                 <div style={{display:'flex',gap:'1rem',marginBottom:'1rem'}}>
-                  <div><p style={{fontSize:'0.75rem',color:'var(--texto-desab)'}}>Pagas</p><p style={{fontWeight:800,color:'var(--verde)'}}>{formatCurrency(comPago)}</p></div>
-                  <div><p style={{fontSize:'0.75rem',color:'var(--texto-desab)'}}>Pendentes</p><p style={{fontWeight:800,color:'var(--amarelo)'}}>{formatCurrency(comPendente)}</p></div>
+                  <div><p style={{fontSize:'0.75rem',color:'var(--texto-desab)'}}>Total a Pagar</p><p style={{fontWeight:800,color:'var(--amarelo)'}}>{formatCurrency(totalComissoes)}</p></div>
                 </div>
                 {listaComissoes.length > 0 && (
                   <table className="tabela" style={{fontSize:'0.8rem'}}>
-                    <thead><tr><th>Vendedor</th><th>Pagas</th><th>Pendentes</th></tr></thead>
+                    <thead><tr><th>Vendedor</th><th>Valor Total</th></tr></thead>
                     <tbody>
-                      {listaComissoes.map(([vend, vals]) => (
-                        <tr key={vend}>
-                          <td style={{fontWeight:700}}>{vend}</td>
-                          <td style={{color:'var(--verde)'}}>{formatCurrency(vals.pago)}</td>
-                          <td style={{color:vals.pendente>0?'var(--amarelo)':'var(--texto-desab)'}}>{formatCurrency(vals.pendente)}</td>
+                      {listaComissoes.map((c) => (
+                        <tr key={c.nome}>
+                          <td style={{fontWeight:700}}>{c.nome}</td>
+                          <td style={{color:c.valor>0?'var(--amarelo)':'var(--texto-desab)'}}>{formatCurrency(c.valor)}</td>
                         </tr>
                       ))}
                     </tbody>
