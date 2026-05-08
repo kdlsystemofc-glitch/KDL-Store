@@ -4,10 +4,11 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
-import { X, Loader2, Plus } from 'lucide-react'
+import { X, Loader2, Plus, Camera } from 'lucide-react'
 import { FormCliente } from '@/components/FormCliente'
+import { BarcodeScannerModal, useHasCamera } from '@/components/BarcodeScannerModal'
 
-type ProdDB = { id:string; nome:string; sku:string|null; preco_varejo:number; preco_atacado:number|null; preco_vip:number|null; preco_minimo:number|null; qtd_atual:number; tem_garantia:boolean; dias_garantia:number|null; texto_garantia:string|null }
+type ProdDB = { id:string; nome:string; sku:string|null; ean:string|null; preco_varejo:number; preco_atacado:number|null; preco_vip:number|null; preco_minimo:number|null; qtd_atual:number; tem_garantia:boolean; dias_garantia:number|null; texto_garantia:string|null }
 type TipoCliente = 'varejo'|'atacado'|'vip'
 type Item = { produto:ProdDB; qty:number; serie:string; brinde:boolean; precoUsado:number }
 
@@ -35,11 +36,13 @@ export default function NovaPdvPage() {
   const [salvando,    setSalvando]    = useState(false)
   const [erro,        setErro]        = useState<string|null>(null)
   const [showModalCliente, setShowModalCliente] = useState(false)
+  const [showScanner, setShowScanner] = useState(false)
+  const hasCamera = useHasCamera()
 
   const carregar = useCallback(async (eid: string) => {
     const { data } = await createClient()
       .from('produtos')
-      .select('id,nome,sku,preco_varejo,preco_atacado,preco_vip,preco_minimo,qtd_atual,tem_garantia,dias_garantia,texto_garantia')
+      .select('id,nome,sku,ean,preco_varejo,preco_atacado,preco_vip,preco_minimo,qtd_atual,tem_garantia,dias_garantia,texto_garantia')
       .eq('empresa_id', eid)
       .eq('ativo', true)
       .order('nome')
@@ -49,7 +52,11 @@ export default function NovaPdvPage() {
   useEffect(() => { if (empresaId) carregar(empresaId) }, [empresaId, carregar])
 
   const resultados = busca.length >= 1
-    ? catalogo.filter(p => p.nome.toLowerCase().includes(busca.toLowerCase()) || (p.sku||'').toLowerCase().includes(busca.toLowerCase()))
+    ? catalogo.filter(p => 
+        p.nome.toLowerCase().includes(busca.toLowerCase()) || 
+        (p.sku||'').toLowerCase().includes(busca.toLowerCase()) ||
+        (p.ean||'').toLowerCase() === busca.toLowerCase()
+      )
     : []
 
   function addItem(p: ProdDB) {
@@ -63,6 +70,24 @@ export default function NovaPdvPage() {
       }
       return [...prev, { produto: p, qty: 1, serie: '', brinde: false, precoUsado: getPreco(p, tipoCliente) }]
     })
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      if (resultados.length === 1) {
+        addItem(resultados[0])
+      }
+    }
+  }
+
+  function handleScan(code: string) {
+    setShowScanner(false)
+    setBusca(code)
+    const exato = catalogo.find(p => p.ean === code || p.sku === code)
+    if (exato) {
+      addItem(exato)
+    }
   }
 
   function updateQty(idx: number, delta: number) {
@@ -191,11 +216,17 @@ export default function NovaPdvPage() {
         <div style={{display:'flex',flexDirection:'column',gap:'0.75rem'}}>
 
           {/* Busca */}
-          <div style={{position:'relative'}}>
+          <div style={{position:'relative', display:'flex', gap:'0.375rem'}}>
             <input id="pdv-busca" className="campo"
-              style={{fontSize:'1rem',padding:'0.75rem',paddingLeft:'2.5rem'}}
-              placeholder="🔍  Buscar produto por nome ou SKU..."
-              value={busca} onChange={e=>setBusca(e.target.value)} autoFocus/>
+              style={{flex:1, fontSize:'1rem',padding:'0.75rem',paddingLeft:'2.5rem'}}
+              placeholder="🔍  Buscar por nome, SKU ou EAN..."
+              value={busca} onChange={e=>setBusca(e.target.value)} onKeyDown={handleKeyDown} autoFocus/>
+            {hasCamera && (
+              <button type="button" onClick={() => setShowScanner(true)} className="btn btn-secondary" style={{ padding:'0 0.75rem' }} title="Ler código de barras">
+                <Camera size={20}/>
+              </button>
+            )}
+            
             {resultados.length > 0 && (
               <div className="card anim-pop" style={{position:'absolute',top:'100%',left:0,right:0,zIndex:50,padding:0,marginTop:'2px',overflow:'hidden'}}>
                 {resultados.map(p => (
@@ -440,6 +471,13 @@ export default function NovaPdvPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {showScanner && (
+        <BarcodeScannerModal
+          onClose={() => setShowScanner(false)}
+          onScan={handleScan}
+        />
       )}
 
     </div>

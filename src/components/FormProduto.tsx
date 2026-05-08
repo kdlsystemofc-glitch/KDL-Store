@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { Save, Loader2, Plus, X } from 'lucide-react'
+import { Save, Loader2, Plus, X, Camera, RefreshCw } from 'lucide-react'
+import { BarcodeScannerModal, useHasCamera } from '@/components/BarcodeScannerModal'
 import { generateSKU } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
@@ -33,6 +34,8 @@ export function FormProduto({ onSuccess, onCancel }: { onSuccess: () => void; on
   const [showNovaCat, setShowNovaCat] = useState(false)
   const [novaCatNome, setNovaCatNome] = useState('')
   const [salvandoCat, setSalvandoCat] = useState(false)
+  const [showScanner, setShowScanner] = useState(false)
+  const hasCamera = useHasCamera()
 
   // Campos controlados
   const [nome,         setNome]         = useState('')
@@ -100,11 +103,27 @@ export function FormProduto({ onSuccess, onCancel }: { onSuccess: () => void; on
     if (varejoN <= 0)  { setErro('Informe o preço de venda (varejo).'); return }
     if (!empresaId)    { setErro('Erro ao identificar sua empresa.'); return }
     setSalvando(true)
+
+    if (sku && sku.trim() !== '') {
+      const { data: skuExistente } = await createClient()
+        .from('produtos')
+        .select('id')
+        .eq('empresa_id', empresaId)
+        .eq('sku', sku.trim())
+        .single()
+      if (skuExistente) {
+        setErro('Esse SKU já está em uso por outro produto na sua loja.')
+        setSalvando(false)
+        return
+      }
+    }
+
     const { error } = await createClient().from('produtos').insert({
       empresa_id:   empresaId,
       nome:         nome.trim(),
-      sku:          sku || null,
-      codigo_barras:codigoBarras || null,
+      sku:          sku.trim() || null,
+      ean:          codigoBarras.trim() || null,
+      codigo_barras:codigoBarras.trim() || null,
       descricao:    descricao || null,
       categoria:    categoria || null,
       preco_custo:  custoN || null,
@@ -160,12 +179,24 @@ export function FormProduto({ onSuccess, onCancel }: { onSuccess: () => void; on
             <input className="campo" value={nome} onChange={e=>setNome(e.target.value)} placeholder="Ex: Som JBL Stage 200"/>
           </Campo>
           <Campo label="SKU (Código interno)">
-            <input className="campo" value={sku} onChange={e=>setSku(e.target.value)} style={{ minWidth:'130px' }}/>
+            <div style={{ display: 'flex', gap: '0.375rem' }}>
+              <input className="campo" value={sku} onChange={e=>setSku(e.target.value)} style={{ minWidth:'130px', fontFamily:'monospace' }} placeholder="Ex: PRD-123"/>
+              <button type="button" onClick={() => setSku(generateSKU())} className="btn btn-secondary" style={{ padding:'0 0.5rem' }} title="Gerar novo SKU aleatório">
+                <RefreshCw size={14}/>
+              </button>
+            </div>
           </Campo>
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.75rem' }}>
           <Campo label="Código de Barras (EAN/ISBN)">
-            <input className="campo" value={codigoBarras} onChange={e=>setCodigoBarras(e.target.value)} placeholder="Ex: 7891234567890"/>
+            <div style={{ display: 'flex', gap: '0.375rem' }}>
+              <input className="campo" value={codigoBarras} onChange={e=>setCodigoBarras(e.target.value)} placeholder="Ex: 7891234567890" style={{ fontFamily:'monospace' }}/>
+              {hasCamera && (
+                <button type="button" onClick={() => setShowScanner(true)} className="btn btn-secondary" style={{ padding:'0 0.5rem' }} title="Ler com a câmera">
+                  <Camera size={16}/>
+                </button>
+              )}
+            </div>
           </Campo>
           <Campo label="Categoria">
             {showNovaCat ? (
@@ -284,6 +315,16 @@ export function FormProduto({ onSuccess, onCancel }: { onSuccess: () => void; on
           Salvar Produto
         </button>
       </div>
+
+      {showScanner && (
+        <BarcodeScannerModal
+          onClose={() => setShowScanner(false)}
+          onScan={(code) => {
+            setCodigoBarras(code)
+            setShowScanner(false)
+          }}
+        />
+      )}
     </div>
   )
 }

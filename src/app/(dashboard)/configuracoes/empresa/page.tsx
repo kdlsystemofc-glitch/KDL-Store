@@ -62,14 +62,14 @@ export default function ConfigEmpresaPage() {
 
       {empresa&&(
         <>
-          <div className="card" style={{padding:0,overflow:'hidden'}}>
-            <div className="sec-header"><span>🏷️ Identificação</span></div>
-            <div style={{padding:'0.875rem',display:'flex',flexDirection:'column',gap:'0.75rem'}}>
+          <div className="card" style={{padding:'2rem'}}>
+            <h2 style={{fontSize:'1.2rem',fontWeight:900,marginBottom:'1.5rem',borderBottom:'2px solid var(--borda)',paddingBottom:'0.5rem'}}>🏷️ Identificação</h2>
+            <div style={{display:'flex',flexDirection:'column',gap:'1rem',marginBottom:'2rem'}}>
               <div>
                 <label className="campo-label">Nome da loja *</label>
                 <input className="campo" style={inp} value={empresa.nome} onChange={e=>setEmpresa(em=>em?{...em,nome:e.target.value}:em)} placeholder="Nome da sua loja"/>
               </div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.625rem'}}>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem'}}>
                 <div>
                   <label className="campo-label">CNPJ / CPF</label>
                   <input className="campo" style={{...inp,fontFamily:'monospace'}} value={empresa.cnpj||''} onChange={e=>setEmpresa(em=>em?{...em,cnpj:e.target.value}:em)} placeholder="00.000.000/0001-00"/>
@@ -80,35 +80,31 @@ export default function ConfigEmpresaPage() {
                 </div>
               </div>
             </div>
-          </div>
 
-          <div className="card" style={{padding:0,overflow:'hidden'}}>
-            <div className="sec-header"><span>📍 Localização</span></div>
-            <div style={{padding:'0.875rem',display:'flex',flexDirection:'column',gap:'0.75rem'}}>
+            <h2 style={{fontSize:'1.2rem',fontWeight:900,marginBottom:'1.5rem',borderBottom:'2px solid var(--borda)',paddingBottom:'0.5rem'}}>📍 Localização</h2>
+            <div style={{display:'flex',flexDirection:'column',gap:'1rem',marginBottom:'2rem'}}>
               <div>
                 <label className="campo-label">Endereço completo</label>
                 <input className="campo" style={inp} value={empresa.endereco||''} onChange={e=>setEmpresa(em=>em?{...em,endereco:e.target.value}:em)} placeholder="Rua, número, bairro"/>
               </div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr auto',gap:'0.625rem'}}>
+              <div style={{display:'grid',gridTemplateColumns:'1fr auto',gap:'1rem'}}>
                 <div>
                   <label className="campo-label">Cidade</label>
                   <input className="campo" style={inp} value={empresa.cidade||''} onChange={e=>setEmpresa(em=>em?{...em,cidade:e.target.value}:em)} placeholder="Cidade"/>
                 </div>
                 <div>
                   <label className="campo-label">Estado</label>
-                  <select className="campo" style={{...inp,width:'90px'}} value={empresa.estado||''} onChange={e=>setEmpresa(em=>em?{...em,estado:e.target.value}:em)}>
+                  <select className="campo" style={{...inp,width:'120px'}} value={empresa.estado||''} onChange={e=>setEmpresa(em=>em?{...em,estado:e.target.value}:em)}>
                     <option value="">UF</option>
                     {ESTADOS_BR.map(s=><option key={s}>{s}</option>)}
                   </select>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div className="card" style={{padding:0,overflow:'hidden'}}>
-            <div className="sec-header"><span>📱 Contato e Redes Sociais</span></div>
-            <div style={{padding:'0.875rem',display:'flex',flexDirection:'column',gap:'0.75rem'}}>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.625rem'}}>
+            <h2 style={{fontSize:'1.2rem',fontWeight:900,marginBottom:'1.5rem',borderBottom:'2px solid var(--borda)',paddingBottom:'0.5rem'}}>📱 Contato e Redes Sociais</h2>
+            <div style={{display:'flex',flexDirection:'column',gap:'1rem',marginBottom:'2rem'}}>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem'}}>
                 <div>
                   <label className="campo-label">WhatsApp</label>
                   <input className="campo" style={inp} value={empresa.whatsapp||''} onChange={e=>setEmpresa(em=>em?{...em,whatsapp:e.target.value}:em)} placeholder="(11) 99999-0000"/>
@@ -126,13 +122,13 @@ export default function ConfigEmpresaPage() {
                 </div>
               </div>
             </div>
-          </div>
 
-          <div style={{display:'flex',justifyContent:'flex-end'}}>
-            <button onClick={salvar} disabled={salvando} className="btn btn-primary"
-              style={{display:'flex',alignItems:'center',gap:'0.375rem',padding:'0.75rem 1.5rem',fontSize:'1rem'}}>
-              {salvando?<><Loader2 size={15} style={{animation:'spin 1s linear infinite'}}/>Salvando...</>:<><Save size={15}/>Salvar alterações</>}
-            </button>
+            <div style={{display:'flex',justifyContent:'flex-end',marginTop:'1rem',paddingTop:'1.5rem',borderTop:'2px solid var(--borda)'}}>
+              <button onClick={salvar} disabled={salvando} className="btn btn-primary"
+                style={{display:'flex',alignItems:'center',gap:'0.375rem',padding:'0.875rem 2rem',fontSize:'1.1rem',fontWeight:900}}>
+                {salvando?<><Loader2 size={20} style={{animation:'spin 1s linear infinite'}}/>Salvando...</>:<><Save size={20}/>Salvar Alterações</>}
+              </button>
+            </div>
           </div>
         </>
       )}

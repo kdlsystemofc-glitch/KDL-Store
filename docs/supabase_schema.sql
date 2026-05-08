@@ -73,6 +73,7 @@ create table public.produtos (
   empresa_id      uuid not null references public.empresas(id) on delete cascade,
   nome            text not null,
   sku             text,
+  ean             text,
   codigo_barras   text,
   categoria       text,
   descricao       text,
@@ -97,6 +98,7 @@ create table public.produtos (
   ativo           boolean not null default true,
   criado_em       timestamptz not null default now()
 );
+create unique index if not exists produtos_ean_empresa_idx on public.produtos(empresa_id, ean) where ean is not null;
 
 -- ----------------------------------------------------------------
 -- CLIENTES
