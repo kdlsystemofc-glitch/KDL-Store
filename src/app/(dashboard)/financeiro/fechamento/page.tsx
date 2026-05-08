@@ -5,6 +5,7 @@ import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
 import { Loader2, Printer } from 'lucide-react'
 import Link from 'next/link'
+import { PageTabs } from '@/components/PageTabs'
 
 type Venda = { total:number; forma_pagamento:string; criado_em:string }
 type Despesa = { descricao:string; categoria:string|null; valor:number }
@@ -60,6 +61,13 @@ export default function FechamentoPage() {
           </button>
         </div>
       </div>
+
+      <PageTabs tabs={[
+        { label: 'Visão Geral (DRE)', href: '/financeiro' },
+        { label: 'Despesas', href: '/financeiro/despesas' },
+        { label: 'Fiados 📒', href: '/financeiro/fiado' },
+        { label: 'Fechamento de Caixa', href: '/financeiro/fechamento' }
+      ]} />
 
       {/* Seletor de período */}
       <div style={{display:'flex',gap:'0.5rem'}}>

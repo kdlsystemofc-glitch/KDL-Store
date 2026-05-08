@@ -4,7 +4,8 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
-import { X, Loader2 } from 'lucide-react'
+import { X, Loader2, Plus } from 'lucide-react'
+import { FormCliente } from '@/components/FormCliente'
 
 type ProdDB = { id:string; nome:string; sku:string|null; preco_varejo:number; preco_atacado:number|null; preco_vip:number|null; qtd_atual:number; tem_garantia:boolean; dias_garantia:number|null; texto_garantia:string|null }
 type TipoCliente = 'varejo'|'atacado'|'vip'
@@ -33,6 +34,7 @@ export default function NovaPdvPage() {
   const [vendaNum,    setVendaNum]    = useState(0)
   const [salvando,    setSalvando]    = useState(false)
   const [erro,        setErro]        = useState<string|null>(null)
+  const [showModalCliente, setShowModalCliente] = useState(false)
 
   const carregar = useCallback(async (eid: string) => {
     const { data } = await createClient()
@@ -314,9 +316,14 @@ export default function NovaPdvPage() {
 
           {/* Cliente */}
           <div className="card" style={{padding:'0.75rem',border:`1px solid ${pagamento==='Fiado'&&!cliente?'var(--vermelho)':'var(--borda)'}`,borderRadius:'var(--radius)'}}>
-            <label className="campo-label">
-              Cliente {pagamento==='Fiado'?<span style={{color:'var(--vermelho)',fontWeight:900}}>* obrigatório</span>:'(opcional)'}
-            </label>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <label className="campo-label">
+                Cliente {pagamento==='Fiado'?<span style={{color:'var(--vermelho)',fontWeight:900}}>* obrigatório</span>:'(opcional)'}
+              </label>
+              <button className="btn btn-secondary" style={{fontSize:'0.65rem',padding:'0.15rem 0.4rem',display:'flex',alignItems:'center',gap:'0.2rem'}} onClick={()=>setShowModalCliente(true)}>
+                <Plus size={10}/> Novo
+              </button>
+            </div>
             <input id="pdv-cliente" className="campo" style={{marginTop:'0.25rem'}} placeholder="Nome..." value={cliente} onChange={e=>setCliente(e.target.value)}/>
             <div style={{display:'flex',gap:'0.375rem',marginTop:'0.375rem'}}>
               <button className="btn btn-secondary" style={{fontSize:'0.72rem',flex:1}} onClick={()=>setCliente('Anônimo')} disabled={pagamento==='Fiado'}>Anônimo</button>
@@ -383,6 +390,29 @@ export default function NovaPdvPage() {
           )}
         </div>
       </div>
+
+      {showModalCliente && (
+        <div style={{ position:'fixed', inset:0, zIndex:100, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' }}
+          onClick={e=>{if(e.target===e.currentTarget)setShowModalCliente(false)}}>
+          <div className="card anim-pop" style={{ width:'100%', maxWidth:'600px', maxHeight:'90vh', overflowY:'auto', padding:'0' }}>
+            <div style={{ padding:'1.25rem', borderBottom:'1px solid var(--borda)', display:'flex', justifyContent:'space-between', alignItems:'center', position:'sticky', top:0, background:'var(--surface)', zIndex:10 }}>
+              <div>
+                <h2 style={{ fontSize:'1.25rem', fontWeight:800 }}>👤 Cadastrar Novo Cliente</h2>
+                <p style={{ fontSize:'0.85rem', color:'var(--texto-desab)' }}>Preencha os dados do cliente</p>
+              </div>
+              <button onClick={()=>setShowModalCliente(false)} className="btn-icon"><X size={20}/></button>
+            </div>
+            <div style={{ padding:'1.25rem' }}>
+              <FormCliente onSuccess={() => { 
+                setShowModalCliente(false); 
+                const nomeInput = document.getElementById('cli-nome') as HTMLInputElement;
+                if(nomeInput?.value) setCliente(nomeInput.value.trim());
+              }} onCancel={() => setShowModalCliente(false)} />
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }

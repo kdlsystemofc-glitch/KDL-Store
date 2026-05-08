@@ -5,6 +5,7 @@ import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
 import { Loader2 } from 'lucide-react'
 import Link from 'next/link'
+import { PageTabs } from '@/components/PageTabs'
 
 export default function FinanceiroPage() {
   const { empresaId } = useEmpresaId()
@@ -65,6 +66,13 @@ export default function FinanceiroPage() {
           <Link href="/financeiro/fechamento" className="btn btn-primary">🔒 Fechar Período</Link>
         </div>
       </div>
+
+      <PageTabs tabs={[
+        { label: 'Visão Geral (DRE)', href: '/financeiro' },
+        { label: 'Despesas', href: '/financeiro/despesas' },
+        { label: 'Fiados 📒', href: '/financeiro/fiado' },
+        { label: 'Fechamento de Caixa', href: '/financeiro/fechamento' }
+      ]} />
 
       {loading ? (
         <div style={{display:'flex',justifyContent:'center',padding:'3rem',gap:'0.75rem',color:'var(--texto-desab)'}}>

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
 import { Search, Loader2, Printer } from 'lucide-react'
+import { PageTabs } from '@/components/PageTabs'
 
 type Garantia = { id:string; produto_nome:string; num_serie:string|null; cliente_nome:string|null; cliente_tel:string|null; data_compra:string; data_vencimento:string; status:string; texto_garantia:string|null }
 
@@ -53,6 +54,12 @@ export default function GarantiasPage() {
           <p className="pg-sub">{ativas} ativas · {vencendo} vencendo em 30 dias · {vencidas} vencidas</p>
         </div>
       </div>
+
+      <PageTabs tabs={[
+        { label: 'Garantias', href: '/garantias' },
+        { label: 'Ordens de Serviço', href: '/ordens-de-servico' },
+        { label: 'Comissões', href: '/comissoes' }
+      ]} />
 
       {/* KPIs */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'0.625rem'}}>

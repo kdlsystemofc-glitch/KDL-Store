@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
 import { Loader2, Search } from 'lucide-react'
+import { PageTabs } from '@/components/PageTabs'
 
 type Produto = { id:string; nome:string; sku:string|null; categoria:string|null; qtd_atual:number; qtd_minima:number; preco_custo:number }
 type Mov     = { id:string; tipo:string; quantidade:number; criado_em:string; obs:string|null; produtos:{ nome:string }[]|null }
@@ -66,11 +67,20 @@ export default function EstoquePage() {
     <div className="anim-fade" style={{display:'flex',flexDirection:'column',gap:'0.875rem'}}>
       <div className="pg-header">
         <div>
-          <h1 className="pg-titulo">📉 Controle de Estoque</h1>
-          <p className="pg-sub">{produtos.length} produtos · {totalItens} unidades · {formatCurrency(valorEstoque)} em custo</p>
+          <h1 className="pg-titulo">📉 Estoque</h1>
+          <p className="pg-sub">Valor do estoque físico: {formatCurrency(valorEstoque)}</p>
         </div>
-        <button className="btn btn-primary" onClick={()=>setShowModal(true)}>+ Ajustar Estoque</button>
+        <div style={{display:'flex',gap:'0.5rem'}}>
+          <button onClick={()=>{setAjuste(p=>({...p,tipo:'ajuste'}));setShowModal(true)}} className="btn btn-secondary">Ajuste (-)</button>
+          <button onClick={()=>{setAjuste(p=>({...p,tipo:'entrada'}));setShowModal(true)}} className="btn btn-primary">Entrada (+)</button>
+        </div>
       </div>
+
+      <PageTabs tabs={[
+        { label: 'Produtos', href: '/produtos' },
+        { label: 'Estoque e Movimentações', href: '/estoque' },
+        { label: 'Catálogo Online', href: '/catalogo' }
+      ]} />
 
       {/* KPIs */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'0.625rem'}}>

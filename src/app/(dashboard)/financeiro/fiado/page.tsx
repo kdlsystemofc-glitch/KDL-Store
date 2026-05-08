@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
 import { Loader2 } from 'lucide-react'
+import { PageTabs } from '@/components/PageTabs'
 
 type Fiado = { id:string; cliente_nome:string; cliente_tel:string|null; valor_aberto:number; criado_em:string; status:string }
 
@@ -50,6 +51,13 @@ export default function FiadoPage() {
           <p className="pg-sub">{abertos.length} devedor(es) · {formatCurrency(totalAberto)} em aberto</p>
         </div>
       </div>
+
+      <PageTabs tabs={[
+        { label: 'Visão Geral (DRE)', href: '/financeiro' },
+        { label: 'Despesas', href: '/financeiro/despesas' },
+        { label: 'Fiados 📒', href: '/financeiro/fiado' },
+        { label: 'Fechamento de Caixa', href: '/financeiro/fechamento' }
+      ]} />
 
       {/* KPIs */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'0.625rem'}}>

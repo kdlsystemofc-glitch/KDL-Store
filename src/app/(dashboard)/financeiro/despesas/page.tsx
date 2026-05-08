@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
 import { ArrowLeft, Plus, Trash2, Loader2 } from 'lucide-react'
+import { PageTabs } from '@/components/PageTabs'
 
 type Despesa = { id:string; descricao:string; categoria:string; tipo:string; valor:number; data:string; recorrente:boolean }
 
@@ -68,6 +69,13 @@ export default function DespesasPage() {
           <Plus size={15}/> {showForm?'Cancelar':'Lançar Despesa'}
         </button>
       </div>
+
+      <PageTabs tabs={[
+        { label: 'Visão Geral (DRE)', href: '/financeiro' },
+        { label: 'Despesas', href: '/financeiro/despesas' },
+        { label: 'Fiados 📒', href: '/financeiro/fiado' },
+        { label: 'Fechamento de Caixa', href: '/financeiro/fechamento' }
+      ]} />
 
       {/* KPIs */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'0.625rem'}}>

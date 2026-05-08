@@ -3,7 +3,9 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
-import { Plus, Search, Loader2 } from 'lucide-react'
+import { Plus, Search, Loader2, X } from 'lucide-react'
+import { PageTabs } from '@/components/PageTabs'
+import { FormCliente } from '@/components/FormCliente'
 
 type Cliente = {
   id: string; nome: string; telefone: string | null; tipo: string
@@ -16,6 +18,7 @@ export default function ClientesPage() {
   const [busca,    setBusca]    = useState('')
   const [loading,  setLoading]  = useState(true)
   const [filtro,   setFiltro]   = useState<'todos'|'varejo'|'atacado'|'vip'|'inativos'>('todos')
+  const [showModal,setShowModal] = useState(false)
 
   useEffect(() => { if (empresaId) carregar(empresaId) }, [empresaId])
 
@@ -49,10 +52,34 @@ export default function ClientesPage() {
           <h1 className="pg-titulo">👥 Clientes</h1>
           <p className="pg-sub">{ativos} ativos · {inativos} sumidos</p>
         </div>
-        <Link href="/clientes/novo" className="btn btn-primary" style={{ display:'flex', alignItems:'center', gap:'0.375rem' }}>
+        <button onClick={() => setShowModal(true)} className="btn btn-primary" style={{ display:'flex', alignItems:'center', gap:'0.375rem' }}>
           <Plus size={15}/> Novo Cliente
-        </Link>
+        </button>
       </div>
+
+      {showModal && (
+        <div style={{ position:'fixed', inset:0, zIndex:100, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' }}
+          onClick={e=>{if(e.target===e.currentTarget)setShowModal(false)}}>
+          <div className="card anim-pop" style={{ width:'100%', maxWidth:'600px', maxHeight:'90vh', overflowY:'auto', padding:'0' }}>
+            <div style={{ padding:'1.25rem', borderBottom:'1px solid var(--borda)', display:'flex', justifyContent:'space-between', alignItems:'center', position:'sticky', top:0, background:'var(--surface)', zIndex:10 }}>
+              <div>
+                <h2 style={{ fontSize:'1.25rem', fontWeight:800 }}>👤 Cadastrar Novo Cliente</h2>
+                <p style={{ fontSize:'0.85rem', color:'var(--texto-desab)' }}>Preencha os dados do cliente</p>
+              </div>
+              <button onClick={()=>setShowModal(false)} className="btn-icon"><X size={20}/></button>
+            </div>
+            <div style={{ padding:'1.25rem' }}>
+              <FormCliente onSuccess={() => { setShowModal(false); if (empresaId) carregar(empresaId); }} onCancel={() => setShowModal(false)} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      <PageTabs tabs={[
+        { label: 'Todos os Clientes', href: '/clientes' },
+        { label: 'Sumidos ⚠', href: '/clientes/inativos' },
+        { label: 'Fornecedores', href: '/fornecedores' }
+      ]} />
 
       {/* Filtros */}
       <div style={{ display:'flex', gap:'0.375rem', flexWrap:'wrap' }}>
@@ -90,7 +117,7 @@ export default function ClientesPage() {
               <p style={{ fontSize:'2rem', marginBottom:'0.5rem' }}>👥</p>
               <p style={{ fontWeight:700, marginBottom:'0.25rem' }}>Nenhum cliente cadastrado ainda</p>
               <p style={{ fontSize:'0.85rem', marginBottom:'1rem' }}>Cadastre seu primeiro cliente</p>
-              <Link href="/clientes/novo" className="btn btn-primary">+ Cadastrar cliente</Link>
+              <button onClick={() => setShowModal(true)} className="btn btn-primary">+ Cadastrar cliente</button>
             </div>
           )}
         </div>

@@ -7,14 +7,28 @@ export function useEmpresaId() {
   const [loading,   setLoading]   = useState(true)
 
   useEffect(() => {
-    createClient()
-      .from('profiles')
-      .select('empresa_id')
-      .single()
-      .then(({ data }) => {
-        setEmpresaId(data?.empresa_id ?? null)
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) {
         setLoading(false)
-      })
+        return
+      }
+
+      supabase
+        .from('profiles')
+        .select('empresa_id')
+        .eq('id', user.id)
+        .single()
+        .then(({ data, error }) => {
+          if (error) {
+            console.error('Erro ao buscar empresa_id:', error.message)
+            setEmpresaId(null)
+          } else {
+            setEmpresaId(data?.empresa_id ?? null)
+          }
+          setLoading(false)
+        })
+    })
   }, [])
 
   return { empresaId, loading }

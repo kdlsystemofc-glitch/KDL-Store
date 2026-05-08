@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
 import { Loader2 } from 'lucide-react'
+import { PageTabs } from '@/components/PageTabs'
 
 type ClienteInativo = {
   id: string; nome: string; telefone: string|null; ultima_compra: string|null
@@ -87,6 +88,12 @@ export default function ClientesInativosPage() {
           <p className="pg-sub">Clientes que pararam de comprar — recupere-os com 1 clique</p>
         </div>
       </div>
+
+      <PageTabs tabs={[
+        { label: 'Todos os Clientes', href: '/clientes' },
+        { label: 'Sumidos ⚠', href: '/clientes/inativos' },
+        { label: 'Fornecedores', href: '/fornecedores' }
+      ]} />
 
       <div className="alerta alerta-info">
         <span>💡</span>

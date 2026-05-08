@@ -3,7 +3,9 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
-import { Plus, Search, Loader2 } from 'lucide-react'
+import { Plus, Search, Loader2, X } from 'lucide-react'
+import { PageTabs } from '@/components/PageTabs'
+import { FormFornecedor } from '@/components/FormFornecedor'
 
 type Fornecedor = {
   id: string; nome: string; contato: string | null; telefone: string | null
@@ -22,6 +24,7 @@ export default function FornecedoresPage() {
   const [pedidos,     setPedidos]     = useState<Pedido[]>([])
   const [busca,       setBusca]       = useState('')
   const [loading,     setLoading]     = useState(true)
+  const [showModal,   setShowModal]   = useState(false)
 
   useEffect(() => { if (empresaId) carregar(empresaId) }, [empresaId])
 
@@ -58,10 +61,34 @@ export default function FornecedoresPage() {
           <h1 className="pg-titulo">🏭 Fornecedores</h1>
           <p className="pg-sub">{fornecedores.length} fornecedores · {pendentes} pedido(s) pendente(s)</p>
         </div>
-        <Link href="/fornecedores/novo" className="btn btn-primary" style={{ display:'flex', alignItems:'center', gap:'0.375rem' }}>
+        <button onClick={() => setShowModal(true)} className="btn btn-primary" style={{ display:'flex', alignItems:'center', gap:'0.375rem' }}>
           <Plus size={15}/> Novo Fornecedor
-        </Link>
+        </button>
       </div>
+
+      <PageTabs tabs={[
+        { label: 'Todos os Clientes', href: '/clientes' },
+        { label: 'Sumidos ⚠', href: '/clientes/inativos' },
+        { label: 'Fornecedores', href: '/fornecedores' }
+      ]} />
+
+      {showModal && (
+        <div style={{ position:'fixed', inset:0, zIndex:100, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' }}
+          onClick={e=>{if(e.target===e.currentTarget)setShowModal(false)}}>
+          <div className="card anim-pop" style={{ width:'100%', maxWidth:'680px', maxHeight:'90vh', overflowY:'auto', padding:'0' }}>
+            <div style={{ padding:'1.25rem', borderBottom:'1px solid var(--borda)', display:'flex', justifyContent:'space-between', alignItems:'center', position:'sticky', top:0, background:'var(--surface)', zIndex:10 }}>
+              <div>
+                <h2 style={{ fontSize:'1.25rem', fontWeight:800 }}>🏭 Cadastrar Novo Fornecedor</h2>
+                <p style={{ fontSize:'0.85rem', color:'var(--texto-desab)' }}>Preencha os dados do fornecedor</p>
+              </div>
+              <button onClick={()=>setShowModal(false)} className="btn-icon"><X size={20}/></button>
+            </div>
+            <div style={{ padding:'1.25rem' }}>
+              <FormFornecedor onSuccess={() => { setShowModal(false); if (empresaId) carregar(empresaId); }} onCancel={() => setShowModal(false)} />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Abas */}
       <div style={{ display:'flex', gap:'0.25rem', background:'var(--surface)', border:'1px solid var(--borda)', borderRadius:'var(--radius)', padding:'0.25rem', width:'fit-content' }}>
@@ -89,7 +116,7 @@ export default function FornecedoresPage() {
                 <div>
                   <p style={{ fontSize:'2rem', marginBottom:'0.5rem' }}>🏭</p>
                   <p style={{ fontWeight:700, marginBottom:'0.25rem' }}>Nenhum fornecedor cadastrado</p>
-                  <Link href="/fornecedores/novo" className="btn btn-primary" style={{ marginTop:'0.5rem', display:'inline-flex' }}>+ Cadastrar fornecedor</Link>
+                  <button onClick={() => setShowModal(true)} className="btn btn-primary" style={{ marginTop:'0.5rem', display:'inline-flex' }}>+ Cadastrar fornecedor</button>
                 </div>
               )}
             </div>

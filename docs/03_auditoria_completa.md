@@ -1,7 +1,7 @@
 # NexoCommerce — Auditoria Completa de Telas, Botões e Conexões
 
 > **Regra:** Este arquivo DEVE ser atualizado a cada mudança no código.
-> **Última atualização:** 06/05/2026 v1.3.0 — 28 páginas auditadas
+> **Última atualização:** 08/05/2026 v2.0.0 — Sprint de Consolidação de Navegação (Abas + Modais)
 
 ---
 
@@ -14,55 +14,47 @@
 | `/cadastro` | `(auth)/cadastro/page.tsx` | ✅ Completo |
 | `/dashboard` | `(dashboard)/dashboard/page.tsx` | ✅ Completo |
 | `/vendas` | `(dashboard)/vendas/page.tsx` | ✅ Completo |
-| `/vendas/nova` | `(dashboard)/vendas/nova/page.tsx` | ✅ Completo |
+| `/vendas/nova` | `(dashboard)/vendas/nova/page.tsx` | ✅ Completo (PDV com modal de cliente inline) |
 | `/vendas/[id]` | `(dashboard)/vendas/[id]/page.tsx` | ✅ Completo |
-| `/produtos` | `(dashboard)/produtos/page.tsx` | ✅ Completo |
-| `/produtos/novo` | `(dashboard)/produtos/novo/page.tsx` | ✅ Completo |
-| `/estoque` | `(dashboard)/estoque/page.tsx` | ✅ Completo |
-| `/clientes` | `(dashboard)/clientes/page.tsx` | ✅ Completo |
-| `/clientes/novo` | `(dashboard)/clientes/novo/page.tsx` | ✅ Completo |
-| `/clientes/inativos` | `(dashboard)/clientes/inativos/page.tsx` | ✅ Completo |
-| `/fornecedores` | `(dashboard)/fornecedores/page.tsx` | ✅ Completo |
-| `/fornecedores/novo` | `(dashboard)/fornecedores/novo/page.tsx` | ✅ Completo |
-| `/garantias` | `(dashboard)/garantias/page.tsx` | ✅ Completo |
+| `/produtos` | `(dashboard)/produtos/page.tsx` | ✅ Completo (modal Novo Produto + abas) |
+| `/produtos/novo` | `(dashboard)/produtos/novo/page.tsx` | ↩️ Redirect → `/produtos` (modal) |
+| `/estoque` | `(dashboard)/estoque/page.tsx` | ✅ Completo (abas Produtos/Estoque/Catálogo) |
+| `/catalogo` | `(dashboard)/catalogo/page.tsx` | ✅ Completo (abas Produtos/Estoque/Catálogo) |
+| `/clientes` | `(dashboard)/clientes/page.tsx` | ✅ Completo (modal Novo Cliente + abas) |
+| `/clientes/novo` | `(dashboard)/clientes/novo/page.tsx` | ↩️ Redirect → `/clientes` (modal) |
+| `/clientes/inativos` | `(dashboard)/clientes/inativos/page.tsx` | ✅ Completo (abas CRM) |
+| `/fornecedores` | `(dashboard)/fornecedores/page.tsx` | ✅ Completo (modal Novo Fornecedor + abas) |
+| `/fornecedores/novo` | `(dashboard)/fornecedores/novo/page.tsx` | ↩️ Redirect → `/fornecedores` (modal) |
+| `/garantias` | `(dashboard)/garantias/page.tsx` | ✅ Completo (abas Operações Extras) |
 | `/garantias/[id]` | `(dashboard)/garantias/[id]/page.tsx` | ✅ Completo |
-| `/ordens-de-servico` | `(dashboard)/ordens-de-servico/page.tsx` | ✅ Completo |
-| `/ordens-de-servico/nova` | `(dashboard)/ordens-de-servico/nova/page.tsx` | ✅ Completo |
-| `/comissoes` | `(dashboard)/comissoes/page.tsx` | ✅ Completo |
+| `/ordens-de-servico` | `(dashboard)/ordens-de-servico/page.tsx` | ✅ Completo (modal Nova OS + abas) |
+| `/ordens-de-servico/nova` | `(dashboard)/ordens-de-servico/nova/page.tsx` | ↩️ Redirect → `/ordens-de-servico` (modal) |
+| `/comissoes` | `(dashboard)/comissoes/page.tsx` | ✅ Completo (abas Operações Extras) |
 | `/puxadores` | `(dashboard)/puxadores/page.tsx` | Redirect → `/comissoes` |
-| `/catalogo` | `(dashboard)/catalogo/page.tsx` | ✅ Completo |
-| `/financeiro` | `(dashboard)/financeiro/page.tsx` | ✅ Completo |
-| `/financeiro/fiado` | `(dashboard)/financeiro/fiado/page.tsx` | ✅ Completo |
-| `/financeiro/despesas` | `(dashboard)/financeiro/despesas/page.tsx` | ✅ Completo |
-| `/financeiro/fechamento` | `(dashboard)/financeiro/fechamento/page.tsx` | ✅ Completo |
+| `/financeiro` | `(dashboard)/financeiro/page.tsx` | ✅ Completo (abas Financeiro) |
+| `/financeiro/fiado` | `(dashboard)/financeiro/fiado/page.tsx` | ✅ Completo (abas Financeiro) |
+| `/financeiro/despesas` | `(dashboard)/financeiro/despesas/page.tsx` | ✅ Completo (abas Financeiro) |
+| `/financeiro/fechamento` | `(dashboard)/financeiro/fechamento/page.tsx` | ✅ Completo (abas Financeiro) |
 | `/relatorios` | `(dashboard)/relatorios/page.tsx` | ✅ Completo |
 | `/configuracoes` | `(dashboard)/configuracoes/page.tsx` | ✅ Completo |
 | `/produtos/[id]/editar` | — | TODO |
 
 ---
 
-## SIDEBAR — TODOS OS LINKS
+## SIDEBAR — ESTRUTURA ATUAL (8 itens visíveis)
 
-| Label | Rota | Lógica ativo |
+> **v2.0:** Reduzida de 17 para 8 entradas. Módulos filhos vivem dentro de abas (`PageTabs`), não na sidebar.
+
+| Label | Rota entrada | Módulos nas abas |
 |---|---|---|
-| NOVA VENDA (F2) | `/vendas/nova` | Sempre visível |
-| Dashboard | `/dashboard` | exact match |
-| Vendas | `/vendas` | exact match |
-| Produtos | `/produtos` | exact match |
-| Estoque | `/estoque` | startsWith |
-| Clientes | `/clientes` | exact match |
-| Sumidos ⚠ | `/clientes/inativos` | startsWith |
-| Fornecedores | `/fornecedores` | startsWith |
-| Comissões | `/comissoes` | startsWith |
-| Garantias | `/garantias` | startsWith |
-| Ordens de Serviço | `/ordens-de-servico` | startsWith |
-| Catálogo Online | `/catalogo` | startsWith |
-| Visão Geral | `/financeiro` | exact match |
-| Fiado 📒 | `/financeiro/fiado` | startsWith |
-| Despesas | `/financeiro/despesas` | startsWith |
-| Fechamento | `/financeiro/fechamento` | startsWith |
-| Relatórios | `/relatorios` | startsWith |
-| Configurações | `/configuracoes` | startsWith |
+| 🛒 Nova Venda | `/vendas/nova` | — |
+| 📊 Dashboard | `/dashboard` | — |
+| 🧾 Vendas | `/vendas` | — |
+| 📦 Produtos & Estoque | `/produtos` | Produtos · Estoque · Catálogo |
+| 👥 CRM & Parceiros | `/clientes` | Clientes · Sumidos · Fornecedores |
+| 💹 Financeiro | `/financeiro` | DRE · Despesas · Fiados · Fechamento |
+| ⚙ Operações Extras | `/garantias` | Garantias · OS · Comissões |
+| ⚙️ Configurações | `/configuracoes` | — |
 
 ---
 

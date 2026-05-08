@@ -4,7 +4,9 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
-import { Plus, Search, AlertTriangle, Loader2 } from 'lucide-react'
+import { Plus, Search, AlertTriangle, Loader2, X } from 'lucide-react'
+import { PageTabs } from '@/components/PageTabs'
+import { FormProduto } from '@/components/FormProduto'
 
 type Produto = {
   id: string; nome: string; sku: string | null; categoria: string | null
@@ -17,6 +19,7 @@ export default function ProdutosPage() {
   const [busca,      setBusca]      = useState('')
   const [loading,    setLoading]    = useState(true)
   const [erro,       setErro]       = useState<string | null>(null)
+  const [showModal,  setShowModal]  = useState(false)
 
   useEffect(() => { if (empresaId) carregar(empresaId) }, [empresaId])
 
@@ -48,13 +51,37 @@ export default function ProdutosPage() {
 
       <div className="pg-header">
         <div>
-          <h1 className="pg-titulo">📦 Produtos</h1>
+          <h1 className="pg-titulo">📦 Produtos & Estoque</h1>
           <p className="pg-sub">{produtos.length} produtos cadastrados · {totalItens} itens em estoque</p>
         </div>
-        <Link href="/produtos/novo" className="btn btn-primary" style={{ display:'flex', alignItems:'center', gap:'0.375rem' }}>
+        <button onClick={() => setShowModal(true)} className="btn btn-primary" style={{ display:'flex', alignItems:'center', gap:'0.375rem' }}>
           <Plus size={15}/> Novo Produto
-        </Link>
+        </button>
       </div>
+
+      {showModal && (
+        <div style={{ position:'fixed', inset:0, zIndex:100, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' }}
+          onClick={e=>{if(e.target===e.currentTarget)setShowModal(false)}}>
+          <div className="card anim-pop" style={{ width:'100%', maxWidth:'800px', maxHeight:'90vh', overflowY:'auto', padding:'0' }}>
+            <div style={{ padding:'1.25rem', borderBottom:'1px solid var(--borda)', display:'flex', justifyContent:'space-between', alignItems:'center', position:'sticky', top:0, background:'var(--surface)', zIndex:10 }}>
+              <div>
+                <h2 style={{ fontSize:'1.25rem', fontWeight:800 }}>📦 Cadastrar Novo Produto</h2>
+                <p style={{ fontSize:'0.85rem', color:'var(--texto-desab)' }}>Preencha os dados do item</p>
+              </div>
+              <button onClick={()=>setShowModal(false)} className="btn-icon"><X size={20}/></button>
+            </div>
+            <div style={{ padding:'1.25rem' }}>
+              <FormProduto onSuccess={() => { setShowModal(false); if (empresaId) carregar(empresaId); }} onCancel={() => setShowModal(false)} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      <PageTabs tabs={[
+        { label: 'Produtos', href: '/produtos' },
+        { label: 'Estoque e Movimentações', href: '/estoque' },
+        { label: 'Catálogo Online', href: '/catalogo' }
+      ]} />
 
       {/* KPIs */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'0.625rem' }}>
@@ -101,7 +128,7 @@ export default function ProdutosPage() {
               <p style={{ fontSize:'2rem', marginBottom:'0.5rem' }}>📦</p>
               <p style={{ fontWeight:700, marginBottom:'0.25rem' }}>Nenhum produto cadastrado ainda</p>
               <p style={{ fontSize:'0.85rem', marginBottom:'1rem' }}>Comece cadastrando seu primeiro produto</p>
-              <Link href="/produtos/novo" className="btn btn-primary">+ Cadastrar primeiro produto</Link>
+              <button onClick={() => setShowModal(true)} className="btn btn-primary">+ Cadastrar primeiro produto</button>
             </div>
           )}
         </div>

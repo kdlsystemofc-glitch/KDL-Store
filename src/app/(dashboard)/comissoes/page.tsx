@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
 import { Plus, Loader2, Trash2, X, Save } from 'lucide-react'
+import { PageTabs } from '@/components/PageTabs'
 
 type Comissao = { id:string; nome:string; telefone:string|null; tipo:string; taxa:number; status:string; criado_em:string }
 
@@ -95,6 +96,12 @@ export default function ComissoesPage() {
           <Plus size={14}/> Cadastrar
         </button>
       </div>
+
+      <PageTabs tabs={[
+        { label: 'Garantias', href: '/garantias' },
+        { label: 'Ordens de Serviço', href: '/ordens-de-servico' },
+        { label: 'Comissões', href: '/comissoes' }
+      ]} />
 
       <div className="alerta alerta-info" style={{fontSize:'0.82rem'}}>
         💡 Comissionados recebem por cada venda onde foram indicadores. Configure % sobre a venda ou valor fixo por pedido.

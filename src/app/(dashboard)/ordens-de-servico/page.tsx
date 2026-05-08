@@ -2,7 +2,8 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
-import { Plus, Search, Loader2 } from 'lucide-react'
+import { Plus, Search, Loader2, X } from 'lucide-react'
+import { PageTabs } from '@/components/PageTabs'
 
 type OS = {
   id: string; numero: number; cliente_nome: string; cliente_tel: string | null
@@ -107,57 +108,72 @@ export default function OrdensServicoPage() {
         </button>
       </div>
 
-      {/* Formulário inline */}
+      <PageTabs tabs={[
+        { label: 'Garantias', href: '/garantias' },
+        { label: 'Ordens de Serviço', href: '/ordens-de-servico' },
+        { label: 'Comissões', href: '/comissoes' }
+      ]} />
+
+      {/* Formulário Modal */}
       {showForm && (
-        <div className="card" style={{ padding:0, overflow:'hidden' }}>
-          <div className="sec-header"><span>➕ Nova Ordem de Serviço</span></div>
-          <div style={{ padding:'0.875rem', display:'flex', flexDirection:'column', gap:'0.75rem' }}>
-            {erro && <div className="alerta alerta-perigo">{erro}</div>}
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.625rem' }}>
+        <div style={{ position:'fixed', inset:0, zIndex:100, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' }}
+          onClick={e=>{if(e.target===e.currentTarget)setShowForm(false)}}>
+          <div className="card anim-pop" style={{ width:'100%', maxWidth:'600px', maxHeight:'90vh', overflowY:'auto', padding:'0' }}>
+            <div style={{ padding:'1.25rem', borderBottom:'1px solid var(--borda)', display:'flex', justifyContent:'space-between', alignItems:'center', position:'sticky', top:0, background:'var(--surface)', zIndex:10 }}>
               <div>
-                <label className="campo-label">Cliente *</label>
-                <input className="campo" style={{ marginTop:'0.375rem' }} placeholder="Nome do cliente"
-                  value={form.cliente_nome} onChange={e=>setForm(f=>({...f,cliente_nome:e.target.value}))}/>
+                <h2 style={{ fontSize:'1.25rem', fontWeight:800 }}>➕ Nova Ordem de Serviço</h2>
+                <p style={{ fontSize:'0.85rem', color:'var(--texto-desab)' }}>Preencha os dados do equipamento</p>
               </div>
-              <div>
-                <label className="campo-label">WhatsApp</label>
-                <input className="campo" style={{ marginTop:'0.375rem' }} placeholder="(11) 99999-0000"
-                  value={form.cliente_tel} onChange={e=>setForm(f=>({...f,cliente_tel:e.target.value}))}/>
-              </div>
+              <button onClick={()=>setShowForm(false)} className="btn-icon"><X size={20}/></button>
             </div>
-            <div>
-              <label className="campo-label">Equipamento *</label>
-              <input className="campo" style={{ marginTop:'0.375rem' }} placeholder="Ex: Som Pioneer DEH-S1253UB"
-                value={form.equipamento} onChange={e=>setForm(f=>({...f,equipamento:e.target.value}))}/>
-            </div>
-            <div>
-              <label className="campo-label">Defeito relatado *</label>
-              <textarea className="campo" rows={2} style={{ marginTop:'0.375rem', resize:'none' }}
-                placeholder="Descreva o problema..."
-                value={form.defeito_relatado} onChange={e=>setForm(f=>({...f,defeito_relatado:e.target.value}))}/>
-            </div>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'0.625rem' }}>
-              <div>
-                <label className="campo-label">Orçamento (R$)</label>
-                <input className="campo" type="number" step="0.01" style={{ marginTop:'0.375rem' }}
-                  placeholder="0,00" value={form.orcamento} onChange={e=>setForm(f=>({...f,orcamento:e.target.value}))}/>
+            <div style={{ padding:'1.25rem', display:'flex', flexDirection:'column', gap:'0.75rem' }}>
+              {erro && <div className="alerta alerta-perigo">{erro}</div>}
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.625rem' }}>
+                <div>
+                  <label className="campo-label">Cliente *</label>
+                  <input className="campo" style={{ marginTop:'0.375rem' }} placeholder="Nome do cliente"
+                    value={form.cliente_nome} onChange={e=>setForm(f=>({...f,cliente_nome:e.target.value}))}/>
+                </div>
+                <div>
+                  <label className="campo-label">WhatsApp</label>
+                  <input className="campo" style={{ marginTop:'0.375rem' }} placeholder="(11) 99999-0000"
+                    value={form.cliente_tel} onChange={e=>setForm(f=>({...f,cliente_tel:e.target.value}))}/>
+                </div>
               </div>
               <div>
-                <label className="campo-label">Técnico responsável</label>
-                <input className="campo" style={{ marginTop:'0.375rem' }} placeholder="Nome do técnico"
-                  value={form.tecnico} onChange={e=>setForm(f=>({...f,tecnico:e.target.value}))}/>
+                <label className="campo-label">Equipamento *</label>
+                <input className="campo" style={{ marginTop:'0.375rem' }} placeholder="Ex: Som Pioneer DEH-S1253UB"
+                  value={form.equipamento} onChange={e=>setForm(f=>({...f,equipamento:e.target.value}))}/>
               </div>
               <div>
-                <label className="campo-label">Previsão de entrega</label>
-                <input className="campo" type="date" style={{ marginTop:'0.375rem' }}
-                  value={form.previsao} onChange={e=>setForm(f=>({...f,previsao:e.target.value}))}/>
+                <label className="campo-label">Defeito relatado *</label>
+                <textarea className="campo" rows={2} style={{ marginTop:'0.375rem', resize:'none' }}
+                  placeholder="Descreva o problema..."
+                  value={form.defeito_relatado} onChange={e=>setForm(f=>({...f,defeito_relatado:e.target.value}))}/>
               </div>
-            </div>
-            <div style={{ display:'flex', justifyContent:'flex-end', gap:'0.5rem' }}>
-              <button onClick={()=>setShowForm(false)} className="btn btn-ghost">Cancelar</button>
-              <button onClick={salvar} disabled={salvando} className="btn btn-primary">
-                {salvando ? <><Loader2 size={14} style={{animation:'spin 1s linear infinite'}}/> Salvando...</> : '✓ Criar OS'}
-              </button>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'0.625rem' }}>
+                <div>
+                  <label className="campo-label">Orçamento (R$)</label>
+                  <input className="campo" type="number" step="0.01" style={{ marginTop:'0.375rem' }}
+                    placeholder="0,00" value={form.orcamento} onChange={e=>setForm(f=>({...f,orcamento:e.target.value}))}/>
+                </div>
+                <div>
+                  <label className="campo-label">Técnico responsável</label>
+                  <input className="campo" style={{ marginTop:'0.375rem' }} placeholder="Nome do técnico"
+                    value={form.tecnico} onChange={e=>setForm(f=>({...f,tecnico:e.target.value}))}/>
+                </div>
+                <div>
+                  <label className="campo-label">Previsão de entrega</label>
+                  <input className="campo" type="date" style={{ marginTop:'0.375rem' }}
+                    value={form.previsao} onChange={e=>setForm(f=>({...f,previsao:e.target.value}))}/>
+                </div>
+              </div>
+              <div style={{ display:'flex', justifyContent:'flex-end', gap:'0.5rem', marginTop:'0.5rem' }}>
+                <button onClick={()=>setShowForm(false)} className="btn btn-ghost">Cancelar</button>
+                <button onClick={salvar} disabled={salvando} className="btn btn-primary">
+                  {salvando ? <><Loader2 size={14} style={{animation:'spin 1s linear infinite'}}/> Salvando...</> : '✓ Criar OS'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

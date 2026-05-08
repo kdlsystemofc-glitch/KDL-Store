@@ -5,6 +5,7 @@ import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
 import { Loader2 } from 'lucide-react'
 import Link from 'next/link'
+import { PageTabs } from '@/components/PageTabs'
 
 type Produto = { id:string; nome:string; categoria:string|null; preco_varejo:number; preco_atacado:number|null; preco_vip:number|null; ativo_catalogo:boolean|null; destaque:boolean|null; preco_catalogo:string|null }
 
@@ -67,6 +68,12 @@ export default function CatalogoPage() {
           <p className="pg-sub">{ativos} produto(s) visíveis no catálogo público</p></div>
         <a href={`https://${urlCatalogo}`} target="_blank" rel="noopener noreferrer" className="btn btn-primary">↗ Ver Catálogo</a>
       </div>
+
+      <PageTabs tabs={[
+        { label: 'Produtos', href: '/produtos' },
+        { label: 'Estoque e Movimentações', href: '/estoque' },
+        { label: 'Catálogo Online', href: '/catalogo' }
+      ]} />
 
       {/* Link */}
       <div className="card" style={{display:'grid',gridTemplateColumns:'1fr auto',gap:'1.5rem',alignItems:'center'}}>

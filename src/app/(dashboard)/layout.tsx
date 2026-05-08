@@ -15,35 +15,26 @@ const navGroups = [
     label: 'Principal',
     items: [
       { href: '/dashboard',  label: 'Dashboard',   icon: LayoutDashboard },
-      { href: '/vendas',     label: 'Vendas',       icon: ShoppingCart },
-      { href: '/produtos',   label: 'Produtos',     icon: Package },
-      { href: '/estoque',    label: 'Estoque',      icon: TrendingDown },
+      { href: '/vendas',     label: 'Histórico de Vendas', icon: ShoppingCart },
+      { href: '/produtos',   label: 'Produtos & Estoque', icon: Package },
     ]
   },
   {
-    label: 'Clientes & Parceiros',
+    label: 'CRM & Parceiros',
     items: [
-      { href: '/clientes',          label: 'Clientes',      icon: Users },
-      { href: '/clientes/inativos', label: 'Sumidos ⚠',    icon: UserX },
-      { href: '/fornecedores',      label: 'Fornecedores',  icon: Truck },
-      { href: '/comissoes',          label: 'Comissões',      icon: Award },
-    ]
-  },
-  {
-    label: 'Operações',
-    items: [
-      { href: '/garantias',         label: 'Garantias',         icon: Shield },
-      { href: '/ordens-de-servico', label: 'Ordens de Serviço', icon: Wrench },
-      { href: '/catalogo',          label: 'Catálogo Online',   icon: Globe },
+      { href: '/clientes',   label: 'Clientes',    icon: Users },
     ]
   },
   {
     label: 'Financeiro',
     items: [
-      { href: '/financeiro',           label: 'Visão Geral',  icon: DollarSign },
-      { href: '/financeiro/despesas',  label: 'Despesas',     icon: TrendingDown },
-      { href: '/financeiro/fiado',     label: 'Fiado 📒',     icon: BookOpen },
-      { href: '/financeiro/fechamento',label: 'Fechamento',   icon: BarChart3 },
+      { href: '/financeiro', label: 'Financeiro',  icon: DollarSign },
+    ]
+  },
+  {
+    label: 'Operações Extras',
+    items: [
+      { href: '/garantias',  label: 'Operações Extras', icon: Wrench },
     ]
   }
 ]
@@ -52,11 +43,15 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) 
   const pathname = usePathname()
   const router   = useRouter()
 
-  // exact routes that have children — only activate on exact match to avoid double-highlight
-  const exactOnly = ['/clientes', '/vendas', '/financeiro', '/produtos']
+  // Define which sub-routes belong to which top-level active state
   const isActive = (href: string) => {
-    if (href === '/dashboard' || exactOnly.includes(href)) return pathname === href
-    return pathname === href || pathname.startsWith(href + '/')
+    if (href === '/dashboard') return pathname === '/dashboard'
+    if (href === '/vendas') return pathname === '/vendas' || pathname.startsWith('/vendas/') && !pathname.includes('/nova')
+    if (href === '/produtos') return pathname.startsWith('/produtos') || pathname.startsWith('/estoque') || pathname.startsWith('/catalogo')
+    if (href === '/clientes') return pathname.startsWith('/clientes') || pathname.startsWith('/fornecedores')
+    if (href === '/financeiro') return pathname.startsWith('/financeiro')
+    if (href === '/garantias') return pathname.startsWith('/garantias') || pathname.startsWith('/ordens-de-servico') || pathname.startsWith('/comissoes')
+    return pathname === href
   }
 
   const handleLogout = async () => {
@@ -169,7 +164,12 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) 
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
   const router = useRouter()
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   // Realtime: detecta congelamento ou exclusão e faz logout imediato
   useEffect(() => {
@@ -199,6 +199,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       return () => { supabase.removeChannel(channel) }
     })
   }, [])
+
+  if (!isMounted) {
+    return (
+      <div style={{ display: 'flex', height: '100vh', width: '100vw', background: 'var(--fundo)', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ color: 'var(--texto-desab)' }}>Carregando sistema...</div>
+      </div>
+    )
+  }
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--fundo)' }}>
