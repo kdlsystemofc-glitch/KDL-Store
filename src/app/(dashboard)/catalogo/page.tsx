@@ -12,7 +12,7 @@ type Produto = { id:string; nome:string; categoria:string|null; preco_varejo:num
 export default function CatalogoPage() {
   const { empresaId } = useEmpresaId()
   const [produtos,  setProdutos]  = useState<Produto[]>([])
-  const [empresa,   setEmpresa]   = useState<{nome:string;whatsapp:string|null;cidade:string|null}>({nome:'',whatsapp:null,cidade:null})
+  const [empresa,   setEmpresa]   = useState<{nome:string;telefone:string|null;cidade:string|null}>({nome:'',telefone:null,cidade:null})
   const [loading,   setLoading]   = useState(true)
   const [salvando,  setSalvando]  = useState<string|null>(null)
 
@@ -23,7 +23,7 @@ export default function CatalogoPage() {
     const supabase = createClient()
     const [{ data: prods }, { data: emp }] = await Promise.all([
       supabase.from('produtos').select('id,nome,categoria,preco_varejo,preco_atacado,preco_vip,ativo_catalogo,destaque,preco_catalogo').eq('empresa_id', eid).eq('ativo', true).order('nome'),
-      supabase.from('empresas').select('nome,whatsapp,cidade').eq('id', eid).single(),
+      supabase.from('empresas').select('nome,telefone,cidade').eq('id', eid).single(),
     ])
     setProdutos(prods||[])
     if (emp) setEmpresa(emp)

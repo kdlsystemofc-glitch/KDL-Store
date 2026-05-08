@@ -165,6 +165,7 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
+  const [headerInfo, setHeaderInfo] = useState({ inicial: 'U', nomeLoja: 'Carregando...' })
   const router = useRouter()
 
   useEffect(() => {
@@ -175,9 +176,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     const supabase = createClient()
     let userId = ''
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return
       userId = user.id
+
+      // Busca o nome do profile e da empresa para o Header
+      const { data: profile } = await supabase.from('profiles').select('nome, empresa_id').eq('id', userId).single()
+      if (profile && profile.empresa_id) {
+        const { data: empresa } = await supabase.from('empresas').select('nome').eq('id', profile.empresa_id).single()
+        setHeaderInfo({
+          inicial: (profile.nome || user.email || 'U').charAt(0).toUpperCase(),
+          nomeLoja: empresa?.nome || 'Minha Loja'
+        })
+      }
+
       const channel = supabase
         .channel('profile-status-' + userId)
         .on('postgres_changes', {
@@ -224,7 +236,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </button>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginLeft: 'auto' }}>
-            <button className="btn-icon" style={{ position: 'relative' }}>
+            <button className="btn-icon" style={{ position: 'relative' }} onClick={() => alert('Nenhuma nova notificação no momento.')}>
               <Bell size={18} style={{ color: 'var(--texto-sec)' }} />
               <span style={{
                 position: 'absolute', top: '4px', right: '4px',
@@ -239,10 +251,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 background: 'var(--verde)', display: 'flex', alignItems: 'center',
                 justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: '0.75rem'
               }}>
-                U
+                {headerInfo.inicial}
               </div>
               <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--texto-sec)' }} className="hidden sm:block">
-                Minha Loja
+                {headerInfo.nomeLoja}
               </span>
             </div>
           </div>

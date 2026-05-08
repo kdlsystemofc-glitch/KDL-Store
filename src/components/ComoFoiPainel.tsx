@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
@@ -108,17 +108,17 @@ export function ComoFoiPainel() {
       { data: vendas },
       { data: vendasPrev },
       { data: desps },
-      { data: itensVendas },
       { data: fiados },
       { data: comissoes },
     ] = await Promise.all([
-      sb.from('vendas').select('total').eq('empresa_id',eid).eq('status','concluida').gte('criado_em',i).lt('criado_em',f),
+      sb.from('vendas').select('total, itens_venda(produto_id,quantidade,preco_unitario,brinde)').eq('empresa_id',eid).eq('status','concluida').gte('criado_em',i).lt('criado_em',f),
       sb.from('vendas').select('total').eq('empresa_id',eid).eq('status','concluida').gte('criado_em',pi).lt('criado_em',pf),
       sb.from('despesas').select('valor').eq('empresa_id',eid).gte('criado_em',i).lt('criado_em',f),
-      sb.from('itens_venda').select('produto_id,quantidade,preco_unitario,brinde').eq('empresa_id',eid).gte('criado_em',i).lt('criado_em',f),
       sb.from('fiados').select('valor_aberto').eq('empresa_id',eid).eq('status','aberto').gte('criado_em',i).lt('criado_em',f),
       sb.from('vendas').select('id').eq('empresa_id',eid).eq('status','concluida').not('comissionado_id','is',null).gte('criado_em',i).lt('criado_em',f),
     ])
+
+    const itensVendas = (vendas||[]).flatMap(v => v.itens_venda || [])
 
     const fat     = (vendas||[]).reduce((s,v)=>s+v.total,0)
     const fatPrev = (vendasPrev||[]).reduce((s,v)=>s+v.total,0)

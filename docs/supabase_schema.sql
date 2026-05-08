@@ -33,12 +33,24 @@ create table public.profiles (
   criado_em   timestamptz not null default now()
 );
 
--- Trigger: cria profile automaticamente ao criar usuário
+-- Trigger: cria profile e empresa automaticamente ao criar usuário
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer as $$
+declare
+  v_empresa_id uuid;
+  v_nome_loja text;
 begin
-  insert into public.profiles (id, nome)
-  values (new.id, new.raw_user_meta_data->>'nome');
+  v_nome_loja := coalesce(new.raw_user_meta_data->>'nome_loja', 'Minha Loja');
+
+  -- Cria a empresa base
+  insert into public.empresas (nome, plano)
+  values (v_nome_loja, 'essencial')
+  returning id into v_empresa_id;
+
+  -- Cria o profile vinculado à nova empresa
+  insert into public.profiles (id, empresa_id, nome)
+  values (new.id, v_empresa_id, coalesce(new.raw_user_meta_data->>'nome', new.email));
+
   return new;
 end;
 $$;
@@ -184,7 +196,7 @@ create table public.vendas (
   numero           serial,
   cliente_id       uuid references public.clientes(id),
   cliente_nome     text,
-  comissionado_id  uuid references public.comissionados(id),
+  comissionado_id  uuid references public.comissoes(id),
   comissionado_nome text,
   forma_pagamento  text not null, -- 'PIX'|'Dinheiro'|'Crédito'|'Débito'|'Fiado'
   subtotal         numeric(10,2) not null default 0,
@@ -348,10 +360,15 @@ alter table public.fechamentos_caixa      enable row level security;
 alter table public.categorias_produto     enable row level security;  -- ADICIONADO
 alter table public.convites               enable row level security;  -- ADICIONADO
 
--- Helper: retorna empresa_id do usuário logado
+-- Helper: retorna empresa_id do usuário logado (security definer evita loop infinito de RLS)
 create or replace function public.minha_empresa_id()
-returns uuid language sql stable as $$
-  select empresa_id from public.profiles where id = auth.uid()
+returns uuid language plpgsql stable security definer set search_path = public as $$
+declare
+  v_empresa_id uuid;
+begin
+  select empresa_id into v_empresa_id from public.profiles where id = auth.uid();
+  return v_empresa_id;
+end;
 $$;
 
 -- Policies genéricas (cada tabela só deixa passar registros da empresa do usuário)

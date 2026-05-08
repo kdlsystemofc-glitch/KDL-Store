@@ -46,3 +46,8 @@ Foram inseridas ações rápidas logo após finalizar a venda (`/vendas/[id]`):
     Se um vendedor conceder muito desconto via edição manual no item do carrinho, o campo exibe borda vermelha `Abaixo do preço mínimo`. Não bloqueia a venda (pois o patrão pode autorizar), mas adverte o vendedor ativamente.
 *   **Onboarding Simples:**
     Quando o banco de produtos está zerado, exibe os 3 passos de onboarding (`Cadastrar produto`, `Testar PDV`, `Fornecedores`) direto no Dashboard. Desaparece na primeira interação real.
+
+## 4. Provisionamento Automático de Empresa (Multi-Tenant)
+Para resolver erros de loop infinito no carregamento devido à falha na permissão de Leitura RLS:
+*   **Trigger no Banco:** O sistema agora tem o `handle_new_user()` configurado para criar automaticamente um registro de `empresas` com os dados informados no formulário de cadastro ANTES de criar o `profile`. Isso evita que usuários sejam jogados no dashboard sem um ID de empresa válido.
+*   **Recuperação Silenciosa:** O hook local `useEmpresaId` agora possui um _fallback_ para garantir a criação da empresa caso o trigger falhe por instabilidade externa, protegendo a UX e reduzindo o tempo em telas de loading.
