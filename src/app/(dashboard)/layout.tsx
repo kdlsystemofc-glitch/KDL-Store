@@ -102,7 +102,7 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) 
             style={{ width: '100%', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 800, letterSpacing: '0.03em', padding: '0.625rem' }}
           >
             <Zap size={15} fill="currentColor" />
-            NOVA VENDA <span className="hidden sm:inline">(F2)</span>
+            NOVA VENDA <span className="hidden md:inline">(F2)</span>
           </Link>
         </div>
 

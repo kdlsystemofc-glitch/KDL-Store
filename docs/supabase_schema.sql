@@ -24,6 +24,7 @@ create table public.empresas (
   estado      text,
   plano       text not null default 'essencial',
   ativo       boolean not null default true,
+  crm_prazo_inatividade_dias integer not null default 60,
   criado_em   timestamptz not null default now()
 );
 
@@ -313,6 +314,19 @@ create table public.despesas (
 );
 
 -- ----------------------------------------------------------------
+-- DEVOLUCOES
+-- ----------------------------------------------------------------
+create table public.devolucoes (
+  id              uuid primary key default uuid_generate_v4(),
+  empresa_id      uuid not null references public.empresas(id) on delete cascade,
+  garantia_id     uuid not null references public.garantias(id) on delete cascade,
+  venda_id        uuid references public.vendas(id) on delete cascade,
+  motivo          text not null,
+  resolucao       text not null,
+  criado_em       timestamptz not null default now()
+);
+
+-- ----------------------------------------------------------------
 -- FIADO
 -- ----------------------------------------------------------------
 create table public.fiados (
@@ -442,6 +456,11 @@ create policy "Empresa deleta despesas"    on public.despesas for delete using (
 create policy "Empresa vê fiados"          on public.fiados for select using (empresa_id = minha_empresa_id());
 create policy "Empresa insere fiados"      on public.fiados for insert with check (empresa_id = minha_empresa_id());
 create policy "Empresa atualiza fiados"    on public.fiados for update using (empresa_id = minha_empresa_id());
+
+-- DEVOLUCOES
+create policy "Empresa vê devolucoes"       on public.devolucoes for select using (empresa_id = minha_empresa_id());
+create policy "Empresa insere devolucoes"   on public.devolucoes for insert with check (empresa_id = minha_empresa_id());
+create policy "Empresa atualiza devolucoes" on public.devolucoes for update using (empresa_id = minha_empresa_id());
 
 -- FECHAMENTOS
 create policy "Empresa vê fechamentos"     on public.fechamentos_caixa for select using (empresa_id = minha_empresa_id());

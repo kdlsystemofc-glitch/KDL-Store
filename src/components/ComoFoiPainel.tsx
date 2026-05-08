@@ -278,6 +278,12 @@ export function ComoFoiPainel() {
                 <p style={{fontSize:'0.75rem',color:'var(--texto-sec)',fontWeight:800,textTransform:'uppercase',marginBottom:'0.25rem'}}>Lucro Estimado</p>
                 <p style={{fontWeight:900,fontSize:'1.25rem',color:dados.lucro>=0?'var(--verde)':'var(--vermelho)',fontFamily:'monospace',lineHeight:1}}>{formatCurrency(dados.lucro)}</p>
                 <p style={{fontSize:'0.7rem',color:'var(--texto-desab)',marginTop:'4px',fontWeight:600}}>líquido</p>
+                {dados.despesas === 0 && dados.faturamento > 0 && (
+                  <div style={{marginTop:'0.75rem',paddingTop:'0.75rem',borderTop:'1px dashed var(--borda)',fontSize:'0.7rem',color:'var(--amarelo)',fontWeight:600}}>
+                    ⚠️ Você não registrou despesas nesse período. O lucro pode estar incorreto.{' '}
+                    <a href="/financeiro/despesas" style={{color:'inherit',textDecoration:'underline'}}>+ Lançar Despesa</a>
+                  </div>
+                )}
               </div>
             </div>
 

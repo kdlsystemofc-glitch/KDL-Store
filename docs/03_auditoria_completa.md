@@ -1,7 +1,7 @@
-﻿# NexoCommerce â€” Auditoria Completa de Telas, BotÃµes e ConexÃµes
+# NexoCommerce â€” Auditoria Completa de Telas, BotÃµes e ConexÃµes
 
-> **Regra:** Este arquivo DEVE ser atualizado a cada mudanÃ§a no cÃ³digo.
-> **Ãšltima atualizaÃ§Ã£o:** 08/05/2026 v2.1.0 â€” EdiÃ§Ã£o de Fornecedores + RelatÃ³rio de ComissÃµes + Migration SQL
+> **Regra:** Este arquivo DEVE ser atualizado a cada mudança no código.
+> **Última atualização:** 08/05/2026 v2.2.0 — Relatórios, Esqueceu a Senha, Cancelamento de Venda e Devoluções
 
 ---
 
@@ -61,11 +61,11 @@
 ## BOTÃ•ES E CONEXÃ•ES POR TELA
 
 ### `/login`
-| Elemento | AÃ§Ã£o / Destino |
+| Elemento | Ação / Destino |
 |---|---|
-| Btn `Entrar` | Supabase Auth â†’ `/dashboard` |
-| Link `Criar conta grÃ¡tis` | â†’ `/cadastro` |
-| Link `Esqueceu a senha?` | TODO |
+| Btn `Entrar` | Supabase Auth → `/dashboard` |
+| Link `Criar conta grátis` | → `/cadastro` |
+| Link `Esqueceu a senha?` | Abre form inline de recuperação (Supabase Reset Password) |
 
 ### `/cadastro`
 | Elemento | AÃ§Ã£o / Destino |
@@ -106,22 +106,27 @@
 | Pgto = Fiado | Campo cliente torna-se **obrigatÃ³rio** + borda vermelha + aviso |
 | Btn "AnÃ´nimo" | Desabilitado quando Fiado selecionado |
 | Btn "ðŸ“’ REGISTRAR NO FIADO" | Salva em `fiados` (Supabase) + finaliza venda |
-| Btns PIX/Dinheiro/CrÃ©dito/DÃ©bito/Fiado | Seleciona forma pgto |
-| Btn FINALIZAR VENDA | Processa â†’ tela sucesso |
-| Sucesso: Btn Ver Recibo | â†’ `/vendas/[id]` |
+| Modal: Btn "💬 Abrir WhatsApp" | Monta msg + salva em `pedidos_fornecedor` (Supabase) |
+| Toggle Brinde ON | Preço → R$0, exibe custo real do brinde |
+| Tipo cliente Varejo/Atacado/VIP | Atualiza preços do carrinho |
+| Campo Comissionado | Registra indicação na venda |
+| Pgto = Fiado | Campo cliente torna-se **obrigatório** + borda vermelha + aviso |
+| Btn "Anônimo" | Desabilitado quando Fiado selecionado |
+| Btn "📦 REGISTRAR NO FIADO" | Salva em `fiados` (Supabase) + finaliza venda |
+| Btns PIX/Dinheiro/Crédito/Débito/Fiado | Seleciona forma pgto |
+| Btn FINALIZAR VENDA | Processa → tela sucesso |
+| Sucesso: Btn Ver Recibo | → `/vendas/[id]` |
 | Sucesso: Btn Nova Venda | Reset do PDV |
 
 ### `/vendas/[id]` (Recibo)
-| Elemento | AÃ§Ã£o / Destino |
+| Elemento | Ação / Destino |
 |---|---|
-| Btn â† Voltar | â†’ `/vendas` |
-| Btn ðŸ’¬ WhatsApp | `wa.me/55{tel}?text={msg}` |
-| Btn ðŸ–¨ Imprimir | `window.print()` |
+| Btn ← Voltar | → `/vendas` |
+| Btn 💬 WhatsApp | `wa.me/55{tel}?text={msg}` |
+| Btn 🖨 Imprimir | `window.print()` |
+| Btn ✕ Cancelar Venda | Modal → Cancela status, estorna estoque, cancela fiado |
 
 ### `/produtos`
-| Elemento | AÃ§Ã£o / Destino |
-|---|---|
-| Btn `+ Novo Produto` | â†’ `/produtos/novo` |
 | Alerta crÃ­tico | â†’ `/estoque` |
 | Btn Editar | TODO: â†’ `/produtos/[id]/editar` |
 | Btn âœ• excluir | TODO: confirmar + deletar |
@@ -181,10 +186,11 @@
 | Btn `Salvar fornecedor` | ✅ Concluído (Supabase) |
 
 ### `/garantias`
-| Elemento | AÃ§Ã£o / Destino |
+| Elemento | Ação / Destino |
 |---|---|
-| Btn ðŸ–¨ Imprimir | â†’ `/garantias/[id]` |
-| Btn ðŸ’¬ WhatsApp | `wa.me/55{tel}` |
+| Btn 🖨 Imprimir | → `/garantias/[id]` |
+| Btn 💬 WhatsApp | `wa.me/55{tel}` |
+| Btn ↩ Devolução | Modal de resolução (Troca/Reparo/Reembolso) + repõe estoque |
 
 ### `/garantias/[id]` (Certificado)
 | Elemento | AÃ§Ã£o / Destino |
@@ -266,12 +272,15 @@
 | Btn `ðŸ–¨ Imprimir RelatÃ³rio` | `window.print()` |
 
 ### `/relatorios`
-| Elemento | AÃ§Ã£o / Destino |
+| Elemento | Ação / Destino |
 |---|---|
-| Select mÃªs | Filtra perÃ­odo |
-| Btn `â¬‡ Exportar PDF` | TODO |
-| Btn `Ver DRE completo` | â†’ `/financeiro` |
-| Btn `ðŸ”’ Fechar PerÃ­odo` | â†’ `/financeiro/fechamento` |
+| Input Mês/Ano | Filtra dados de vendas, itens, despesas e comissões |
+| Btn `🖨 Imprimir` | `window.print()` do relatório consolidado |
+| Btn `⬇ Exportar PDF` | Alerta: "Em breve" |
+| Seção DRE | Resumo financeiro do período |
+| Seção Produtos | Top 10 mais vendidos |
+| Seção Pagamentos | Distribuição PIX, Dinheiro, Fiado, etc |
+| Seção Comissões | Totais pagos e pendentes |
 
 ### `/configuracoes`
 | Elemento | AÃ§Ã£o / Destino |
@@ -315,7 +324,7 @@
 | Export CSV/PDF | RelatÃ³rios, Produtos | TODO |
 | Checkout upgrade | ConfiguraÃ§Ãµes | TODO |
 | SubpÃ¡ginas `/configuracoes/*` | ConfiguraÃ§Ãµes | TODO |
-| Esqueceu a senha? | Login | TODO |
+| Esqueceu a senha? | Login | ✅ Concluído v2.2 |
 
 
 ## AtualizaÃ§Ãµes de Maio/2026 (RefatoraÃ§Ã£o Neobrutalista e Barcode)

@@ -13,6 +13,29 @@ export default function LoginPage() {
   const [erro,       setErro]       = useState<string | null>(null)
   const [loading,    setLoading]    = useState(false)
 
+  // Recuperação
+  const [showRec,    setShowRec]    = useState(false)
+  const [emailRec,   setEmailRec]   = useState('')
+  const [loadingRec, setLoadingRec] = useState(false)
+  const [msgRec,     setMsgRec]     = useState<{tipo:'ok'|'erro', texto:string}|null>(null)
+
+  const recuperarSenha = async () => {
+    if (!emailRec) { setMsgRec({tipo:'erro', texto:'Preencha o e-mail.'}); return }
+    setLoadingRec(true)
+    setMsgRec(null)
+    const supabase = createClient()
+    const { error } = await supabase.auth.resetPasswordForEmail(emailRec, {
+      redirectTo: `${window.location.origin}/auth/callback?next=/redefinir-senha`,
+    })
+    setLoadingRec(false)
+    if (error) {
+      setMsgRec({tipo:'erro', texto:error.message})
+    } else {
+      setMsgRec({tipo:'ok', texto:'Enviamos um link para o seu e-mail. Verifique sua caixa de entrada.'})
+      setTimeout(() => setShowRec(false), 8000)
+    }
+  }
+
   const entrar = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!email || !senha) { setErro('Preencha e-mail e senha.'); return }
@@ -82,12 +105,32 @@ export default function LoginPage() {
             </button>
           </div>
           <div style={{ textAlign: 'right', marginTop: '0.375rem' }}>
-            <button type="button" id="link-forgot-password"
+            <button type="button" id="link-forgot-password" onClick={() => {setShowRec(!showRec); setMsgRec(null)}}
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#15803d', fontSize: '0.78rem', fontWeight: 600 }}>
               Esqueci minha senha
             </button>
           </div>
         </div>
+
+        {/* Formulário Inline de Recuperação */}
+        {showRec && (
+          <div style={{ background: '#f3f4f6', padding: '1rem', borderRadius: '8px', border: '1px solid #d1d5db', display:'flex', flexDirection:'column', gap:'0.5rem', animation:'fadeIn 0.2s ease-in-out' }}>
+            <p style={{ fontWeight: 700, fontSize: '0.85rem', color: '#374151' }}>Recuperar Senha</p>
+            <p style={{ fontSize: '0.78rem', color: '#6b7280' }}>Digite o e-mail da sua conta para receber o link de redefinição.</p>
+            {msgRec && (
+              <div style={{ padding:'0.5rem', borderRadius:'4px', fontSize:'0.8rem', fontWeight:600, background: msgRec.tipo==='ok'?'#dcfce7':'#fef2f2', color: msgRec.tipo==='ok'?'#166534':'#dc2626' }}>
+                {msgRec.tipo==='ok'?'✅ ':'⚠️ '}{msgRec.texto}
+              </div>
+            )}
+            <input type="email" style={inp} placeholder="Seu e-mail..." value={emailRec} onChange={e=>setEmailRec(e.target.value)} />
+            <button type="button" onClick={recuperarSenha} disabled={loadingRec} style={{
+              width: '100%', padding: '0.625rem', borderRadius: '6px', border: '1px solid #15803d',
+              background: '#fff', color: '#15803d', fontWeight: 700, fontSize: '0.85rem', cursor: loadingRec ? 'not-allowed' : 'pointer'
+            }}>
+              {loadingRec ? 'Enviando...' : 'Enviar link de recuperação'}
+            </button>
+          </div>
+        )}
 
         <button id="btn-login-submit" type="submit" disabled={loading} style={{
           width: '100%', padding: '0.875rem', borderRadius: '8px', border: 'none',

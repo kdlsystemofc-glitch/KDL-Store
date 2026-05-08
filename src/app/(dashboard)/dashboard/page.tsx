@@ -9,12 +9,12 @@ import { ComoFoiPainel } from '@/components/ComoFoiPainel'
 
 type KPIs = {
   vendasHoje: number; faturamentoHoje: number; ticketMedio: number
-  produtosCriticos: number; fiadoAberto: number; despesasMes: number
+  produtosCriticos: number; fiadoAberto: number; despesasMes: number; comissoesPagar: number; clientesSumidos: number
   vendasSemana: { dia: string; total: number }[]
   totalProdutos: number; totalVendas: number
 }
 
-const EMPTY: KPIs = { vendasHoje:0, faturamentoHoje:0, ticketMedio:0, produtosCriticos:0, fiadoAberto:0, despesasMes:0, vendasSemana:[], totalProdutos:0, totalVendas:0 }
+const EMPTY: KPIs = { vendasHoje:0, faturamentoHoje:0, ticketMedio:0, produtosCriticos:0, fiadoAberto:0, despesasMes:0, comissoesPagar:0, clientesSumidos:0, vendasSemana:[], totalProdutos:0, totalVendas:0 }
 
 export default function DashboardPage() {
   const { empresaId, loading: loadingEmpresa } = useEmpresaId()
@@ -45,6 +45,9 @@ export default function DashboardPage() {
       { data: fiados },
       { data: despesas },
       { data: vendasSemana },
+      { data: comissoes },
+      { data: clientes },
+      { data: empresaData },
       { count: totalProdutos },
       { count: totalVendas },
     ] = await Promise.all([
@@ -54,6 +57,9 @@ export default function DashboardPage() {
       supabase.from('despesas').select('valor').eq('empresa_id', eid).gte('data', inicioMes.slice(0,10)),
       supabase.from('vendas').select('criado_em,total').eq('empresa_id', eid).eq('status','concluida')
         .gte('criado_em', new Date(Date.now()-6*86400000).toISOString()).order('criado_em'),
+      supabase.from('comissoes').select('valor').eq('empresa_id', eid).eq('status','pendente'),
+      supabase.from('clientes').select('ultima_compra').eq('empresa_id', eid).eq('ativo',true),
+      supabase.from('empresas').select('crm_prazo_inatividade_dias').eq('id', eid).single(),
       supabase.from('produtos').select('*', { count: 'exact', head: true }).eq('empresa_id', eid),
       supabase.from('vendas').select('*', { count: 'exact', head: true }).eq('empresa_id', eid),
     ])
@@ -65,6 +71,11 @@ export default function DashboardPage() {
     const qtdHoje   = (vendasHoje||[]).length
     const fiadoTotal = (fiados||[]).reduce((a,f)=>a+(f.valor_aberto||0),0)
     const despTotal  = (despesas||[]).reduce((a,d)=>a+(d.valor||0),0)
+    const comPagar   = (comissoes||[]).reduce((a,c)=>a+(c.valor||0),0)
+    
+    const prazo = empresaData?.crm_prazo_inatividade_dias || 60
+    const limiteData = new Date(Date.now() - prazo * 86400000).toISOString().slice(0,10)
+    const sumidos = (clientes||[]).filter(c => !c.ultima_compra || c.ultima_compra < limiteData).length
 
     // Agrupa vendas por dia
     const porDia: Record<string,number> = {}
@@ -81,7 +92,7 @@ export default function DashboardPage() {
       vendasHoje: qtdHoje, faturamentoHoje: totalHoje,
       ticketMedio: qtdHoje > 0 ? totalHoje/qtdHoje : 0,
       produtosCriticos: (criticos||[]).length,
-      fiadoAberto: fiadoTotal, despesasMes: despTotal,
+      fiadoAberto: fiadoTotal, despesasMes: despTotal, comissoesPagar: comPagar, clientesSumidos: sumidos,
       vendasSemana: dias,
       totalProdutos: totalProdutos || 0,
       totalVendas: totalVendas || 0,
@@ -140,23 +151,22 @@ export default function DashboardPage() {
       <ComoFoiPainel />
 
       {/* KPIs */}
-      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'0.75rem'}}>
+      {/* KPIs Operacionais */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'0.75rem'}}>
         {[
-          {icon:'🛒', label:'Vendas hoje',        valor:kpis.vendasHoje,               fmt:(v:number)=>String(v),         suf:'transações',    cor:'var(--verde)'},
-          {icon:'💰', label:'Faturamento hoje',   valor:kpis.faturamentoHoje,          fmt:formatCurrency,                 suf:'receita bruta', cor:'var(--verde)'},
-          {icon:'🎯', label:'Ticket médio',       valor:kpis.ticketMedio,              fmt:formatCurrency,                 suf:'por venda',     cor:'var(--texto)'},
-          {icon:'📒', label:'Fiado em aberto',    valor:kpis.fiadoAberto,              fmt:formatCurrency,                 suf:'a receber',     cor:kpis.fiadoAberto>0?'var(--vermelho)':'var(--verde)'},
-          {icon:'💸', label:'Despesas este mês',  valor:kpis.despesasMes,              fmt:formatCurrency,                 suf:'lançadas',      cor:'var(--amarelo)'},
-          {icon:'⚠️', label:'Estoque crítico',   valor:kpis.produtosCriticos,         fmt:(v:number)=>String(v),         suf:'produto(s)',    cor:kpis.produtosCriticos>0?'var(--vermelho)':'var(--verde)'},
+          {icon:'⚠️', label:'Estoque Crítico',   valor:kpis.produtosCriticos, fmt:(v:number)=>String(v), suf:'produtos', cor:kpis.produtosCriticos>0?'var(--vermelho)':'var(--verde)', href:'/estoque'},
+          {icon:'📒', label:'Fiados em Aberto',  valor:kpis.fiadoAberto,      fmt:formatCurrency,        suf:'a receber', cor:kpis.fiadoAberto>0?'var(--vermelho)':'var(--verde)', href:'/financeiro/fiado'},
+          {icon:'💰', label:'Comissões a Pagar', valor:kpis.comissoesPagar,   fmt:formatCurrency,        suf:'pendentes', cor:kpis.comissoesPagar>0?'var(--amarelo)':'var(--verde)', href:'/comissoes'},
+          {icon:'👻', label:'Clientes Sumidos',  valor:kpis.clientesSumidos,  fmt:(v:number)=>String(v), suf:'inativos', cor:kpis.clientesSumidos>0?'var(--amarelo)':'var(--verde)', href:'/clientes/inativos'},
         ].map(k=>(
-          <div key={k.label} className="card" style={{padding:'1rem'}}>
+          <Link key={k.label} href={k.href} className="card" style={{padding:'1rem', textDecoration:'none', color:'inherit', display:'block'}}>
             <div style={{display:'flex',alignItems:'center',gap:'0.5rem',marginBottom:'0.375rem'}}>
               <span style={{fontSize:'1.25rem'}}>{k.icon}</span>
               <p style={{fontSize:'0.78rem',color:'var(--texto-desab)',fontWeight:600}}>{k.label}</p>
             </div>
             <p style={{fontWeight:900,fontSize:'1.625rem',color:k.cor,fontFamily:'monospace',lineHeight:1}}>{k.fmt(k.valor)}</p>
             <p style={{fontSize:'0.72rem',color:'var(--texto-desab)',marginTop:'0.25rem'}}>{k.suf}</p>
-          </div>
+          </Link>
         ))}
       </div>
 

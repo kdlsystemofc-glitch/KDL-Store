@@ -1,6 +1,9 @@
 'use client'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ChevronRight, Crown, Check } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+import { useEmpresaId } from '@/lib/useEmpresaId'
+import { ChevronRight, Crown, Check, Loader2, Save } from 'lucide-react'
 
 const sections = [
   { href: '/configuracoes/empresa',    emoji: '🏪', title: 'Dados da Empresa',       desc: 'Nome, logo, CNPJ, telefone e endereço' },
@@ -13,6 +16,27 @@ const sections = [
 const planFeatures = ['PDV ilimitado', 'Controle de estoque', 'Emissão de garantias', 'Ordens de serviço', 'Módulo Financeiro', 'CRM de Sumição', 'Comissões']
 
 export default function ConfiguracoesPage() {
+  const { empresaId } = useEmpresaId()
+  const [prazoCrm, setPrazoCrm] = useState<number>(60)
+  const [salvandoCrm, setSalvandoCrm] = useState(false)
+
+  useEffect(() => {
+    if (empresaId) {
+      createClient().from('empresas').select('crm_prazo_inatividade_dias').eq('id', empresaId).single()
+        .then(({data}) => { if (data?.crm_prazo_inatividade_dias) setPrazoCrm(data.crm_prazo_inatividade_dias) })
+    }
+  }, [empresaId])
+
+  async function salvarPrazo() {
+    if (!empresaId) return
+    setSalvandoCrm(true)
+    const val = Math.max(7, Math.min(365, Number(prazoCrm)))
+    await createClient().from('empresas').update({ crm_prazo_inatividade_dias: val }).eq('id', empresaId)
+    setPrazoCrm(val)
+    setSalvandoCrm(false)
+    alert('Configurações salvas!')
+  }
+
   function confirmarAcao(msg: string, cb: ()=>void) {
     if (window.confirm(`${msg}\n\nTem certeza? Isso não pode ser desfeito.`)) cb()
   }
@@ -76,6 +100,21 @@ export default function ConfiguracoesPage() {
             <ChevronRight size={16} style={{ color: 'var(--texto-desab)', flexShrink: 0 }} />
           </Link>
         ))}
+      </div>
+
+      {/* Preferências do CRM */}
+      <div className="card">
+        <p style={{ fontWeight: 800, marginBottom: '0.25rem' }}>🎯 Preferências do CRM</p>
+        <p style={{ fontSize: '0.82rem', color: 'var(--texto-desab)', marginBottom: '1rem' }}>Configure quando os clientes devem ser considerados sumidos.</p>
+        <div style={{ display:'flex', gap:'0.5rem', alignItems:'flex-end' }}>
+          <div style={{ flex: 1, maxWidth:'250px' }}>
+            <label className="campo-label">Alertar clientes inativos após (dias)</label>
+            <input type="number" min={7} max={365} className="campo" style={{marginTop:'0.375rem'}} value={prazoCrm} onChange={e=>setPrazoCrm(Number(e.target.value))} />
+          </div>
+          <button onClick={salvarPrazo} disabled={salvandoCrm} className="btn btn-primary" style={{display:'flex', alignItems:'center', gap:'0.375rem', height:'38px'}}>
+            {salvandoCrm ? <Loader2 size={16} style={{animation:'spin 1s linear infinite'}}/> : <Save size={16}/>} Salvar
+          </button>
+        </div>
       </div>
 
       {/* Zona de perigo */}

@@ -7,8 +7,8 @@ import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
 import { ArrowLeft, Printer, X, Loader2, Package, Wrench } from 'lucide-react'
 
-type Venda    = { id:string; numero:number; cliente_nome:string|null; forma_pagamento:string; subtotal:number; desconto:number; total:number; status:string; criado_em:string }
-type Item     = { id:string; produto_nome:string; quantidade:number; preco_unitario:number; brinde:boolean; num_serie:string|null }
+type Venda    = { id:string; numero:number; cliente_nome:string|null; forma_pagamento:string; subtotal:number; desconto:number; total:number; status:string; criado_em:string; motivo_cancelamento?:string }
+type Item     = { id:string; produto_id:string; produto_nome:string; quantidade:number; preco_unitario:number; brinde:boolean; num_serie:string|null }
 type Fornecedor = { id:string; nome:string; telefone:string|null }
 
 const FORMA_ICON: Record<string,string> = { PIX:'📱', Dinheiro:'💵', Crédito:'💳', Débito:'💴', Fiado:'📒' }
@@ -36,12 +36,17 @@ export default function VendaReciboPage() {
   const [salvandoOS,setSalvandoOS]= useState(false)
   const [osSucesso, setOsSucesso] = useState<string|null>(null)
 
+  // Modal Cancelar Venda
+  const [showCanc,    setShowCanc]    = useState(false)
+  const [cancMotivo,  setCancMotivo]  = useState('')
+  const [salvandoCanc,setSalvandoCanc]= useState(false)
+
   useEffect(() => {
     if (!id) return
     const supabase = createClient()
     Promise.all([
       supabase.from('vendas').select('*').eq('id', id).single(),
-      supabase.from('itens_venda').select('id,produto_nome,quantidade,preco_unitario,brinde,num_serie').eq('venda_id', id),
+      supabase.from('itens_venda').select('id,produto_id,produto_nome,quantidade,preco_unitario,brinde,num_serie').eq('venda_id', id),
     ]).then(([{ data: v }, { data: i }]) => {
       setVenda(v)
       setItens(i || [])
@@ -114,6 +119,41 @@ export default function VendaReciboPage() {
     }
   }
 
+  async function cancelarVenda() {
+    if (!venda || !cancMotivo.trim() || !empresaId) return
+    setSalvandoCanc(true)
+    const supabase = createClient()
+    
+    // Atualiza status da venda
+    await supabase.from('vendas').update({ status: 'cancelada', motivo_cancelamento: cancMotivo.trim() }).eq('id', venda.id)
+    
+    // Devolve o estoque de cada item (se não for brinde? Não, devolve tudo)
+    // Para cada item da venda, somar de volta no qtd_atual do produto
+    for (const item of itens) {
+      if (!item.produto_id) continue
+      // Pega o qtd_atual, e soma a quantidade
+      const { data: p } = await supabase.from('produtos').select('qtd_atual').eq('id', item.produto_id).single()
+      if (p) {
+        const novaQtd = p.qtd_atual + item.quantidade
+        await supabase.from('produtos').update({ qtd_atual: novaQtd }).eq('id', item.produto_id)
+        // Registra a movimentação de estorno
+        await supabase.from('estoque_movimentacoes').insert({
+          empresa_id: empresaId, produto_id: item.produto_id,
+          tipo: 'entrada', quantidade: item.quantidade, obs: `Estorno de venda cancelada #${venda.numero}`
+        })
+      }
+    }
+    
+    // Cancela o fiado se houver
+    if (venda.forma_pagamento === 'Fiado') {
+      await supabase.from('fiados').update({ status: 'cancelado' }).eq('venda_id', venda.id)
+    }
+    
+    setVenda({ ...venda, status: 'cancelada', motivo_cancelamento: cancMotivo.trim() })
+    setSalvandoCanc(false)
+    setShowCanc(false)
+  }
+
   if (loading) return (
     <div style={{display:'flex',justifyContent:'center',padding:'3rem',color:'var(--texto-desab)'}}>Carregando recibo...</div>
   )
@@ -121,6 +161,44 @@ export default function VendaReciboPage() {
 
   return (
     <div className="anim-fade" style={{display:'flex',flexDirection:'column',gap:'0.875rem',maxWidth:'560px'}}>
+      {venda.status === 'cancelada' && (
+        <div className="alerta alerta-perigo" style={{ fontWeight:900, textAlign:'center', fontSize:'1.1rem', textTransform:'uppercase' }}>
+          ● Venda Cancelada
+          {venda.motivo_cancelamento && <div style={{ fontSize:'0.85rem', fontWeight:400, marginTop:'4px', textTransform:'none' }}>Motivo: {venda.motivo_cancelamento}</div>}
+        </div>
+      )}
+
+      {/* Modal Cancelar Venda */}
+      {showCanc && (
+        <div style={{position:'fixed',inset:0,zIndex:100,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',justifyContent:'center',padding:'1rem'}}
+          onClick={e=>{if(e.target===e.currentTarget)setShowCanc(false)}}>
+          <div className="card anim-pop" style={{width:'100%',maxWidth:'400px',padding:0}}>
+            <div style={{padding:'1.25rem',borderBottom:'1px solid var(--borda)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <div>
+                <p style={{fontWeight:900,fontSize:'1.1rem',color:'var(--vermelho)'}}>✕ Cancelar Venda</p>
+              </div>
+              <button onClick={()=>setShowCanc(false)} className="btn-icon"><X size={18}/></button>
+            </div>
+            <div style={{padding:'1.25rem',display:'flex',flexDirection:'column',gap:'0.875rem'}}>
+              <div className="alerta alerta-perigo" style={{fontSize:'0.82rem'}}>
+                Atenção: Os produtos serão devolvidos ao estoque. Esta ação não pode ser desfeita.
+              </div>
+              <div>
+                <label className="campo-label">Motivo do cancelamento *</label>
+                <textarea className="campo" rows={3} style={{marginTop:'0.375rem',resize:'none'}} value={cancMotivo} onChange={e=>setCancMotivo(e.target.value)} placeholder="Ex: Cliente desistiu..."/>
+              </div>
+              <div style={{display:'flex',gap:'0.5rem',justifyContent:'flex-end'}}>
+                <button onClick={()=>setShowCanc(false)} className="btn btn-ghost">Voltar</button>
+                <button onClick={cancelarVenda} disabled={!cancMotivo.trim()||salvandoCanc} className="btn btn-primary"
+                  style={{display:'flex',alignItems:'center',gap:'0.375rem',background:'var(--vermelho)',borderColor:'var(--vermelho)'}}>
+                  {salvandoCanc?<Loader2 size={14} style={{animation:'spin 1s linear infinite'}}/>:<X size={14}/>}
+                  Confirmar Cancelamento
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Acionar Fornecedor */}
       {showForn && (
@@ -238,13 +316,18 @@ export default function VendaReciboPage() {
 
       {/* Botões de ação pós-venda */}
       <div style={{display:'flex',gap:'0.5rem',flexWrap:'wrap'}}>
-        <button onClick={abrirModalForn} className="btn btn-secondary" style={{display:'flex',alignItems:'center',gap:'0.375rem',fontSize:'0.82rem'}}>
+        <button onClick={abrirModalForn} disabled={venda.status === 'cancelada'} className="btn btn-secondary" style={{display:'flex',alignItems:'center',gap:'0.375rem',fontSize:'0.82rem'}}>
           <Package size={14}/> Acionar Fornecedor
         </button>
-        <button onClick={()=>{setShowOS(true);setOsEquip(itens.filter(i=>!i.brinde)[0]?.produto_nome||'')}} className="btn btn-secondary"
+        <button onClick={()=>{setShowOS(true);setOsEquip(itens.filter(i=>!i.brinde)[0]?.produto_nome||'')}} disabled={venda.status === 'cancelada'} className="btn btn-secondary"
           style={{display:'flex',alignItems:'center',gap:'0.375rem',fontSize:'0.82rem'}}>
           <Wrench size={14}/> Abrir Ordem de Serviço
         </button>
+        {venda.status === 'concluida' && (
+          <button onClick={() => setShowCanc(true)} className="btn btn-secondary" style={{display:'flex',alignItems:'center',gap:'0.375rem',fontSize:'0.82rem',color:'var(--vermelho)'}}>
+            <X size={14}/> Cancelar Venda
+          </button>
+        )}
       </div>
 
       <div className="card" style={{padding:0,overflow:'hidden'}}>

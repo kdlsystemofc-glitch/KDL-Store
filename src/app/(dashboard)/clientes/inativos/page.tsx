@@ -12,9 +12,9 @@ type ClienteInativo = {
 }
 
 const cats = {
-  morno:   { emoji:'🟡', label:'Morno',   desc:'30–60 dias sem comprar',  cor:'var(--amarelo)' },
-  frio:    { emoji:'🟠', label:'Frio',    desc:'60–90 dias sem comprar',  cor:'#c05200' },
-  perdido: { emoji:'🔴', label:'Perdido', desc:'90+ dias sem comprar',    cor:'var(--vermelho)' },
+  morno:   { emoji:'🟡', label:'Atenção',   desc:'Quase sumindo...',  cor:'var(--amarelo)' },
+  frio:    { emoji:'🟠', label:'Sumido',    desc:'Passou do prazo',  cor:'#c05200' },
+  perdido: { emoji:'🔴', label:'Perdido',   desc:'Muito tempo sumido',    cor:'var(--vermelho)' },
 }
 
 function msgWhatsApp(nome: string, categoria: string) {
@@ -35,6 +35,10 @@ export default function ClientesInativosPage() {
     setLoading(true)
     const supabase = createClient()
 
+    // Busca empresa para pegar o prazo
+    const { data: emp } = await supabase.from('empresas').select('crm_prazo_inatividade_dias').eq('id', eid).single()
+    const prazo = emp?.crm_prazo_inatividade_dias || 60
+
     // Busca todos os clientes ativos com última compra registrada
     const { data: clientes } = await supabase
       .from('clientes')
@@ -52,7 +56,7 @@ export default function ClientesInativosPage() {
     await Promise.all(clientes.map(async (c) => {
       const ultimaData = new Date(c.ultima_compra!).getTime()
       const dias = Math.floor((agora - ultimaData) / 86400000)
-      if (dias < 30) return // Ativo, não é sumido
+      if (dias < Math.max(15, prazo / 2)) return // Ativo, não está nem perto de sumir
 
       const { data: vendas } = await supabase
         .from('vendas')
@@ -65,7 +69,7 @@ export default function ClientesInativosPage() {
       const numCompras = (vendas||[]).length
 
       const categoria: 'morno'|'frio'|'perdido' =
-        dias >= 90 ? 'perdido' : dias >= 60 ? 'frio' : 'morno'
+        dias >= prazo * 1.5 ? 'perdido' : dias >= prazo ? 'frio' : 'morno'
 
       inatArray.push({ id:c.id, nome:c.nome, telefone:c.telefone, ultima_compra:c.ultima_compra, diasSemComprar:dias, totalGasto, numCompras, categoria })
     }))
