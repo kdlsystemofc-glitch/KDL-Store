@@ -38,9 +38,8 @@ alter table public.ordens_servico
 alter table public.garantias
   add column if not exists produto_id uuid references public.produtos(id);
 
--- garantias: torna dias_garantia nullable (PDV não insere sempre)
-alter table public.garantias
-  alter column dias_garantia drop not null;
+-- Nota: dias_garantia nao existe nesta versao do banco — sem alteracao necessaria.
+
 
 -- ----------------------------------------------------------------
 -- 2. NOVAS TABELAS
