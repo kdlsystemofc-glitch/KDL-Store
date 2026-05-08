@@ -1,61 +1,51 @@
 -- ================================================================
--- NexoCommerce — Migration v2.1
--- Execute este SQL no Supabase: SQL Editor → New Query → Run
--- Só adiciona o que está FALTANDO — não recria nada existente
+-- NexoCommerce — Migration v2.1 (CORRIGIDA)
+-- Execute SOMENTE este arquivo no Supabase:
+--   SQL Editor → New Query → cole aqui → Run
+--
+-- ⚠ NÃO execute o supabase_schema.sql — ele é apenas para bancos novos.
+-- Este script adiciona só o que está FALTANDO, sem destruir dados.
 -- ================================================================
 
 -- ----------------------------------------------------------------
 -- 1. COLUNAS NOVAS EM TABELAS EXISTENTES
 -- ----------------------------------------------------------------
 
--- profiles: coluna status (controle de acesso de usuários)
+-- profiles: status para congelar/excluir usuários
 alter table public.profiles
   add column if not exists status text not null default 'ativo';
--- Valores: 'ativo' | 'congelado' | 'excluido'
 
--- profiles: coluna papel com estoquista
--- (já existe, só atualiza o comentário — sem SQL necessário)
-
--- fornecedores: colunas adicionadas pelo FormFornecedor
+-- fornecedores: campos usados pelo FormFornecedor
 alter table public.fornecedores
   add column if not exists email  text,
   add column if not exists cnpj   text,
   add column if not exists estado text;
 
--- comissoes: coluna status
--- (verificar se a tabela se chama 'comissoes' ou 'comissionados' no seu banco)
--- Se for 'comissoes':
+-- comissoes: status ativo/inativo
+-- (ajuste o nome se sua tabela se chama 'comissionados')
 alter table public.comissoes
   add column if not exists status text not null default 'ativo';
--- Se for 'comissionados' (nome original do schema):
--- alter table public.comissionados add column if not exists status text not null default 'ativo';
 
--- itens_venda: colunas com nomes corretos
--- Atenção: se as colunas já existem com esses nomes, ignore.
--- Se existem com nomes antigos (nome, preco_unit), rode os RENAMEs abaixo:
--- alter table public.itens_venda rename column nome to produto_nome;
--- alter table public.itens_venda rename column preco_unit to preco_unitario;
+-- itens_venda: empresa_id (inserido pelo PDV)
 alter table public.itens_venda
   add column if not exists empresa_id uuid references public.empresas(id);
 
--- ordens_servico: colunas com nomes corretos
--- Se as colunas existem com nomes antigos (defeito, valor), rode os RENAMEs:
--- alter table public.ordens_servico rename column defeito to defeito_relatado;
--- alter table public.ordens_servico rename column valor to orcamento;
+-- ordens_servico: cliente_tel (campo usado no formulário)
 alter table public.ordens_servico
   add column if not exists cliente_tel text;
 
--- garantias: produto_id e dias_garantia nullable
+-- garantias: produto_id (inserido automaticamente pelo PDV)
 alter table public.garantias
   add column if not exists produto_id uuid references public.produtos(id);
--- Se dias_garantia for NOT NULL e quiser tornar nullable:
--- alter table public.garantias alter column dias_garantia drop not null;
+
+-- garantias: torna dias_garantia nullable (PDV não insere sempre)
+alter table public.garantias
+  alter column dias_garantia drop not null;
 
 -- ----------------------------------------------------------------
 -- 2. NOVAS TABELAS
 -- ----------------------------------------------------------------
 
--- Categorias de produto (dinâmicas por empresa)
 create table if not exists public.categorias_produto (
   id          uuid primary key default uuid_generate_v4(),
   empresa_id  uuid not null references public.empresas(id) on delete cascade,
@@ -64,7 +54,6 @@ create table if not exists public.categorias_produto (
   unique (empresa_id, nome)
 );
 
--- Convites de usuário (sistema de acesso por link)
 create table if not exists public.convites (
   id          uuid primary key default uuid_generate_v4(),
   empresa_id  uuid not null references public.empresas(id) on delete cascade,
@@ -84,35 +73,49 @@ create table if not exists public.convites (
 alter table public.categorias_produto enable row level security;
 alter table public.convites           enable row level security;
 
-create policy if not exists "Empresa vê categorias"
+-- categorias_produto
+drop policy if exists "Empresa vê categorias"     on public.categorias_produto;
+drop policy if exists "Empresa insere categorias" on public.categorias_produto;
+drop policy if exists "Empresa deleta categorias" on public.categorias_produto;
+
+create policy "Empresa vê categorias"
   on public.categorias_produto for select using (empresa_id = minha_empresa_id());
-create policy if not exists "Empresa insere categorias"
+create policy "Empresa insere categorias"
   on public.categorias_produto for insert with check (empresa_id = minha_empresa_id());
-create policy if not exists "Empresa deleta categorias"
+create policy "Empresa deleta categorias"
   on public.categorias_produto for delete using (empresa_id = minha_empresa_id());
 
-create policy if not exists "Empresa vê convites"
+-- convites
+drop policy if exists "Empresa vê convites"           on public.convites;
+drop policy if exists "Empresa insere convites"       on public.convites;
+drop policy if exists "Empresa atualiza convites"     on public.convites;
+drop policy if exists "Público lê convite por token"  on public.convites;
+
+create policy "Empresa vê convites"
   on public.convites for select using (empresa_id = minha_empresa_id());
-create policy if not exists "Empresa insere convites"
+create policy "Empresa insere convites"
   on public.convites for insert with check (empresa_id = minha_empresa_id());
-create policy if not exists "Empresa atualiza convites"
+create policy "Empresa atualiza convites"
   on public.convites for update using (empresa_id = minha_empresa_id());
--- Permite que usuário não logado leia convite pelo token
-create policy if not exists "Público lê convite por token"
+-- Usuário não logado pode ler o convite pelo token (fluxo /convite?token=...)
+create policy "Público lê convite por token"
   on public.convites for select using (true);
 
--- RLS profiles: membros da mesma empresa podem se ver (gestão de usuários)
--- Remova a policy antiga antes de criar a nova:
+-- ----------------------------------------------------------------
+-- 4. ATUALIZA POLICY DE PROFILES (membros da empresa se veem)
+-- ----------------------------------------------------------------
+
 drop policy if exists "Usuário vê seu profile" on public.profiles;
 create policy "Usuário vê seu profile"
   on public.profiles for select
   using (id = auth.uid() or empresa_id = minha_empresa_id());
 
 -- ----------------------------------------------------------------
--- 4. TRIGGER ATUALIZADO — handle_new_user com suporte a convites
+-- 5. TRIGGER ATUALIZADO — suporte a convites
+-- Quando um usuário cria conta via /convite?token=...,
+-- o trigger lê o token, pega empresa_id e papel do convite,
+-- vincula o profile e marca o convite como aceito.
 -- ----------------------------------------------------------------
--- Este trigger cria o profile do usuário. Se vier de um convite,
--- vincula automaticamente à empresa e aplica o papel correto.
 
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer as $$
@@ -121,11 +124,15 @@ declare
   v_empresa_id uuid;
   v_papel      text;
 begin
-  -- Verifica se tem token de convite nos metadados
-  v_token := (new.raw_user_meta_data->>'convite_token')::uuid;
+  -- Lê token de convite dos metadados (se existir)
+  begin
+    v_token := (new.raw_user_meta_data->>'convite_token')::uuid;
+  exception when others then
+    v_token := null;
+  end;
 
   if v_token is not null then
-    -- Busca convite válido
+    -- Busca convite válido e não expirado
     select empresa_id, papel
       into v_empresa_id, v_papel
       from public.convites
@@ -142,20 +149,20 @@ begin
     end if;
   end if;
 
-  -- Cria o profile
+  -- Cria o profile do novo usuário
   insert into public.profiles (id, nome, empresa_id, papel)
   values (
     new.id,
     coalesce(new.raw_user_meta_data->>'nome', new.email),
-    v_empresa_id,   -- null se não veio de convite
-    coalesce(v_papel, 'admin')  -- admin se criou conta própria, papel do convite se convidado
+    v_empresa_id,                       -- null se não veio de convite
+    coalesce(v_papel, 'admin')          -- admin se criou conta própria
   );
 
   return new;
 end;
 $$;
 
--- Recria o trigger (drop + create para garantir versão atualizada)
+-- Recria o trigger com a versão atualizada
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
