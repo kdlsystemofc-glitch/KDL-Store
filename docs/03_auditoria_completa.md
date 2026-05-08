@@ -1,7 +1,7 @@
 # NexoCommerce — Auditoria Completa de Telas, Botões e Conexões
 
 > **Regra:** Este arquivo DEVE ser atualizado a cada mudança no código.
-> **Última atualização:** 08/05/2026 v2.0.0 — Sprint de Consolidação de Navegação (Abas + Modais)
+> **Última atualização:** 08/05/2026 v2.1.0 — Edição de Fornecedores + Relatório de Comissões + Migration SQL
 
 ---
 
@@ -297,20 +297,23 @@
 
 **Financeiro:** vendas auto → DRE `/financeiro` → despesas → `/financeiro/fechamento`
 
-**Comissão:** PDV select puxador → venda → `/comissoes` → Marcar Pago
+**Comissão:** PDV select puxador → venda salva `comissionado_id` → `/comissoes` aba "Por Venda" → ver total a pagar por indicador
 
 ---
 
-## ITENS TODO (fases futuras
+## ITENS TODO (fases futuras)
 
-| Item | Onde |
-|---|---|
-| Supabase queries reais | Todos módulos |
-| Modal cliente rápido no PDV | `/vendas/nova` |
-| `/produtos/[id]/editar` | Produtos |
-| `/ordens-de-servico/[id]` | OS |
-| `/fornecedores/[id]/editar` | Fornecedores |
-| Export CSV/PDF | Relatórios, Produtos |
-| Checkout upgrade | Configurações |
-| Subpáginas `/configuracoes/*` | Configurações |
-| RLS por empresa_id | Supabase (produção) |
+| Item | Onde | Status |
+|---|---|---|
+| Modal cliente rápido no PDV | `/vendas/nova` | ✅ Concluído v2.0 |
+| `/produtos/[id]/editar` | Produtos | ✅ Concluído (outra IA) |
+| `/fornecedores/[id]/editar` | Fornecedores | ✅ Concluído v2.1 (modal inline) |
+| Relatório de comissões por venda | `/comissoes` | ✅ Concluído v2.1 (aba "Por Venda") |
+| Migration SQL novas tabelas/colunas | Supabase | ✅ `docs/migration_v2_1.sql` criado |
+| Trigger convite→empresa no Supabase | Supabase | ✅ Incluído na migration |
+| `/ordens-de-servico/[id]` | OS | TODO |
+| Export CSV/PDF | Relatórios, Produtos | TODO |
+| Checkout upgrade | Configurações | TODO |
+| Subpáginas `/configuracoes/*` | Configurações | TODO |
+| Esqueceu a senha? | Login | TODO |
+
