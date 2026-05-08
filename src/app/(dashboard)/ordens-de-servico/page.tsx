@@ -249,7 +249,10 @@ export default function OrdensServicoPage() {
                       {STATUS_LABEL[o.status]||o.status}
                     </span>
                   </td>
-                  <td style={{textAlign:'center'}}>
+                  <td style={{textAlign:'center', display:'flex', gap:'0.25rem', justifyContent:'center'}}>
+                    <a href={`/ordens-de-servico/${o.id}`} className="btn btn-secondary" style={{fontSize:'0.72rem',padding:'0.2rem 0.5rem'}}>
+                      Ver OS
+                    </a>
                     {FLUXO[o.status] && (
                       <button onClick={()=>avancar(o.id,o.status)}
                         className="btn btn-secondary" style={{fontSize:'0.72rem',padding:'0.2rem 0.5rem'}}>

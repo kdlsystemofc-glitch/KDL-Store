@@ -105,7 +105,7 @@ export default function FornecedoresPage() {
               <button onClick={()=>setShowModal(false)} className="btn-icon"><X size={20}/></button>
             </div>
             <div style={{ padding:'1.25rem' }}>
-              <FormFornecedor onSuccess={() => { setShowModal(false); if (empresaId) carregar(empresaId) }} onCancel={() => setShowModal(false)} />
+              <FormFornecedor onSuccess={() => { alert('Salvo com sucesso!'); setShowModal(false); if (empresaId) carregar(empresaId) }} onCancel={() => setShowModal(false)} />
             </div>
           </div>
         </div>

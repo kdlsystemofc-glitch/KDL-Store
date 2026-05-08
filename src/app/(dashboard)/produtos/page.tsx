@@ -71,7 +71,7 @@ export default function ProdutosPage() {
               <button onClick={()=>setShowModal(false)} className="btn-icon"><X size={20}/></button>
             </div>
             <div style={{ padding:'1.25rem' }}>
-              <FormProduto onSuccess={() => { setShowModal(false); if (empresaId) carregar(empresaId); }} onCancel={() => setShowModal(false)} />
+              <FormProduto onSuccess={() => { alert('Salvo com sucesso!'); setShowModal(false); if (empresaId) carregar(empresaId); }} onCancel={() => setShowModal(false)} />
             </div>
           </div>
         </div>
