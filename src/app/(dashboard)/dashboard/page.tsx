@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
 import { ShoppingCart, TrendingUp, Package, AlertTriangle, BookOpen, FileText } from 'lucide-react'
+import { ComoFoiPainel } from '@/components/ComoFoiPainel'
 
 type KPIs = {
   vendasHoje: number; faturamentoHoje: number; ticketMedio: number
@@ -134,6 +135,9 @@ export default function DashboardPage() {
           <ShoppingCart size={16}/> Nova Venda
         </Link>
       </div>
+
+      {/* ── PAINEL COMO FOI ── */}
+      <ComoFoiPainel />
 
       {/* KPIs */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'0.75rem'}}>

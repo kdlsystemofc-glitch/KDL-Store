@@ -138,6 +138,7 @@ Inspirado em Bematech, Linx, sistemas de mercado dos anos 2000.
 
 | Funcionalidade | Nenhum concorrente tem |
 |---|---|
+| **Painel "Como foi?"** | Resumo 1-click do negócio com insights e envio via WhatsApp |
 | **Puxador Digital** | Comissão de indicadores de rua |
 | **CRM de Sumição** | Alerta + WhatsApp automático para clientes parados |
 | **Atacado/Varejo/VIP** | 3 tabelas de preço por perfil |
