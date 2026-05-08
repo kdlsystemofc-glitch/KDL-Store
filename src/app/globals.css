@@ -7,47 +7,47 @@
    ╚══════════════════════════════════════════════════════════╝ */
 
 :root {
-  /* Verde — cor de dinheiro, mais escuro e sério */
-  --verde:        #1a7a3c;
-  --verde-esc:    #145f2f;
-  --verde-claro:  #e6f4ec;
-  --verde-borda:  #a3d4b5;
+  /* Verde — Emerald (Modern Retro) */
+  --verde:        #059669;
+  --verde-esc:    #047857;
+  --verde-claro:  #d1fae5;
+  --verde-borda:  #10b981;
 
   /* Vermelho */
-  --vermelho:     #c0392b;
-  --vermelho-claro: #fdecea;
+  --vermelho:     #dc2626;
+  --vermelho-claro: #fef2f2;
 
-  /* Amarelo — alerta real, não pastel */
-  --amarelo:      #b7860b;
-  --amarelo-claro: #fef9e7;
+  /* Amarelo */
+  --amarelo:      #d97706;
+  --amarelo-claro: #fffbeb;
 
   /* Azul */
-  --azul:         #1a5fa8;
-  --azul-claro:   #e8f1fb;
+  --azul:         #2563eb;
+  --azul-claro:   #eff6ff;
 
   /* Roxo */
-  --roxo:         #6d28d9;
-  --roxo-claro:   #f0ebff;
+  --roxo:         #7c3aed;
+  --roxo-claro:   #f5f3ff;
 
-  /* Neutros — estilo Windows clássico */
-  --fundo:        #e8e8e8;   /* cinza claro de fundo geral */
-  --surface:      #ffffff;
-  --surface-alt:  #f7f7f7;   /* zebra stripe linha par */
-  --borda:        #c0c0c0;   /* bordas de tabela visíveis */
-  --borda-leve:   #dcdcdc;
-  --texto:        #111111;   /* preto real */
-  --texto-sec:    #4a4a4a;
-  --texto-desab:  #888888;
+  /* Neutros — Neobrutalist Stark Contrast */
+  --fundo:        #f3f4f6;   /* Cinza muito claro */
+  --surface:      #ffffff;   /* Branco puro */
+  --surface-alt:  #f8fafc;   /* Levemente azulado para zebras */
+  --borda:        #111827;   /* Preto forte para bordas neo-brutais */
+  --borda-leve:   #d1d5db;   /* Bordas internas secundárias */
+  --texto:        #111827;   /* Preto puro */
+  --texto-sec:    #374151;   /* Cinza chumbo */
+  --texto-desab:  #6b7280;   /* Cinza médio */
 
   /* Sidebar */
-  --sidebar-bg:   #1a2535;
-  --sidebar-borda:#243044;
-  --sidebar-text: #8fa3bf;
-  --sidebar-ativo: #1a7a3c;
+  --sidebar-bg:   #111827;
+  --sidebar-borda:#1f2937;
+  --sidebar-text: #9ca3af;
+  --sidebar-ativo:#3b82f6;
 
-  /* Tamanhos */
-  --radius-sm:    3px;
-  --radius:       5px;
+  /* Tamanhos - Neo-brutalism loves slightly sharper corners or completely round */
+  --radius-sm:    4px;
+  --radius:       6px;
   --radius-lg:    8px;
 }
 
@@ -84,9 +84,10 @@
   /* ─ CARDS ─ */
   .card {
     background: var(--surface);
-    border: 1px solid var(--borda);
+    border: 2px solid var(--borda);
     border-radius: var(--radius-lg);
-    padding: 1rem 1.125rem;
+    padding: 1.25rem 1.5rem;
+    box-shadow: 4px 4px 0px var(--borda);
   }
 
   .card-click {
@@ -109,34 +110,33 @@
   .btn {
     display: inline-flex; align-items: center; justify-content: center;
     gap: 0.375rem; border-radius: var(--radius); padding: 0.5rem 1rem;
-    font-size: 0.875rem; font-weight: 600; cursor: pointer;
-    border: 1px solid transparent; transition: all 0.1s;
+    font-size: 0.875rem; font-weight: 700; cursor: pointer;
+    border: 2px solid var(--borda); transition: all 0.1s;
     text-decoration: none; white-space: nowrap; font-family: inherit;
+    box-shadow: 2px 2px 0px var(--borda);
   }
-  .btn:active { transform: translateY(1px); }
-  .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none !important; }
+  .btn:active { transform: translate(2px, 2px); box-shadow: 0px 0px 0px var(--borda); }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
 
   .btn-primary {
-    background: var(--verde); color: #fff; border-color: var(--verde-esc);
-    box-shadow: inset 0 -2px 0 rgba(0,0,0,0.2);
+    background: var(--verde); color: #fff;
   }
   .btn-primary:hover { background: var(--verde-esc); text-decoration: none; color: #fff; }
 
   .btn-secondary {
-    background: var(--surface); color: var(--texto-sec); border-color: var(--borda);
-    box-shadow: inset 0 -1px 0 rgba(0,0,0,0.08);
+    background: var(--surface); color: var(--texto);
   }
   .btn-secondary:hover { background: var(--surface-alt); text-decoration: none; color: var(--texto); }
 
   .btn-danger {
-    background: var(--vermelho-claro); color: var(--vermelho); border-color: #e8b4af;
+    background: var(--vermelho); color: #fff;
   }
-  .btn-danger:hover { background: #f9d9d7; }
+  .btn-danger:hover { background: #b91c1c; color: #fff; }
 
   .btn-ghost {
-    background: transparent; color: var(--texto-sec); border-color: transparent;
+    background: transparent; color: var(--texto-sec); border-color: transparent; box-shadow: none;
   }
-  .btn-ghost:hover { background: var(--surface-alt); color: var(--texto); text-decoration: none; }
+  .btn-ghost:hover { background: var(--surface-alt); color: var(--texto); text-decoration: none; border-color: var(--borda); box-shadow: 2px 2px 0px var(--borda); }
 
   .btn-icon {
     display: inline-flex; align-items: center; justify-content: center;
@@ -160,14 +160,15 @@
 
   /* ─ FORMS ─ */
   .campo {
-    display: block; width: 100%; border: 1px solid var(--borda);
+    display: block; width: 100%; border: 2px solid var(--borda);
     border-radius: var(--radius-sm); background: var(--surface);
-    padding: 0.5rem 0.625rem; font-size: 0.875rem; color: var(--texto);
-    outline: none; font-family: inherit; transition: border-color 0.1s;
+    padding: 0.5rem 0.625rem; font-size: 0.875rem; color: var(--texto); font-weight: 500;
+    outline: none; font-family: inherit; transition: all 0.1s;
+    box-shadow: 2px 2px 0px var(--borda-leve);
   }
-  .campo::placeholder { color: var(--texto-desab); }
-  .campo:focus { border-color: var(--verde); box-shadow: 0 0 0 2px rgba(26,122,60,0.15); }
-  .campo.erro { border-color: var(--vermelho); }
+  .campo::placeholder { color: var(--texto-desab); font-weight: 400; }
+  .campo:focus { border-color: var(--verde); box-shadow: 2px 2px 0px var(--verde); }
+  .campo.erro { border-color: var(--vermelho); box-shadow: 2px 2px 0px var(--vermelho); }
 
   .campo-label {
     display: block; font-size: 0.75rem; font-weight: 700;
@@ -175,12 +176,13 @@
     text-transform: uppercase; letter-spacing: 0.04em;
   }
 
-  /* ─ TABELAS — Zebra stripe clássica ─ */
+  /* ─ TABELAS — Neo-brutalism ─ */
   .tabela-wrap {
-    border: 1px solid var(--borda);
+    border: 2px solid var(--borda);
     border-radius: var(--radius);
     overflow: hidden;
     background: var(--surface);
+    box-shadow: 4px 4px 0px var(--borda);
   }
 
   .tabela {
@@ -188,23 +190,23 @@
   }
 
   .tabela thead tr {
-    background: #2c3e50;
+    background: var(--sidebar-bg);
   }
   .tabela thead th {
-    padding: 0.625rem 0.875rem; text-align: left;
-    font-size: 0.7rem; font-weight: 700; color: #c8d6e5;
-    text-transform: uppercase; letter-spacing: 0.06em;
-    border-right: 1px solid #3d5166;
+    padding: 0.75rem 0.875rem; text-align: left;
+    font-size: 0.75rem; font-weight: 800; color: #fff;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    border-right: 2px solid #374151;
     white-space: nowrap;
   }
   .tabela thead th:last-child { border-right: none; }
 
   .tabela tbody tr:nth-child(even) { background: var(--surface-alt); }
   .tabela tbody tr:nth-child(odd) { background: var(--surface); }
-  .tabela tbody tr { border-bottom: 1px solid var(--borda-leve); transition: background 0.08s; }
+  .tabela tbody tr { border-bottom: 2px solid var(--borda-leve); transition: background 0.08s; }
   .tabela tbody tr:last-child { border-bottom: none; }
-  .tabela tbody tr:hover { background: #eef7f2 !important; }
-  .tabela tbody td { padding: 0.625rem 0.875rem; color: var(--texto); border-right: 1px solid var(--borda-leve); }
+  .tabela tbody tr:hover { background: var(--verde-claro) !important; }
+  .tabela tbody td { padding: 0.75rem 0.875rem; color: var(--texto); border-right: 2px solid var(--borda-leve); font-weight: 500; }
   .tabela tbody td:last-child { border-right: none; }
 
   /* ─ STATUS — Apenas texto colorido, sem badge ─ */
@@ -242,9 +244,10 @@
 
   /* ─ KPI CARDS ─ */
   .kpi-card {
-    background: var(--surface); border: 1px solid var(--borda);
+    background: var(--surface); border: 2px solid var(--borda);
     border-radius: var(--radius-lg); padding: 1rem 1.125rem;
     display: flex; flex-direction: column; gap: 0.25rem;
+    box-shadow: 2px 2px 0px var(--borda);
   }
   .kpi-label { font-size: 0.7rem; font-weight: 700; color: var(--texto-desab); text-transform: uppercase; letter-spacing: 0.06em; }
   .kpi-valor { font-size: 1.875rem; font-weight: 900; color: var(--texto); line-height: 1; }
@@ -254,9 +257,9 @@
   /* ─ SEÇÃO HEADER (barra colorida) ─ */
   .sec-header {
     display: flex; align-items: center; justify-content: space-between;
-    background: #2c3e50; color: #fff; padding: 0.5rem 0.875rem;
-    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-    font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+    background: var(--sidebar-bg); color: #fff; padding: 0.625rem 1rem;
+    border-bottom: 2px solid var(--borda);
+    font-size: 0.85rem; font-weight: 800; text-transform: uppercase;
     letter-spacing: 0.05em;
   }
 
@@ -264,36 +267,37 @@
   .alerta {
     display: flex; align-items: flex-start; gap: 0.625rem;
     border-radius: var(--radius); padding: 0.75rem 0.875rem;
-    font-size: 0.875rem; font-weight: 500; border-left: 4px solid;
+    font-size: 0.875rem; font-weight: 700; border: 2px solid;
+    box-shadow: 3px 3px 0px;
   }
-  .alerta-aviso  { background: var(--amarelo-claro); border-color: var(--amarelo); color: #7a5a00; }
-  .alerta-perigo { background: var(--vermelho-claro); border-color: var(--vermelho); color: var(--vermelho); }
-  .alerta-ok     { background: var(--verde-claro); border-color: var(--verde); color: var(--verde-esc); }
-  .alerta-info   { background: var(--azul-claro); border-color: var(--azul); color: var(--azul); }
+  .alerta-aviso  { background: var(--amarelo-claro); border-color: var(--amarelo); color: #92400e; box-shadow-color: var(--amarelo); }
+  .alerta-perigo { background: var(--vermelho-claro); border-color: var(--vermelho); color: var(--vermelho); box-shadow-color: var(--vermelho); }
+  .alerta-ok     { background: var(--verde-claro); border-color: var(--verde); color: var(--verde-esc); box-shadow-color: var(--verde); }
+  .alerta-info   { background: var(--azul-claro); border-color: var(--azul); color: var(--azul); box-shadow-color: var(--azul); }
 
   /* ─ NAV SIDEBAR ─ */
   .nav-link {
     display: flex; align-items: center; gap: 0.625rem;
-    border-radius: var(--radius-sm); padding: 0.5rem 0.75rem;
-    font-size: 0.8rem; font-weight: 500; color: var(--sidebar-text);
+    border-radius: var(--radius-sm); padding: 0.625rem 0.75rem;
+    font-size: 0.85rem; font-weight: 600; color: var(--sidebar-text);
     text-decoration: none; transition: all 0.1s; white-space: nowrap;
-    border: 1px solid transparent;
+    border: 2px solid transparent;
   }
-  .nav-link:hover { background: rgba(255,255,255,0.08); color: #fff; text-decoration: none; }
+  .nav-link:hover { background: rgba(255,255,255,0.05); color: #fff; text-decoration: none; }
 
   .nav-link-ativo {
     display: flex; align-items: center; gap: 0.625rem;
-    border-radius: var(--radius-sm); padding: 0.5rem 0.75rem;
-    font-size: 0.8rem; font-weight: 700; color: #fff;
-    text-decoration: none; background: var(--verde);
-    border: 1px solid var(--verde-esc);
-    box-shadow: inset 0 -2px 0 rgba(0,0,0,0.2);
+    border-radius: var(--radius-sm); padding: 0.625rem 0.75rem;
+    font-size: 0.85rem; font-weight: 800; color: #fff;
+    text-decoration: none; background: var(--sidebar-bg);
+    border: 2px solid var(--verde);
+    box-shadow: 2px 2px 0px var(--verde);
   }
 
   .nav-grupo-label {
-    font-size: 0.625rem; font-weight: 800; color: #4d6a85;
-    text-transform: uppercase; letter-spacing: 0.1em;
-    padding: 0.625rem 0.75rem 0.25rem;
+    font-size: 0.65rem; font-weight: 900; color: #6b7280;
+    text-transform: uppercase; letter-spacing: 0.15em;
+    padding: 1rem 0.75rem 0.375rem;
   }
 
   /* ─ DIVISORES ─ */

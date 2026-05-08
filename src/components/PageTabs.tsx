@@ -7,7 +7,7 @@ export function PageTabs({ tabs }: { tabs: { label: string; href: string }[] }) 
   const pathname = usePathname()
 
   return (
-    <div style={{ display: 'flex', gap: '0.25rem', borderBottom: '1px solid var(--borda)', marginBottom: '1.25rem' }}>
+    <div style={{ display: 'flex', borderBottom: '2px solid var(--borda)', marginBottom: '1.25rem', gap: '0.25rem', padding: '0 0.25rem' }}>
       {tabs.map(tab => {
         const isActive = pathname === tab.href || pathname.startsWith(tab.href + '/')
         return (
@@ -15,13 +15,20 @@ export function PageTabs({ tabs }: { tabs: { label: string; href: string }[] }) 
             key={tab.href}
             href={tab.href}
             style={{
-              padding: '0.625rem 1rem',
-              fontSize: '0.875rem',
-              fontWeight: isActive ? 700 : 500,
-              color: isActive ? 'var(--verde)' : 'var(--texto-sec)',
-              borderBottom: isActive ? '2px solid var(--verde)' : '2px solid transparent',
+              padding: '0.625rem 1.25rem',
+              fontSize: '0.85rem',
+              fontWeight: isActive ? 800 : 600,
+              color: isActive ? 'var(--texto)' : 'var(--texto-sec)',
+              background: isActive ? 'var(--surface)' : 'var(--fundo)',
+              border: '2px solid var(--borda)',
+              borderBottom: isActive ? '2px solid var(--surface)' : '2px solid var(--borda)',
+              borderTopLeftRadius: '6px',
+              borderTopRightRadius: '6px',
               textDecoration: 'none',
-              transition: 'all 0.2s'
+              transition: 'all 0.1s',
+              marginBottom: '-2px', // Overlap bottom border
+              zIndex: isActive ? 10 : 1,
+              boxShadow: isActive ? 'none' : 'inset 0 -2px 5px rgba(0,0,0,0.02)'
             }}
           >
             {tab.label}

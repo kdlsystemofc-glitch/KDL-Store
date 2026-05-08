@@ -3,21 +3,24 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
-import { Loader2, MessageCircle } from 'lucide-react'
+import { Loader2, MessageCircle, X } from 'lucide-react'
 
 type Aba = 'ontem' | 'semana' | 'mes' | 'ano'
 interface Dados {
   faturamento: number; numVendas: number; despesas: number; lucro: number
   faturamentoPrev: number; numVendasPrev: number; melhorMes: boolean
   produtosZerados: string[]; fiadoAberto: number; comissoesPendentes: number
+  // Listas reais para o modal interativo
+  listaVendas: any[]; listaDespesas: any[];
 }
 const VAZIO: Dados = {
   faturamento:0,numVendas:0,despesas:0,lucro:0,faturamentoPrev:0,
-  numVendasPrev:0,melhorMes:false,produtosZerados:[],fiadoAberto:0,comissoesPendentes:0
+  numVendasPrev:0,melhorMes:false,produtosZerados:[],fiadoAberto:0,comissoesPendentes:0,
+  listaVendas:[], listaDespesas:[]
 }
 const ABAS: { id: Aba; label: string }[] = [
   { id:'ontem', label:'Ontem' }, { id:'semana', label:'Essa semana' },
-  { id:'mes',   label:'Esse mÃªs' }, { id:'ano',  label:'Esse ano' },
+  { id:'mes',   label:'Esse mês' }, { id:'ano',  label:'Esse ano' },
 ]
 
 function getDates(aba: Aba) {
@@ -49,22 +52,22 @@ function getDates(aba: Aba) {
 function getLabelPrev(aba: Aba) {
   if (aba==='ontem') return 'anteontem'
   if (aba==='semana') return 'semana passada'
-  if (aba==='mes') return 'mÃªs passado'
+  if (aba==='mes') return 'mês passado'
   return 'ano passado'
 }
 
 function gerarFrase(d: Dados, aba: Aba): string | null {
   if (d.numVendas === 0) return null
-  if (d.produtosZerados.length > 0) return 'VocÃª perdeu vendas por falta de estoque. Hora de repor.'
+  if (d.produtosZerados.length > 0) return 'Você perdeu vendas por falta de estoque. Hora de repor.'
   const margem = d.faturamento > 0 ? d.lucro / d.faturamento : 0
-  if (margem < 0.15 && d.despesas > 0) return 'VocÃª vendeu bem mas os custos pesaram. Revise as despesas.'
+  if (margem < 0.15 && d.despesas > 0) return 'Você vendeu bem mas os custos pesaram. Revise as despesas.'
   if (d.faturamentoPrev > 0 && d.faturamento < d.faturamentoPrev * 0.8) {
-    if (aba==='ontem') return 'Dia fraco. AmanhÃ£ Ã© uma nova chance.'
-    if (aba==='semana') return 'Semana abaixo da mÃ©dia. Ainda dÃ¡ tempo de recuperar.'
-    return 'PerÃ­odo abaixo do esperado. Analise o que pode melhorar.'
+    if (aba==='ontem') return 'Dia fraco. Amanhã é uma nova chance.'
+    if (aba==='semana') return 'Semana abaixo da média. Ainda dá tempo de recuperar.'
+    return 'Período abaixo do esperado. Analise o que pode melhorar.'
   }
   if (d.lucro > 0 && d.faturamento >= d.faturamentoPrev) return aba==='ontem'?'Dia lucrativo. Continue assim.':'Resultado positivo. Continue assim.'
-  if (d.lucro > 0) return 'Resultado positivo no perÃ­odo.'
+  if (d.lucro > 0) return 'Resultado positivo no período.'
   return null
 }
 
@@ -75,19 +78,19 @@ function gerarMsgWA(d: Dados, aba: Aba): string {
     : aba==='semana' ? 'semana atual'
     : aba==='mes' ? n.toLocaleDateString('pt-BR',{month:'long',year:'numeric'})
     : String(n.getFullYear())
-  const labelAba = aba==='ontem'?'ontem':aba==='semana'?'essa semana':aba==='mes'?'esse mÃªs':'esse ano'
+  const labelAba = aba==='ontem'?'ontem':aba==='semana'?'essa semana':aba==='mes'?'esse mês':'esse ano'
   const ticket = d.numVendas > 0 ? d.faturamento/d.numVendas : 0
   const frase = gerarFrase(d, aba)
-  let msg = `ðŸ“Š NexoCommerce â€” Resumo de ${labelAba} (${labelData})\n\n`
-  msg += `ðŸ’° Faturamento: ${formatCurrency(d.faturamento)}\n`
-  msg += `ðŸ›’ Vendas: ${d.numVendas}\n`
-  msg += `ðŸŽ¯ Ticket mÃ©dio: ${formatCurrency(ticket)}\n`
-  msg += `ðŸ“‰ Despesas: ${formatCurrency(d.despesas)}\n`
-  msg += `âœ… Lucro estimado: ${formatCurrency(d.lucro)}\n`
-  if (d.produtosZerados.length > 0) msg += `\nâš ï¸ ${d.produtosZerados.length} produto(s) zerado(s)\n`
-  if (d.fiadoAberto > 0) msg += `ðŸ“’ ${formatCurrency(d.fiadoAberto)} em fiado aberto\n`
+  let msg = `📊 NexoCommerce — Resumo de ${labelAba} (${labelData})\n\n`
+  msg += `💰 Faturamento: ${formatCurrency(d.faturamento)}\n`
+  msg += `🛒 Vendas: ${d.numVendas}\n`
+  msg += `🎯 Ticket médio: ${formatCurrency(ticket)}\n`
+  msg += `📉 Despesas: ${formatCurrency(d.despesas)}\n`
+  msg += `✅ Lucro estimado: ${formatCurrency(d.lucro)}\n`
+  if (d.produtosZerados.length > 0) msg += `\n⚠️ ${d.produtosZerados.length} produto(s) zerado(s)\n`
+  if (d.fiadoAberto > 0) msg += `📒 ${formatCurrency(d.fiadoAberto)} em fiado aberto\n`
   if (frase) msg += `\n${frase}\n`
-  msg += `\nâ€” Enviado pelo NexoCommerce`
+  msg += `\n— Enviado pelo NexoCommerce`
   return msg
 }
 
@@ -97,6 +100,9 @@ export function ComoFoiPainel() {
   const [loading, setLoading] = useState(true)
   const [dados,   setDados]   = useState<Dados>(VAZIO)
   const cacheRef = useRef({} as Partial<Record<Aba,Dados>>)
+
+  // Estado do Modal Interativo
+  const [modalKPI, setModalKPI] = useState<'vendas'|'despesas'|null>(null)
 
   const carregar = useCallback(async (a: Aba, eid: string) => {
     if (cacheRef.current[a]) { setDados(cacheRef.current[a]!); setLoading(false); return }
@@ -111,21 +117,19 @@ export function ComoFoiPainel() {
       { data: fiados },
       { data: comissoes },
     ] = await Promise.all([
-      sb.from('vendas').select('total, itens_venda(produto_id,quantidade,preco_unitario,brinde)').eq('empresa_id',eid).eq('status','concluida').gte('criado_em',i).lt('criado_em',f),
+      sb.from('vendas').select('id, criado_em, total, cliente_nome, status, itens_venda(produto_id,quantidade,preco_unitario,brinde)').eq('empresa_id',eid).eq('status','concluida').gte('criado_em',i).lt('criado_em',f).order('criado_em', { ascending: false }),
       sb.from('vendas').select('total').eq('empresa_id',eid).eq('status','concluida').gte('criado_em',pi).lt('criado_em',pf),
-      sb.from('despesas').select('valor').eq('empresa_id',eid).gte('criado_em',i).lt('criado_em',f),
+      sb.from('despesas').select('id, criado_em, descricao, valor, pago').eq('empresa_id',eid).gte('criado_em',i).lt('criado_em',f).order('criado_em', { ascending: false }),
       sb.from('fiados').select('valor_aberto').eq('empresa_id',eid).eq('status','aberto').gte('criado_em',i).lt('criado_em',f),
       sb.from('vendas').select('id').eq('empresa_id',eid).eq('status','concluida').not('comissionado_id','is',null).gte('criado_em',i).lt('criado_em',f),
     ])
 
     const itensVendas = (vendas||[]).flatMap(v => v.itens_venda || [])
-
     const fat     = (vendas||[]).reduce((s,v)=>s+v.total,0)
     const fatPrev = (vendasPrev||[]).reduce((s,v)=>s+v.total,0)
     const desp    = (desps||[]).reduce((s,d)=>s+d.valor,0)
     const fiadoAb = (fiados||[]).reduce((s,f)=>s+f.valor_aberto,0)
 
-    // Produtos zerados que venderam no perÃ­odo
     const prodIds = [...new Set((itensVendas||[]).filter(iv=>!iv.brinde).map(iv=>iv.produto_id))]
     let zerados: string[] = []
     if (prodIds.length > 0) {
@@ -133,7 +137,6 @@ export function ComoFoiPainel() {
       zerados = (prods||[]).filter(p=>p.qtd_atual<=0).map(p=>p.nome)
     }
 
-    // Melhor mÃªs do ano (sÃ³ para aba 'mes')
     let melhorMes = false
     if (a === 'mes') {
       const inicioAno = new Date(new Date().getFullYear(),0,1).toISOString()
@@ -155,6 +158,7 @@ export function ComoFoiPainel() {
       faturamentoPrev: fatPrev, numVendasPrev: (vendasPrev||[]).length,
       melhorMes, produtosZerados: zerados,
       fiadoAberto: fiadoAb, comissoesPendentes: (comissoes||[]).length,
+      listaVendas: vendas || [], listaDespesas: desps || []
     }
     cacheRef.current[a] = d
     setDados(d)
@@ -170,136 +174,213 @@ export function ComoFoiPainel() {
   const frase  = gerarFrase(dados, aba)
 
   return (
-    <div className="card" style={{padding:0,overflow:'hidden',border:'1px solid var(--borda)'}}>
+    <div className="card" style={{padding:0,overflow:'hidden',border:'2px solid var(--borda)',boxShadow:'4px 4px 0px var(--borda)',borderRadius:'var(--radius-lg)'}}>
       {/* Header */}
-      <div style={{padding:'0.875rem 1.125rem',borderBottom:'1px solid var(--borda)',display:'flex',justifyContent:'space-between',alignItems:'center',background:'var(--surface)'}}>
+      <div style={{padding:'1rem 1.25rem',borderBottom:'2px solid var(--borda)',display:'flex',justifyContent:'space-between',alignItems:'center',background:'var(--surface-alt)'}}>
         <div>
-          <p style={{fontWeight:900,fontSize:'1.05rem'}}>ðŸ“Š Como foi?</p>
-          <p style={{fontSize:'0.75rem',color:'var(--texto-desab)',marginTop:'1px'}}>Resumo do seu negÃ³cio por perÃ­odo</p>
+          <p style={{fontWeight:900,fontSize:'1.1rem',color:'var(--texto)'}}>📊 Como foi?</p>
+          <p style={{fontSize:'0.8rem',color:'var(--texto-sec)',marginTop:'2px',fontWeight:500}}>Resumo do seu negócio por período</p>
         </div>
         {!loading && dados.numVendas > 0 && (
           <button
             onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(gerarMsgWA(dados,aba))}`, '_blank')}
-            className="btn btn-secondary"
-            style={{display:'flex',alignItems:'center',gap:'0.375rem',fontSize:'0.78rem',padding:'0.35rem 0.75rem',background:'#25D366',color:'#fff',border:'none'}}
+            className="btn btn-pdv"
+            style={{minHeight:'auto',flexDirection:'row',padding:'0.5rem 1rem',background:'#25D366',color:'#fff',borderColor:'#128C7E',boxShadow:'2px 2px 0px #128C7E'}}
           >
-            <MessageCircle size={13}/> Compartilhar resumo
+            <MessageCircle size={16}/> Compartilhar
           </button>
         )}
       </div>
 
-      {/* Abas */}
-      <div style={{display:'flex',borderBottom:'1px solid var(--borda)',background:'var(--surface-alt)'}}>
-        {ABAS.map(t => (
-          <button key={t.id} onClick={()=>setAba(t.id)}
-            style={{
-              flex:1, padding:'0.625rem 0.5rem', fontSize:'0.82rem', fontWeight:700,
-              border:'none', borderBottom: aba===t.id?'2px solid var(--verde)':'2px solid transparent',
-              background:'transparent', cursor:'pointer', fontFamily:'inherit',
-              color: aba===t.id?'var(--verde)':'var(--texto-sec)',
-              transition:'color 0.15s',
-            }}>
-            {t.label}
-          </button>
-        ))}
+      {/* Abas Estilo Pasta */}
+      <div style={{display:'flex',borderBottom:'2px solid var(--borda)',background:'var(--fundo)',padding:'0.5rem 0.5rem 0 0.5rem',gap:'0.25rem'}}>
+        {ABAS.map(t => {
+          const ativo = aba === t.id
+          return (
+            <button key={t.id} onClick={()=>setAba(t.id)}
+              style={{
+                padding:'0.625rem 1.25rem', fontSize:'0.85rem', fontWeight:ativo?800:600,
+                border:'2px solid var(--borda)', borderBottom:ativo?'2px solid var(--surface)':'2px solid var(--borda)',
+                background:ativo?'var(--surface)':'var(--surface-alt)', cursor:'pointer', fontFamily:'inherit',
+                color: ativo?'var(--texto)':'var(--texto-sec)',
+                borderTopLeftRadius:'6px', borderTopRightRadius:'6px',
+                marginBottom:'-2px', zIndex:ativo?10:1, transition:'all 0.1s',
+                boxShadow: ativo ? 'none' : 'inset 0 -2px 5px rgba(0,0,0,0.02)'
+              }}>
+              {t.label}
+            </button>
+          )
+        })}
       </div>
 
-      {/* ConteÃºdo */}
-      <div style={{padding:'1.125rem'}}>
+      {/* Conteúdo */}
+      <div style={{padding:'1.25rem', background:'var(--surface)'}}>
         {loading ? (
-          <div style={{display:'flex',justifyContent:'center',padding:'2rem',gap:'0.625rem',color:'var(--texto-desab)'}}>
-            <Loader2 size={16} style={{animation:'spin 1s linear infinite'}}/> Carregando...
+          <div style={{display:'flex',justifyContent:'center',padding:'3rem',gap:'0.75rem',color:'var(--texto-desab)',fontWeight:600}}>
+            <Loader2 size={18} style={{animation:'spin 1s linear infinite'}}/> Carregando métricas...
           </div>
         ) : dados.numVendas === 0 ? (
-          <div style={{textAlign:'center',padding:'2rem',color:'var(--texto-desab)'}}>
-            <p style={{fontSize:'1.75rem',marginBottom:'0.5rem'}}>ðŸ˜´</p>
-            <p style={{fontWeight:700}}>Nenhuma venda registrada nesse perÃ­odo</p>
-            <p style={{fontSize:'0.82rem',marginTop:'0.25rem',opacity:0.7}}>Se a loja esteve aberta, lembre de registrar as vendas no PDV.</p>
+          <div style={{textAlign:'center',padding:'3rem',color:'var(--texto-desab)'}}>
+            <p style={{fontSize:'2.5rem',marginBottom:'0.75rem'}}>😴</p>
+            <p style={{fontWeight:800,fontSize:'1.1rem',color:'var(--texto)'}}>Nenhuma venda registrada nesse período</p>
+            <p style={{fontSize:'0.85rem',marginTop:'0.5rem'}}>Se a loja esteve aberta, lembre de registrar as vendas no PDV.</p>
           </div>
         ) : (
-          <div style={{display:'flex',flexDirection:'column',gap:'1rem'}}>
+          <div style={{display:'flex',flexDirection:'column',gap:'1.25rem'}}>
 
-            {/* Bloco 1 â€” NÃºmero principal */}
-            <div style={{textAlign:'center',padding:'0.75rem 1rem',background:'var(--verde-claro)',borderRadius:'var(--radius)',border:'1px solid var(--verde-borda)'}}>
-              <p style={{fontSize:'0.8rem',fontWeight:700,color:'var(--verde-esc)',marginBottom:'0.25rem',textTransform:'uppercase',letterSpacing:'0.04em'}}>
-                Faturamento {aba==='ontem'?'de ontem':aba==='semana'?'da semana':aba==='mes'?'do mÃªs':'do ano'}
+            {/* Bloco 1 — Faturamento (Clicável) */}
+            <div 
+              onClick={() => setModalKPI('vendas')}
+              style={{textAlign:'center',padding:'1.25rem',background:'var(--verde-claro)',borderRadius:'var(--radius-lg)',border:'2px solid var(--verde)',boxShadow:'3px 3px 0px var(--verde)',cursor:'pointer',transition:'transform 0.1s'}}
+              onMouseOver={(e) => e.currentTarget.style.transform = 'translate(-1px, -1px)'}
+              onMouseOut={(e) => e.currentTarget.style.transform = 'translate(0px, 0px)'}
+            >
+              <p style={{fontSize:'0.85rem',fontWeight:800,color:'var(--verde-esc)',marginBottom:'0.25rem',textTransform:'uppercase',letterSpacing:'0.06em'}}>
+                Faturamento {aba==='ontem'?'de ontem':aba==='semana'?'da semana':aba==='mes'?'do mês':'do ano'} <span style={{fontSize:'0.7rem',opacity:0.7}}>(Clique para ver detalhes)</span>
               </p>
-              <p style={{fontWeight:900,fontSize:'2.5rem',color:'var(--verde-esc)',fontFamily:'monospace',lineHeight:1}}>
+              <p style={{fontWeight:900,fontSize:'3rem',color:'var(--verde-esc)',fontFamily:'monospace',lineHeight:1,textShadow:'1px 1px 0px rgba(0,0,0,0.1)'}}>
                 {formatCurrency(dados.faturamento)}
               </p>
 
-              {/* ComparaÃ§Ã£o */}
               {dados.faturamentoPrev > 0 ? (
                 dados.melhorMes && aba==='mes' ? (
-                  <p style={{marginTop:'0.5rem',fontSize:'0.85rem',fontWeight:800,color:'var(--verde-esc)'}}>
-                    ðŸ† Seu melhor mÃªs do ano atÃ© agora!
+                  <p style={{marginTop:'0.75rem',fontSize:'0.9rem',fontWeight:800,color:'var(--verde-esc)'}}>
+                    🏆 Seu melhor mês do ano até agora!
                   </p>
                 ) : diff !== 0 ? (
-                  <p style={{marginTop:'0.5rem',fontSize:'0.85rem',fontWeight:700,color: diff>0?'var(--verde-esc)':'var(--vermelho)'}}>
-                    {diff>0?'â–²':'â–¼'} {formatCurrency(Math.abs(diff))} {diff>0?'a mais':'a menos'} que {getLabelPrev(aba)}
+                  <p style={{marginTop:'0.75rem',fontSize:'0.9rem',fontWeight:800,color: diff>0?'var(--verde-esc)':'var(--vermelho)'}}>
+                    {diff>0?'▲':'▼'} {formatCurrency(Math.abs(diff))} {diff>0?'a mais':'a menos'} que {getLabelPrev(aba)}
                   </p>
                 ) : (
-                  <p style={{marginTop:'0.5rem',fontSize:'0.82rem',color:'var(--texto-desab)'}}>Igual a {getLabelPrev(aba)}</p>
+                  <p style={{marginTop:'0.75rem',fontSize:'0.85rem',fontWeight:600,color:'var(--verde-esc)',opacity:0.8}}>Igual a {getLabelPrev(aba)}</p>
                 )
               ) : null}
             </div>
 
-            {/* Bloco 2 â€” 4 KPIs em linha */}
-            <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'0.5rem'}}>
-              {[
-                { l:'Vendas',        v:String(dados.numVendas),          suf:'realizadas',   c:'var(--texto)' },
-                { l:'Ticket mÃ©dio',  v:formatCurrency(ticket),           suf:'por venda',    c:'var(--verde)' },
-                { l:'Despesas',      v:formatCurrency(dados.despesas),   suf:'no perÃ­odo',   c: dados.despesas>0?'var(--vermelho)':'var(--texto-desab)' },
-                { l:'Lucro estimado',v:formatCurrency(dados.lucro),      suf:'lÃ­quido',      c: dados.lucro>=0?'var(--verde)':'var(--vermelho)' },
-              ].map(k=>(
-                <div key={k.l} style={{background:'var(--surface-alt)',borderRadius:'var(--radius-sm)',padding:'0.625rem 0.75rem',border:'1px solid var(--borda-leve)'}}>
-                  <p style={{fontSize:'0.7rem',color:'var(--texto-desab)',fontWeight:600,marginBottom:'0.25rem'}}>{k.l}</p>
-                  <p style={{fontWeight:900,fontSize:'1rem',color:k.c,fontFamily:'monospace',lineHeight:1}}>{k.v}</p>
-                  <p style={{fontSize:'0.65rem',color:'var(--texto-desab)',marginTop:'2px'}}>{k.suf}</p>
-                </div>
-              ))}
+            {/* Bloco 2 — KPIs Menores Interativos */}
+            <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'0.75rem'}}>
+              {/* Box Vendas */}
+              <div onClick={() => setModalKPI('vendas')} style={{background:'var(--surface)',borderRadius:'var(--radius)',padding:'1rem',border:'2px solid var(--borda)',boxShadow:'2px 2px 0px var(--borda)',cursor:'pointer',transition:'transform 0.1s'}} onMouseOver={(e) => e.currentTarget.style.transform = 'translate(-1px, -1px)'} onMouseOut={(e) => e.currentTarget.style.transform = 'translate(0px, 0px)'}>
+                <p style={{fontSize:'0.75rem',color:'var(--texto-sec)',fontWeight:800,textTransform:'uppercase',marginBottom:'0.25rem'}}>Vendas realizadas</p>
+                <p style={{fontWeight:900,fontSize:'1.25rem',color:'var(--texto)',fontFamily:'monospace',lineHeight:1}}>{dados.numVendas}</p>
+                <p style={{fontSize:'0.7rem',color:'var(--texto-desab)',marginTop:'4px',fontWeight:600}}>ver lista →</p>
+              </div>
+              
+              {/* Box Despesas */}
+              <div onClick={() => setModalKPI('despesas')} style={{background:'var(--surface)',borderRadius:'var(--radius)',padding:'1rem',border:'2px solid var(--borda)',boxShadow:'2px 2px 0px var(--borda)',cursor:'pointer',transition:'transform 0.1s'}} onMouseOver={(e) => e.currentTarget.style.transform = 'translate(-1px, -1px)'} onMouseOut={(e) => e.currentTarget.style.transform = 'translate(0px, 0px)'}>
+                <p style={{fontSize:'0.75rem',color:'var(--texto-sec)',fontWeight:800,textTransform:'uppercase',marginBottom:'0.25rem'}}>Despesas</p>
+                <p style={{fontWeight:900,fontSize:'1.25rem',color:dados.despesas>0?'var(--vermelho)':'var(--texto)',fontFamily:'monospace',lineHeight:1}}>{formatCurrency(dados.despesas)}</p>
+                <p style={{fontSize:'0.7rem',color:'var(--texto-desab)',marginTop:'4px',fontWeight:600}}>ver lista →</p>
+              </div>
+
+              {/* Box Lucro (Não clicável, derivado) */}
+              <div style={{background:'var(--surface)',borderRadius:'var(--radius)',padding:'1rem',border:'2px solid var(--borda)',boxShadow:'2px 2px 0px var(--borda)'}}>
+                <p style={{fontSize:'0.75rem',color:'var(--texto-sec)',fontWeight:800,textTransform:'uppercase',marginBottom:'0.25rem'}}>Lucro Estimado</p>
+                <p style={{fontWeight:900,fontSize:'1.25rem',color:dados.lucro>=0?'var(--verde)':'var(--vermelho)',fontFamily:'monospace',lineHeight:1}}>{formatCurrency(dados.lucro)}</p>
+                <p style={{fontSize:'0.7rem',color:'var(--texto-desab)',marginTop:'4px',fontWeight:600}}>líquido</p>
+              </div>
             </div>
 
-            {/* Bloco 3 â€” Alertas */}
+            {/* Bloco 3 — Alertas */}
             {(dados.produtosZerados.length > 0 || dados.fiadoAberto > 0 || dados.comissoesPendentes > 0) && (
-              <div style={{display:'flex',flexDirection:'column',gap:'0.375rem'}}>
+              <div style={{display:'flex',flexDirection:'column',gap:'0.5rem',marginTop:'0.5rem'}}>
                 {dados.produtosZerados.length > 0 && (
-                  <div style={{display:'flex',alignItems:'center',gap:'0.5rem',padding:'0.5rem 0.75rem',background:'#fffbeb',border:'1px solid #fcd34d',borderRadius:'var(--radius-sm)',fontSize:'0.82rem'}}>
-                    <span>âš ï¸</span>
+                  <div style={{display:'flex',alignItems:'center',gap:'0.5rem',padding:'0.75rem 1rem',background:'#fffbeb',border:'2px solid #fcd34d',boxShadow:'2px 2px 0px #fcd34d',borderRadius:'var(--radius)',fontSize:'0.85rem'}}>
+                    <span style={{fontSize:'1.2rem'}}>⚠️</span>
                     <span style={{color:'#92400e',fontWeight:600}}>
-                      <strong>{dados.produtosZerados.length} produto(s) zerado(s)</strong> que venderam nesse perÃ­odo: {dados.produtosZerados.slice(0,2).join(', ')}{dados.produtosZerados.length>2?` +${dados.produtosZerados.length-2}`:''}
+                      <strong style={{fontWeight:900}}>{dados.produtosZerados.length} produto(s) zerado(s)</strong> que venderam nesse período: {dados.produtosZerados.slice(0,2).join(', ')}{dados.produtosZerados.length>2?` +${dados.produtosZerados.length-2}`:''}
                     </span>
                   </div>
                 )}
                 {dados.fiadoAberto > 0 && (
-                  <div style={{display:'flex',alignItems:'center',gap:'0.5rem',padding:'0.5rem 0.75rem',background:'#fef3c7',border:'1px solid #fbbf24',borderRadius:'var(--radius-sm)',fontSize:'0.82rem'}}>
-                    <span>ðŸ“’</span>
+                  <div style={{display:'flex',alignItems:'center',gap:'0.5rem',padding:'0.75rem 1rem',background:'#fef3c7',border:'2px solid #fbbf24',boxShadow:'2px 2px 0px #fbbf24',borderRadius:'var(--radius)',fontSize:'0.85rem'}}>
+                    <span style={{fontSize:'1.2rem'}}>📒</span>
                     <span style={{color:'#92400e',fontWeight:600}}>
-                      <strong>{formatCurrency(dados.fiadoAberto)}</strong> em fiado aberto gerado nesse perÃ­odo
+                      <strong style={{fontWeight:900}}>{formatCurrency(dados.fiadoAberto)}</strong> em fiado aberto gerado nesse período
                     </span>
                   </div>
                 )}
                 {dados.comissoesPendentes > 0 && (
-                  <div style={{display:'flex',alignItems:'center',gap:'0.5rem',padding:'0.5rem 0.75rem',background:'#f0fdf4',border:'1px solid #86efac',borderRadius:'var(--radius-sm)',fontSize:'0.82rem'}}>
-                    <span>ðŸŽ¯</span>
+                  <div style={{display:'flex',alignItems:'center',gap:'0.5rem',padding:'0.75rem 1rem',background:'#f0fdf4',border:'2px solid #86efac',boxShadow:'2px 2px 0px #86efac',borderRadius:'var(--radius)',fontSize:'0.85rem'}}>
+                    <span style={{fontSize:'1.2rem'}}>🎯</span>
                     <span style={{color:'#166534',fontWeight:600}}>
-                      <strong>{dados.comissoesPendentes} venda(s)</strong> com comissÃ£o a calcular
+                      <strong style={{fontWeight:900}}>{dados.comissoesPendentes} venda(s)</strong> com comissão a calcular
                     </span>
                   </div>
                 )}
               </div>
             )}
 
-            {/* Bloco 4 â€” Frase de encerramento */}
+            {/* Bloco 4 — Frase de encerramento */}
             {frase && (
-              <div style={{padding:'0.625rem 1rem',background:'var(--surface-alt)',borderLeft:'3px solid var(--verde)',borderRadius:'0 var(--radius-sm) var(--radius-sm) 0',fontSize:'0.875rem',fontWeight:600,color:'var(--texto-sec)',fontStyle:'italic'}}>
-                {frase}
+              <div style={{padding:'1rem 1.25rem',background:'var(--surface-alt)',borderLeft:'4px solid var(--verde)',borderTop:'2px solid var(--borda)',borderRight:'2px solid var(--borda)',borderBottom:'2px solid var(--borda)',boxShadow:'2px 2px 0px var(--borda)',borderRadius:'0 var(--radius) var(--radius) 0',fontSize:'0.95rem',fontWeight:700,color:'var(--texto-sec)'}}>
+                💡 {frase}
               </div>
             )}
           </div>
         )}
       </div>
+
+      {/* MODAL INTERATIVO (KPIs Detalhados) */}
+      {modalKPI && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.7)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:'1.25rem'}} onClick={()=>setModalKPI(null)}>
+          <div style={{background:'var(--surface)',border:'3px solid var(--borda)',boxShadow:'8px 8px 0px rgba(0,0,0,1)',borderRadius:'var(--radius-lg)',width:'100%',maxWidth:'700px',maxHeight:'85vh',display:'flex',flexDirection:'column'}} onClick={e=>e.stopPropagation()}>
+            <div style={{padding:'1rem 1.25rem',borderBottom:'2px solid var(--borda)',display:'flex',justifyContent:'space-between',alignItems:'center',background:'var(--surface-alt)'}}>
+              <h2 style={{fontSize:'1.2rem',fontWeight:900,color:'var(--texto)',textTransform:'uppercase'}}>
+                {modalKPI === 'vendas' ? '🛒 Detalhamento de Vendas' : '📉 Detalhamento de Despesas'}
+              </h2>
+              <button onClick={()=>setModalKPI(null)} className="btn-icon" style={{border:'2px solid var(--borda)'}}><X size={18}/></button>
+            </div>
+            <div style={{flex:1,overflowY:'auto',padding:'1.25rem'}}>
+              {modalKPI === 'vendas' ? (
+                <div className="tabela-wrap" style={{border:'2px solid var(--borda)',boxShadow:'none'}}>
+                  <table className="tabela" style={{width:'100%',textAlign:'left',borderCollapse:'collapse'}}>
+                    <thead>
+                      <tr style={{background:'var(--sidebar-bg)'}}>
+                        <th style={{padding:'0.75rem',color:'#fff',fontWeight:800,fontSize:'0.75rem',textTransform:'uppercase'}}>Data</th>
+                        <th style={{padding:'0.75rem',color:'#fff',fontWeight:800,fontSize:'0.75rem',textTransform:'uppercase'}}>Cliente</th>
+                        <th style={{padding:'0.75rem',color:'#fff',fontWeight:800,fontSize:'0.75rem',textTransform:'uppercase',textAlign:'right'}}>Valor</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dados.listaVendas.length===0 && <tr><td colSpan={3} style={{padding:'1rem',textAlign:'center'}}>Nenhuma venda</td></tr>}
+                      {dados.listaVendas.map((v:any) => (
+                        <tr key={v.id} style={{borderBottom:'1px solid var(--borda-leve)'}}>
+                          <td style={{padding:'0.75rem',fontSize:'0.85rem',fontWeight:600}}>{new Date(v.criado_em).toLocaleDateString('pt-BR')} {new Date(v.criado_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</td>
+                          <td style={{padding:'0.75rem',fontSize:'0.85rem'}}>{v.cliente_nome || 'Cliente Balcão'}</td>
+                          <td style={{padding:'0.75rem',fontSize:'0.9rem',fontWeight:800,fontFamily:'monospace',textAlign:'right',color:'var(--verde)'}}>{formatCurrency(v.total)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="tabela-wrap" style={{border:'2px solid var(--borda)',boxShadow:'none'}}>
+                  <table className="tabela" style={{width:'100%',textAlign:'left',borderCollapse:'collapse'}}>
+                    <thead>
+                      <tr style={{background:'var(--sidebar-bg)'}}>
+                        <th style={{padding:'0.75rem',color:'#fff',fontWeight:800,fontSize:'0.75rem',textTransform:'uppercase'}}>Data</th>
+                        <th style={{padding:'0.75rem',color:'#fff',fontWeight:800,fontSize:'0.75rem',textTransform:'uppercase'}}>Descrição</th>
+                        <th style={{padding:'0.75rem',color:'#fff',fontWeight:800,fontSize:'0.75rem',textTransform:'uppercase',textAlign:'right'}}>Valor</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dados.listaDespesas.length===0 && <tr><td colSpan={3} style={{padding:'1rem',textAlign:'center'}}>Nenhuma despesa</td></tr>}
+                      {dados.listaDespesas.map((d:any) => (
+                        <tr key={d.id} style={{borderBottom:'1px solid var(--borda-leve)'}}>
+                          <td style={{padding:'0.75rem',fontSize:'0.85rem',fontWeight:600}}>{new Date(d.criado_em).toLocaleDateString('pt-BR')}</td>
+                          <td style={{padding:'0.75rem',fontSize:'0.85rem'}}>{d.descricao}</td>
+                          <td style={{padding:'0.75rem',fontSize:'0.9rem',fontWeight:800,fontFamily:'monospace',textAlign:'right',color:'var(--vermelho)'}}>{formatCurrency(d.valor)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
-

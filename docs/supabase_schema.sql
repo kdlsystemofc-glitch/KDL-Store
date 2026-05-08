@@ -14,8 +14,14 @@ create extension if not exists "uuid-ossp";
 create table public.empresas (
   id          uuid primary key default uuid_generate_v4(),
   nome        text not null,
+  cnpj        text,
+  email       text,
   telefone    text,
+  whatsapp    text,
+  instagram   text,
+  endereco    text,
   cidade      text,
+  estado      text,
   plano       text not null default 'essencial',
   ativo       boolean not null default true,
   criado_em   timestamptz not null default now()
