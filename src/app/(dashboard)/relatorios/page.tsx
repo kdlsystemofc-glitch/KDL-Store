@@ -34,19 +34,28 @@ export default function RelatoriosPage() {
     const fimMes    = new Date(ano, mes, 0, 23, 59, 59).toISOString()
 
     const supabase = createClient()
-    const [ { data: v }, { data: i }, { data: d }, { data: c } ] = await Promise.all([
+    const [ { data: v }, { data: d }, { data: c } ] = await Promise.all([
       supabase.from('vendas').select('id,total,desconto,forma_pagamento,status,comissionado_id,comissionado_nome').eq('empresa_id', eid).eq('status', 'concluida').gte('criado_em', inicioMes).lte('criado_em', fimMes),
-      supabase.from('itens_venda').select('venda_id,produto_id,produto_nome,quantidade,preco_unitario,preco_custo,brinde').eq('empresa_id', eid).gte('criado_em', inicioMes).lte('criado_em', fimMes),
       supabase.from('despesas').select('valor').eq('empresa_id', eid).gte('data', inicioMes.slice(0,10)).lte('data', fimMes.slice(0,10)),
       supabase.from('comissoes').select('id,nome,tipo_comissao,taxa').eq('empresa_id', eid)
     ])
 
-    // Filtra itens para considerar apenas os de vendas concluídas
-    const vendasIds = new Set((v||[]).map(x => x.id))
-    const itensConcluidos = (i||[]).filter(x => vendasIds.has(x.venda_id))
+    const vendasIds = (v||[]).map(x => x.id)
+    
+    let allItens: ItemVenda[] = []
+    if (vendasIds.length > 0) {
+      // Chunk requests to avoid URL too long error
+      for (let i = 0; i < vendasIds.length; i += 100) {
+        const chunk = vendasIds.slice(i, i + 100)
+        const { data: iChunk } = await supabase.from('itens_venda')
+          .select('venda_id,produto_id,produto_nome,quantidade,preco_unitario,preco_custo,brinde')
+          .in('venda_id', chunk)
+        if (iChunk) allItens = allItens.concat(iChunk)
+      }
+    }
 
     setVendas(v || [])
-    setItens(itensConcluidos)
+    setItens(allItens)
     setDespesas(d || [])
     setComissionados(c || [])
     setLoading(false)
