@@ -161,15 +161,16 @@ create table public.convites (
 );
 
 -- ----------------------------------------------------------------
--- COMISSIONADOS (puxadores)
+-- COMISSÕES (puxadores) — nome real da tabela no código: comissoes
 -- ----------------------------------------------------------------
-create table public.comissionados (
+create table public.comissoes (
   id            uuid primary key default uuid_generate_v4(),
   empresa_id    uuid not null references public.empresas(id) on delete cascade,
   nome          text not null,
   telefone      text,
   tipo_comissao text not null default 'percentual', -- 'percentual'|'fixo'
   taxa          numeric(10,2) not null default 5,
+  status        text not null default 'ativo',      -- ADICIONADO: 'ativo'|'inativo'
   ativo         boolean not null default true,
   criado_em     timestamptz not null default now()
 );
@@ -198,20 +199,22 @@ create table public.vendas (
 
 -- ----------------------------------------------------------------
 -- ITENS DA VENDA
+-- Nomes de colunas refletem o que o código usa na prática
 -- ----------------------------------------------------------------
 create table public.itens_venda (
-  id          uuid primary key default uuid_generate_v4(),
-  venda_id    uuid not null references public.vendas(id) on delete cascade,
-  produto_id  uuid references public.produtos(id),
-  nome        text not null,
-  sku         text,
-  quantidade  integer not null default 1,
-  preco_unit  numeric(10,2) not null,
-  preco_custo numeric(10,2),
-  tabela      text not null default 'varejo',
-  brinde      boolean not null default false,
-  num_serie   text,
-  tem_garantia boolean not null default false,
+  id            uuid primary key default uuid_generate_v4(),
+  venda_id      uuid not null references public.vendas(id) on delete cascade,
+  empresa_id    uuid references public.empresas(id),   -- ADICIONADO: inserido pelo PDV
+  produto_id    uuid references public.produtos(id),
+  produto_nome  text not null,                         -- era 'nome' no rascunho inicial
+  sku           text,
+  quantidade    integer not null default 1,
+  preco_unitario numeric(10,2) not null,               -- era 'preco_unit' no rascunho inicial
+  preco_custo   numeric(10,2),
+  tabela        text not null default 'varejo',
+  brinde        boolean not null default false,
+  num_serie     text,
+  tem_garantia  boolean not null default false,
   dias_garantia integer,
   texto_garantia text
 );
@@ -238,6 +241,7 @@ create table public.garantias (
   empresa_id      uuid not null references public.empresas(id) on delete cascade,
   venda_id        uuid references public.vendas(id),
   item_venda_id   uuid references public.itens_venda(id),
+  produto_id      uuid references public.produtos(id),  -- ADICIONADO: inserido pelo PDV
   produto_nome    text not null,
   num_serie       text,
   cliente_id      uuid references public.clientes(id),
@@ -246,7 +250,7 @@ create table public.garantias (
   cliente_cpf     text,
   data_compra     date not null,
   data_vencimento date not null,
-  dias_garantia   integer not null,
+  dias_garantia   integer,               -- nullable: PDV não insere este campo
   texto_garantia  text,
   status          text not null default 'ativa', -- 'ativa'|'vencida'
   criado_em       timestamptz not null default now()
@@ -254,6 +258,7 @@ create table public.garantias (
 
 -- ----------------------------------------------------------------
 -- ORDENS DE SERVIÇO
+-- Nomes de colunas refletem o que o código usa na prática
 -- ----------------------------------------------------------------
 create table public.ordens_servico (
   id              uuid primary key default uuid_generate_v4(),
@@ -261,13 +266,13 @@ create table public.ordens_servico (
   numero          serial,
   cliente_id      uuid references public.clientes(id),
   cliente_nome    text not null,
+  cliente_tel     text,                -- ADICIONADO: usado no formulário de OS
   tecnico         text,
-  descricao       text not null,
   equipamento     text,
-  defeito         text,
-  valor           numeric(10,2),
+  defeito_relatado text,               -- era 'defeito' no rascunho inicial
+  orcamento       numeric(10,2),       -- era 'valor' no rascunho inicial
   previsao        date,
-  status          text not null default 'aberta', -- 'aberta'|'andamento'|'concluida'|'cancelada'
+  status          text not null default 'aguardando', -- 'aguardando'|'em_servico'|'concluido'|'entregue'|'cancelado'
   obs_internas    text,
   criado_em       timestamptz not null default now()
 );
@@ -331,7 +336,7 @@ alter table public.produtos               enable row level security;
 alter table public.clientes               enable row level security;
 alter table public.fornecedores           enable row level security;
 alter table public.pedidos_fornecedor     enable row level security;
-alter table public.comissionados          enable row level security;
+alter table public.comissoes              enable row level security;
 alter table public.vendas                 enable row level security;
 alter table public.itens_venda            enable row level security;
 alter table public.estoque_movimentacoes  enable row level security;
@@ -383,10 +388,11 @@ create policy "Empresa vê pedidos"         on public.pedidos_fornecedor for sel
 create policy "Empresa insere pedidos"     on public.pedidos_fornecedor for insert with check (empresa_id = minha_empresa_id());
 create policy "Empresa atualiza pedidos"   on public.pedidos_fornecedor for update using (empresa_id = minha_empresa_id());
 
--- COMISSIONADOS
-create policy "Empresa vê comissionados"   on public.comissionados for select using (empresa_id = minha_empresa_id());
-create policy "Empresa insere comissionados" on public.comissionados for insert with check (empresa_id = minha_empresa_id());
-create policy "Empresa atualiza comissionados" on public.comissionados for update using (empresa_id = minha_empresa_id());
+-- COMISSÕES (tabela real: comissoes)
+create policy "Empresa vê comissoes"       on public.comissoes for select using (empresa_id = minha_empresa_id());
+create policy "Empresa insere comissoes"   on public.comissoes for insert with check (empresa_id = minha_empresa_id());
+create policy "Empresa atualiza comissoes" on public.comissoes for update using (empresa_id = minha_empresa_id());
+create policy "Empresa deleta comissoes"   on public.comissoes for delete using (empresa_id = minha_empresa_id());
 
 -- ESTOQUE
 create policy "Empresa vê estoque"         on public.estoque_movimentacoes for select using (empresa_id = minha_empresa_id());
