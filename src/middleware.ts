@@ -34,29 +34,21 @@ export async function middleware(request: NextRequest) {
   const publicRoutes = ['/login', '/cadastro', '/garantia']
   const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))
 
+  // Redirect unauthenticated users to login
   if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
+  // Redirect authenticated users away from auth pages
   if (user && (pathname === '/login' || pathname === '/cadastro')) {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
     return NextResponse.redirect(url)
   }
 
-  // Role-Based Access Control (RBAC)
-  // Only /configuracoes requires admin role — financeiro, relatorios, comissoes are open to all authenticated users
-  if (user && pathname.startsWith('/configuracoes')) {
-    const { data: profile } = await supabase.from('profiles').select('papel').eq('id', user.id).single()
-    if (!profile || profile.papel !== 'admin') {
-      const url = request.nextUrl.clone()
-      url.pathname = '/dashboard'
-      return NextResponse.redirect(url)
-    }
-  }
-
+  // All authenticated routes are accessible — role checks handled within each page
   return supabaseResponse
 }
 
