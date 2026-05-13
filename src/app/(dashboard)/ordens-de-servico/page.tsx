@@ -12,12 +12,12 @@ type OS = {
 }
 
 const STATUS_LABEL: Record<string, string> = {
-  aguardando:   '⏳ Aguardando',
-  aprovado:     '✅ Aprovado',
-  em_servico:   '🔧 Em Serviço',
-  concluido:    '✔ Concluído',
-  entregue:     '📦 Entregue',
-  cancelado:    '✕ Cancelado',
+  aguardando:   'AGUARDANDO',
+  aprovado:     'APROVADO',
+  em_servico:   'EM SERVICO',
+  concluido:    'CONCLUIDO',
+  entregue:     'ENTREGUE',
+  cancelado:    'CANCELADO',
 }
 const STATUS_CLS: Record<string, string> = {
   aguardando: 'status-neutro', aprovado: 'status-aviso',
@@ -96,15 +96,14 @@ export default function OrdensServicoPage() {
   const abertas = ordens.filter(o => !['entregue','cancelado'].includes(o.status)).length
 
   return (
-    <div className="anim-fade" style={{ display:'flex', flexDirection:'column', gap:'0.875rem' }}>
+    <div className="anim-fade" style={{ display:'flex', flexDirection:'column', gap:'0.75rem' }}>
       <div className="pg-header">
         <div>
-          <h1 className="pg-titulo">🔧 Ordens de Serviço</h1>
-          <p className="pg-sub">{ordens.length} OS registradas · {abertas} em aberto</p>
+          <h1 className="pg-titulo">ORDENS DE SERVIÇO</h1>
+          <p className="pg-sub">{ordens.length} OS REGISTRADAS · {abertas} EM ABERTO</p>
         </div>
-        <button onClick={() => setShowForm(v=>!v)} className="btn btn-primary"
-          style={{ display:'flex', alignItems:'center', gap:'0.375rem' }}>
-          <Plus size={15}/> {showForm ? 'Cancelar' : 'Nova OS'}
+        <button onClick={() => setShowForm(v=>!v)} className="btn btn-primary">
+          {showForm ? '✕ CANCELAR' : '+ NOVA OS'}
         </button>
       </div>
 
@@ -116,15 +115,15 @@ export default function OrdensServicoPage() {
 
       {/* Formulário Modal */}
       {showForm && (
-        <div style={{ position:'fixed', inset:0, zIndex:100, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' }}
+        <div style={{ position:'fixed', inset:0, zIndex:100, background:'rgba(0,0,0,0.88)', display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' }}
           onClick={e=>{if(e.target===e.currentTarget)setShowForm(false)}}>
-          <div className="card anim-pop" style={{ width:'100%', maxWidth:'600px', maxHeight:'90vh', overflowY:'auto', padding:'0' }}>
-            <div style={{ padding:'1.25rem', borderBottom:'1px solid var(--borda)', display:'flex', justifyContent:'space-between', alignItems:'center', position:'sticky', top:0, background:'var(--surface)', zIndex:10 }}>
+          <div className="anim-pop" style={{ width:'100%', maxWidth:'600px', maxHeight:'90vh', overflowY:'auto', background:'var(--surface)', border:'1px solid var(--borda-forte)', borderRadius:'2px' }}>
+            <div style={{ padding:'0.75rem 1rem', borderBottom:'2px solid var(--verde)', display:'flex', justifyContent:'space-between', alignItems:'center', position:'sticky', top:0, background:'var(--fundo-painel)', zIndex:10 }}>
               <div>
-                <h2 style={{ fontSize:'1.25rem', fontWeight:800 }}>➕ Nova Ordem de Serviço</h2>
-                <p style={{ fontSize:'0.85rem', color:'var(--texto-desab)' }}>Preencha os dados do equipamento</p>
+                <p style={{ fontSize:'0.78rem', fontWeight:700, color:'var(--verde)', textTransform:'uppercase', letterSpacing:'0.06em' }}>NOVA ORDEM DE SERVIÇO</p>
+                <p style={{ fontSize:'0.65rem', color:'var(--texto-desab)' }}>Preencha os dados do equipamento</p>
               </div>
-              <button onClick={()=>setShowForm(false)} className="btn-icon"><X size={20}/></button>
+              <button onClick={()=>setShowForm(false)} className="btn-icon"><X size={16}/></button>
             </div>
             <div style={{ padding:'1.25rem', display:'flex', flexDirection:'column', gap:'0.75rem' }}>
               {erro && <div className="alerta alerta-perigo">{erro}</div>}
@@ -169,9 +168,9 @@ export default function OrdensServicoPage() {
                 </div>
               </div>
               <div style={{ display:'flex', justifyContent:'flex-end', gap:'0.5rem', marginTop:'0.5rem' }}>
-                <button onClick={()=>setShowForm(false)} className="btn btn-ghost">Cancelar</button>
-                <button onClick={salvar} disabled={salvando} className="btn btn-primary">
-                  {salvando ? <><Loader2 size={14} style={{animation:'spin 1s linear infinite'}}/> Salvando...</> : '✓ Criar OS'}
+                <button onClick={()=>setShowForm(false)} className="btn btn-secondary" style={{fontSize:'0.72rem'}}>CANCELAR</button>
+                <button onClick={salvar} disabled={salvando} className="btn btn-primary" style={{fontSize:'0.72rem'}}>
+                  {salvando ? 'SALVANDO...' : '▶ CRIAR OS'}
                 </button>
               </div>
             </div>
@@ -181,82 +180,72 @@ export default function OrdensServicoPage() {
 
       {/* Filtros */}
       <div style={{ display:'flex', gap:'0.375rem', flexWrap:'wrap', alignItems:'center' }}>
-        {[['todos','Todas'],['aguardando','Aguardando'],['em_servico','Em Serviço'],['concluido','Concluído'],['entregue','Entregue']].map(([v,l])=>(
+        {[['todos','TODAS'],['aguardando','AGUARD.'],['em_servico','EM SERV.'],['concluido','CONCLUÍDA'],['entregue','ENTREGUE']].map(([v,l])=>(
           <button key={v} onClick={()=>setFiltro(v)}
             className={filtro===v?'btn btn-primary':'btn btn-secondary'}
-            style={{fontSize:'0.78rem',padding:'0.25rem 0.625rem'}}>{l}</button>
+            style={{fontSize:'0.65rem',padding:'0.3rem 0.625rem'}}>{l}</button>
         ))}
-        <div style={{ position:'relative', flex:1, maxWidth:'280px' }}>
-          <Search size={13} style={{position:'absolute',left:'0.625rem',top:'50%',transform:'translateY(-50%)',color:'var(--texto-desab)'}}/>
-          <input className="campo" placeholder="Buscar OS, cliente ou equipamento..."
-            style={{paddingLeft:'2rem'}} value={busca} onChange={e=>setBusca(e.target.value)}/>
-        </div>
+        <input className="campo" placeholder="BUSCAR OS, CLIENTE OU EQUIP._"
+          style={{flex:1,maxWidth:'260px'}} value={busca} onChange={e=>setBusca(e.target.value)}/>
       </div>
 
       {loading ? (
-        <div style={{display:'flex',justifyContent:'center',padding:'2rem',gap:'0.75rem',color:'var(--texto-desab)'}}>
-          <Loader2 size={18} style={{animation:'spin 1s linear infinite'}}/> Carregando...
+        <div style={{display:'flex',justifyContent:'center',padding:'2rem',flexDirection:'column',alignItems:'center',gap:'0.5rem'}}>
+          <p style={{color:'var(--verde)',fontSize:'0.75rem',letterSpacing:'0.08em'}}>CARREGANDO ORDENS<span className="blink">_</span></p>
         </div>
       ) : filtradas.length === 0 ? (
-        <div style={{textAlign:'center',padding:'3rem',color:'var(--texto-desab)'}}>
-          <p style={{fontSize:'2rem',marginBottom:'0.5rem'}}>🔧</p>
-          <p style={{fontWeight:700,marginBottom:'0.25rem'}}>
-            {busca||filtro!=='todos' ? 'Nenhuma OS encontrada.' : 'Nenhuma OS registrada ainda.'}
+        <div style={{textAlign:'center',padding:'3rem',color:'var(--texto-desab)',border:'1px solid var(--borda)',background:'var(--surface)'}}>
+          <p style={{fontSize:'0.7rem',letterSpacing:'0.1em',fontWeight:700,marginBottom:'0.375rem'}}>
+            {busca||filtro!=='todos' ? '[ NENHUMA OS ENCONTRADA ]' : '[ NENHUMA OS REGISTRADA ]'}
           </p>
           {!busca&&filtro==='todos'&&(
-            <button onClick={()=>setShowForm(true)} className="btn btn-primary" style={{marginTop:'0.5rem'}}>+ Criar primeira OS</button>
+            <button onClick={()=>setShowForm(true)} className="btn btn-primary" style={{marginTop:'0.5rem',fontSize:'0.72rem'}}>+ CRIAR PRIMEIRA OS</button>
           )}
         </div>
       ) : (
         <div className="tabela-wrap">
           <table className="tabela">
-            <thead>
-              <tr style={{background:'#364a60'}}>
-                <th>#</th><th>Cliente</th><th>Equipamento</th>
-                <th>Defeito</th><th>Técnico</th>
-                <th style={{textAlign:'right'}}>Orçamento</th>
-                <th>Previsão</th>
-                <th style={{textAlign:'center'}}>Status</th>
-                <th style={{textAlign:'center'}}>Ação</th>
-              </tr>
-            </thead>
+            <thead><tr>
+                <th>#</th><th>CLIENTE</th><th>EQUIPAMENTO</th>
+                <th>DEFEITO</th><th>TÉCNICO</th>
+                <th style={{textAlign:'right'}}>ORÇ.</th>
+                <th>PREVISÃO</th>
+                <th style={{textAlign:'center'}}>STATUS</th>
+                <th style={{textAlign:'center'}}>AÇÃO</th>
+            </tr></thead>
             <tbody>
               {filtradas.map(o => (
                 <tr key={o.id}>
-                  <td><code style={{fontWeight:700}}>#{String(o.numero||'').padStart(4,'0')}</code></td>
+                  <td style={{color:'var(--texto-mono)',fontWeight:700,fontSize:'0.75rem'}}>#{String(o.numero||'').padStart(4,'0')}</td>
                   <td>
-                    <p style={{fontWeight:700}}>{o.cliente_nome}</p>
+                    <p style={{fontWeight:700,fontSize:'0.82rem'}}>{o.cliente_nome}</p>
                     {o.cliente_tel && (
                       <a href={`https://wa.me/55${o.cliente_tel.replace(/\D/g,'')}`} target="_blank" rel="noopener noreferrer"
-                        style={{fontSize:'0.72rem',color:'#25D366'}}>💬 {o.cliente_tel}</a>
+                        style={{fontSize:'0.65rem',color:'var(--verde)'}}>WA {o.cliente_tel}</a>
                     )}
                   </td>
-                  <td style={{fontWeight:600,fontSize:'0.85rem'}}>{o.equipamento}</td>
-                  <td style={{fontSize:'0.8rem',color:'var(--texto-desab)',maxWidth:'160px'}}>
-                    <span title={o.defeito_relatado} style={{display:'block',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:'160px'}}>
-                      {o.defeito_relatado}
-                    </span>
+                  <td style={{fontWeight:600,fontSize:'0.78rem'}}>{o.equipamento}</td>
+                  <td style={{fontSize:'0.72rem',color:'var(--texto-desab)',maxWidth:'140px'}}>
+                    <span title={o.defeito_relatado} style={{display:'block',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:'140px'}}>{o.defeito_relatado}</span>
                   </td>
-                  <td style={{fontSize:'0.82rem'}}>{o.tecnico||'—'}</td>
-                  <td style={{textAlign:'right',fontWeight:700,color:'var(--verde)',fontFamily:'monospace'}}>
+                  <td style={{fontSize:'0.72rem',color:'var(--texto-sec)'}}>{o.tecnico||'—'}</td>
+                  <td style={{textAlign:'right',fontWeight:700,color:'var(--verde)',fontVariantNumeric:'tabular-nums'}}>
                     {o.orcamento ? `R$ ${o.orcamento.toFixed(2)}` : '—'}
                   </td>
-                  <td style={{fontSize:'0.8rem',color:o.previsao&&o.previsao<new Date().toISOString().slice(0,10)?'var(--vermelho)':'var(--texto-desab)'}}>
+                  <td style={{fontSize:'0.72rem',color:o.previsao&&o.previsao<new Date().toISOString().slice(0,10)?'var(--vermelho)':'var(--texto-desab)'}}>
                     {o.previsao ? new Date(o.previsao+'T12:00:00').toLocaleDateString('pt-BR') : '—'}
                   </td>
                   <td style={{textAlign:'center'}}>
-                    <span className={STATUS_CLS[o.status]||'status-neutro'} style={{fontSize:'0.75rem'}}>
+                    <span className={STATUS_CLS[o.status]||'status-neutro'} style={{fontSize:'0.65rem',fontWeight:700}}>
                       {STATUS_LABEL[o.status]||o.status}
                     </span>
                   </td>
-                  <td style={{textAlign:'center', display:'flex', gap:'0.25rem', justifyContent:'center'}}>
-                    <a href={`/ordens-de-servico/${o.id}`} className="btn btn-secondary" style={{fontSize:'0.72rem',padding:'0.2rem 0.5rem'}}>
-                      Ver OS
-                    </a>
+                  <td style={{textAlign:'center',display:'flex',gap:'0.25rem',justifyContent:'center'}}>
+                    <a href={`/ordens-de-servico/${o.id}`} className="btn btn-secondary" style={{fontSize:'0.62rem',padding:'0.15rem 0.4rem'}}>VER</a>
                     {FLUXO[o.status] && (
                       <button onClick={()=>avancar(o.id,o.status)}
-                        className="btn btn-secondary" style={{fontSize:'0.72rem',padding:'0.2rem 0.5rem'}}>
-                        → {STATUS_LABEL[FLUXO[o.status]]?.replace(/[⏳✅🔧✔📦✕]\s/,'')}
+                        className="btn btn-secondary" style={{fontSize:'0.62rem',padding:'0.15rem 0.4rem'}}>
+                        → {STATUS_LABEL[FLUXO[o.status]]}
                       </button>
                     )}
                   </td>

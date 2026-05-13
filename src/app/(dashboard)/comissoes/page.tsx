@@ -160,11 +160,9 @@ export default function ComissoesPage() {
       )}
 
       <div className="pg-header">
-        <div><h1 className="pg-titulo">🎯 Comissões</h1>
-          <p className="pg-sub">{ativos.length} comissionado(s) ativo(s) · {vendas.length > 0 ? `${vendas.length} vendas comissionadas` : ''}</p></div>
-        <button className="btn btn-primary" onClick={()=>setModal(true)} style={{display:'flex',alignItems:'center',gap:'0.375rem'}}>
-          <Plus size={14}/> Cadastrar
-        </button>
+        <div><h1 className="pg-titulo">COMISSÕES</h1>
+          <p className="pg-sub">{ativos.length} ATIVO(S){vendas.length>0?` · ${vendas.length} VENDAS`:''}</p></div>
+        <button className="btn btn-primary" onClick={()=>setModal(true)}>+ CADASTRAR</button>
       </div>
 
       <PageTabs tabs={[
@@ -174,71 +172,52 @@ export default function ComissoesPage() {
       ]} />
 
       {/* Sub-abas da página */}
-      <div style={{display:'flex',gap:'0.25rem',background:'var(--surface)',border:'1px solid var(--borda)',borderRadius:'var(--radius)',padding:'0.25rem',width:'fit-content'}}>
-        {([['cadastro','👥 Comissionados'],['por-venda','💰 Por Venda']] as const).map(([v,l])=>(
+      <div style={{display:'flex',gap:'0.25rem'}}>
+        {([['cadastro','COMISSIONADOS'],['por-venda','POR VENDA']] as const).map(([v,l])=>(
           <button key={v} onClick={()=>handleAba(v)}
-            className={aba===v?'btn btn-primary':'btn btn-ghost'}
-            style={{fontSize:'0.82rem',padding:'0.3rem 0.75rem'}}>{l}</button>
+            className={aba===v?'btn btn-primary':'btn btn-secondary'}
+            style={{fontSize:'0.65rem',padding:'0.3rem 0.75rem'}}>{l}</button>
         ))}
       </div>
 
       {/* ── ABA CADASTRO ── */}
       {aba === 'cadastro' && (
         <>
-          <div className="alerta alerta-info" style={{fontSize:'0.82rem'}}>
-            💡 Comissionados recebem por cada venda onde foram indicadores. Configure % sobre a venda ou valor fixo por pedido. O campo "Indicador" aparece no PDV ao registrar uma venda.
+          <div style={{padding:'0.625rem 0.75rem',background:'var(--surface)',border:'1px solid var(--borda)',fontSize:'0.72rem',color:'var(--texto-sec)'}}>
+            ▶ COMISSIONADOS RECEBEM POR CADA VENDA ONDE FORAM INDICADORES.
           </div>
           {loading ? (
-            <div style={{display:'flex',justifyContent:'center',padding:'2rem',gap:'0.75rem',color:'var(--texto-desab)'}}>
-              <Loader2 size={18} style={{animation:'spin 1s linear infinite'}}/> Carregando...
+            <div style={{display:'flex',justifyContent:'center',padding:'2rem',flexDirection:'column',alignItems:'center',gap:'0.5rem'}}>
+              <p style={{color:'var(--verde)',fontSize:'0.75rem',letterSpacing:'0.08em'}}>CARREGANDO<span className="blink">_</span></p>
             </div>
           ) : lista.length===0 ? (
-            <div style={{textAlign:'center',padding:'3rem',color:'var(--texto-desab)'}}>
-              <p style={{fontSize:'2rem',marginBottom:'0.5rem'}}>🎯</p>
-              <p style={{fontWeight:700}}>Nenhum comissionado cadastrado</p>
-              <p style={{fontSize:'0.85rem',marginTop:'0.25rem'}}>Cadastre pessoas que indicam clientes para sua loja</p>
-              <button onClick={()=>setModal(true)} className="btn btn-primary" style={{marginTop:'0.75rem'}}>+ Cadastrar primeiro</button>
+            <div style={{textAlign:'center',padding:'3rem',color:'var(--texto-desab)',border:'1px solid var(--borda)',background:'var(--surface)'}}>
+              <p style={{fontSize:'0.7rem',letterSpacing:'0.1em',fontWeight:700,marginBottom:'0.5rem'}}>[ NENHUM COMISSIONADO ]</p>
+              <button onClick={()=>setModal(true)} className="btn btn-primary" style={{marginTop:'0.5rem'}}>+ CADASTRAR PRIMEIRO</button>
             </div>
           ) : (
             <div className="tabela-wrap">
               <table className="tabela">
-                <thead>
-                  <tr style={{background:'#364a60'}}>
-                    <th>Nome</th><th>WhatsApp</th><th style={{textAlign:'center'}}>Tipo</th>
-                    <th style={{textAlign:'right'}}>Taxa</th><th style={{textAlign:'center'}}>Status</th><th style={{textAlign:'center'}}>Ações</th>
-                  </tr>
-                </thead>
+                <thead><tr>
+                    <th>NOME</th><th>WHATSAPP</th><th style={{textAlign:'center'}}>TIPO</th>
+                    <th style={{textAlign:'right'}}>TAXA</th><th style={{textAlign:'center'}}>STATUS</th><th style={{textAlign:'center'}}>AÇÕES</th>
+                </tr></thead>
                 <tbody>
                   {lista.map(c=>(
-                    <tr key={c.id} style={{opacity:c.status==='ativo'?1:0.5}}>
+                    <tr key={c.id} style={{opacity:c.status==='ativo'?1:0.55}}>
                       <td style={{fontWeight:700}}>{c.nome}</td>
-                      <td style={{fontSize:'0.82rem',color:'var(--texto-sec)'}}>{c.telefone||'—'}</td>
-                      <td style={{textAlign:'center'}}>
-                        <span className={c.tipo==='percentual'?'status-info':'status-neutro'} style={{fontSize:'0.78rem'}}>
-                          {c.tipo==='percentual'?'% Percentual':'R$ Fixo'}
-                        </span>
-                      </td>
-                      <td style={{textAlign:'right',fontWeight:700}}>
-                        {c.tipo==='percentual'?`${c.taxa}%`:formatCurrency(c.taxa)+'/venda'}
-                      </td>
+                      <td style={{fontSize:'0.72rem',color:'var(--texto-sec)'}}>{c.telefone||'—'}</td>
+                      <td style={{textAlign:'center'}}><span className={c.tipo==='percentual'?'status-info':'status-neutro'} style={{fontSize:'0.7rem'}}>{c.tipo==='percentual'?'% PCT':'R$ FIXO'}</span></td>
+                      <td style={{textAlign:'right',fontWeight:700}}>{c.tipo==='percentual'?`${c.taxa}%`:formatCurrency(c.taxa)+'/VDA'}</td>
                       <td style={{textAlign:'center'}}>
                         <button onClick={()=>alterarStatus(c.id,c.status)} style={{background:'none',border:'none',cursor:'pointer',padding:0}}>
-                          <span className={c.status==='ativo'?'status-ok':'status-neutro'} style={{fontSize:'0.78rem'}}>
-                            {c.status==='ativo'?'● Ativo':'○ Inativo'}
-                          </span>
+                          <span className={c.status==='ativo'?'status-ok':'status-neutro'} style={{fontSize:'0.7rem'}}>{c.status==='ativo'?'● ATIVO':'○ INATIVO'}</span>
                         </button>
                       </td>
                       <td style={{textAlign:'center'}}>
                         <div style={{display:'flex',gap:'0.25rem',justifyContent:'center'}}>
-                          {c.telefone&&(
-                            <a href={`https://wa.me/55${c.telefone.replace(/\D/g,'')}`} target="_blank" rel="noopener noreferrer"
-                              className="btn btn-secondary" style={{fontSize:'0.7rem',padding:'0.25rem 0.5rem',background:'#25D366',color:'#fff',border:'none'}}>
-                              💬
-                            </a>
-                          )}
-                          <button onClick={()=>excluir(c.id)} className="btn btn-secondary" style={{fontSize:'0.7rem',padding:'0.25rem 0.5rem',color:'var(--vermelho)'}}>
-                            <Trash2 size={12}/>
-                          </button>
+                          {c.telefone&&(<a href={`https://wa.me/55${c.telefone.replace(/\D/g,'')}`} target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{fontSize:'0.62rem',padding:'0.15rem 0.4rem'}}>WA</a>)}
+                          <button onClick={()=>excluir(c.id)} className="btn btn-secondary" style={{fontSize:'0.62rem',padding:'0.15rem 0.4rem',color:'var(--vermelho)'}}>DEL</button>
                         </div>
                       </td>
                     </tr>
@@ -254,14 +233,12 @@ export default function ComissoesPage() {
       {aba === 'por-venda' && (
         <>
           {loadingV ? (
-            <div style={{display:'flex',justifyContent:'center',padding:'2rem',gap:'0.75rem',color:'var(--texto-desab)'}}>
-              <Loader2 size={18} style={{animation:'spin 1s linear infinite'}}/> Carregando vendas...
+            <div style={{display:'flex',justifyContent:'center',padding:'2rem',flexDirection:'column',alignItems:'center',gap:'0.5rem'}}>
+              <p style={{color:'var(--verde)',fontSize:'0.75rem',letterSpacing:'0.08em'}}>CARREGANDO VENDAS<span className="blink">_</span></p>
             </div>
           ) : vendas.length === 0 ? (
-            <div style={{textAlign:'center',padding:'3rem',color:'var(--texto-desab)'}}>
-              <p style={{fontSize:'2rem',marginBottom:'0.5rem'}}>💰</p>
-              <p style={{fontWeight:700}}>Nenhuma venda com comissão registrada</p>
-              <p style={{fontSize:'0.85rem',marginTop:'0.25rem'}}>Ao registrar uma venda no PDV, selecione o indicador no campo "Comissionado"</p>
+            <div style={{textAlign:'center',padding:'3rem',color:'var(--texto-desab)',border:'1px solid var(--borda)',background:'var(--surface)'}}>
+              <p style={{fontSize:'0.7rem',letterSpacing:'0.1em',fontWeight:700}}>[ NENHUMA VENDA COM COMISSÃO ]</p>
             </div>
           ) : (
             <>
@@ -300,14 +277,12 @@ export default function ComissoesPage() {
               {/* Tabela detalhada */}
               <div className="tabela-wrap">
                 <table className="tabela">
-                  <thead>
-                    <tr style={{background:'#364a60'}}>
-                      <th>#Venda</th><th>Data</th><th>Pagamento</th>
-                      <th>Indicador</th>
-                      <th style={{textAlign:'right'}}>Total Venda</th>
-                      <th style={{textAlign:'right'}}>Comissão</th>
-                    </tr>
-                  </thead>
+                  <thead><tr>
+                      <th>#VENDA</th><th>DATA</th><th>PAGAMENTO</th>
+                      <th>INDICADOR</th>
+                      <th style={{textAlign:'right'}}>TOTAL</th>
+                      <th style={{textAlign:'right'}}>COMISSÃO</th>
+                  </tr></thead>
                   <tbody>
                     {vendas.map(v=>(
                       <tr key={v.id}>

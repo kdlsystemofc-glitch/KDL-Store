@@ -93,8 +93,8 @@ export default function GarantiasPage() {
     <div className="anim-fade" style={{display:'flex',flexDirection:'column',gap:'0.875rem'}}>
       <div className="pg-header">
         <div>
-          <h1 className="pg-titulo">🛡️ Garantias</h1>
-          <p className="pg-sub">{ativas} ativas · {vencendo} vencendo em 30 dias · {vencidas} vencidas</p>
+          <h1 className="pg-titulo">GARANTIAS</h1>
+          <p className="pg-sub">{ativas} ATIVAS · {vencendo} VENCENDO EM 30D · {vencidas} VENCIDAS</p>
         </div>
       </div>
 
@@ -159,41 +159,35 @@ export default function GarantiasPage() {
       </div>
 
       {vencendo>0&&(
-        <div className="alerta alerta-aviso" style={{display:'flex',gap:'0.5rem',alignItems:'center'}}>
-          ⚠️ <strong>{vencendo} garantia(s)</strong> vencem nos próximos 30 dias.
+        <div style={{padding:'0.5rem 0.75rem',background:'rgba(255,170,0,0.08)',border:'1px solid var(--amarelo)',fontSize:'0.72rem',color:'var(--amarelo)',letterSpacing:'0.03em'}}>
+          ⚠ <strong>{vencendo} GARANTIA(S)</strong> VENCEM NOS PRÓXIMOS 30 DIAS.
         </div>
       )}
 
-      <div style={{display:'flex',gap:'0.5rem',flexWrap:'wrap',alignItems:'center'}}>
-        {([['todas','Todas'],['ativas','✅ Ativas'],['vencidas','❌ Vencidas']] as const).map(([v,l])=>(
-          <button key={v} onClick={()=>setFiltro(v)} className={filtro===v?'btn btn-primary':'btn btn-secondary'} style={{fontSize:'0.78rem',padding:'0.25rem 0.625rem'}}>{l}</button>
+      <div style={{display:'flex',gap:'0.375rem',flexWrap:'wrap',alignItems:'center'}}>
+        {([['todas','TODAS'],['ativas','ATIVAS'],['vencidas','VENCIDAS']] as const).map(([v,l])=>(
+          <button key={v} onClick={()=>setFiltro(v)} className={filtro===v?'btn btn-primary':'btn btn-secondary'} style={{fontSize:'0.65rem',padding:'0.3rem 0.625rem'}}>{l}</button>
         ))}
-        <div style={{position:'relative',flex:1,maxWidth:'300px'}}>
-          <Search size={13} style={{position:'absolute',left:'0.625rem',top:'50%',transform:'translateY(-50%)',color:'var(--texto-desab)'}}/>
-          <input className="campo" placeholder="Buscar produto, cliente ou série..." style={{paddingLeft:'2rem'}} value={busca} onChange={e=>setBusca(e.target.value)}/>
-        </div>
+        <input className="campo" placeholder="BUSCAR PRODUTO, CLIENTE OU SÉRIE_" style={{flex:1,maxWidth:'280px'}} value={busca} onChange={e=>setBusca(e.target.value)}/>
       </div>
 
       {loading ? (
-        <div style={{display:'flex',justifyContent:'center',padding:'2rem',gap:'0.75rem',color:'var(--texto-desab)'}}>
-          <Loader2 size={18} style={{animation:'spin 1s linear infinite'}}/> Carregando...
+        <div style={{display:'flex',justifyContent:'center',padding:'2rem',flexDirection:'column',alignItems:'center',gap:'0.5rem'}}>
+          <p style={{color:'var(--verde)',fontSize:'0.75rem',letterSpacing:'0.08em'}}>CARREGANDO GARANTIAS<span className="blink">_</span></p>
         </div>
       ) : filtradas.length===0 ? (
-        <div style={{textAlign:'center',padding:'3rem',color:'var(--texto-desab)'}}>
-          <p style={{fontSize:'2rem',marginBottom:'0.5rem'}}>🛡️</p>
-          <p style={{fontWeight:700}}>Nenhuma garantia {filtro!=='todas'?filtro:''} encontrada</p>
-          <p style={{fontSize:'0.85rem',marginTop:'0.25rem'}}>Garantias são geradas automaticamente ao finalizar uma venda com produto que tem garantia configurada.</p>
+        <div style={{textAlign:'center',padding:'3rem',color:'var(--texto-desab)',border:'1px solid var(--borda)',background:'var(--surface)'}}>
+          <p style={{fontSize:'0.7rem',letterSpacing:'0.1em',fontWeight:700,marginBottom:'0.375rem'}}>{busca?'[ NENHUMA GARANTIA ENCONTRADA ]':'[ NENHUMA GARANTIA CADASTRADA ]'}</p>
+          <p style={{fontSize:'0.72rem',color:'var(--texto-sec)'}}>Garantias são geradas automaticamente ao finalizar uma venda com produto com garantia configurada.</p>
         </div>
       ) : (
         <div className="tabela-wrap">
           <table className="tabela">
-            <thead>
-              <tr style={{background:'#364a60'}}>
-                <th>Produto</th><th>Nº Série</th><th>Cliente</th>
-                <th>Compra</th><th>Vencimento</th><th style={{textAlign:'center'}}>Restante</th>
-                <th style={{textAlign:'center'}}>Status</th><th style={{textAlign:'center'}}>Ações</th>
-              </tr>
-            </thead>
+            <thead><tr>
+                <th>PRODUTO</th><th>Nº SÉRIE</th><th>CLIENTE</th>
+                <th>COMPRA</th><th>VENCIM.</th><th style={{textAlign:'center'}}>RESTANTE</th>
+                <th style={{textAlign:'center'}}>STATUS</th><th style={{textAlign:'center'}}>AÇÕES</th>
+            </tr></thead>
             <tbody>
               {filtradas.map(g=>{
                 const dias  = diasRestantes(g.data_vencimento)
@@ -201,34 +195,30 @@ export default function GarantiasPage() {
                 return (
                   <tr key={g.id}>
                     <td style={{fontWeight:700}}>{g.produto_nome}</td>
-                    <td><code style={{fontSize:'0.78rem'}}>{g.num_serie||'—'}</code></td>
+                    <td><code style={{fontSize:'0.7rem',letterSpacing:'0.05em'}}>{g.num_serie||'—'}</code></td>
                     <td>
                       {g.cliente_nome||'—'}
                       {g.cliente_tel&&(
                         <a href={`https://wa.me/55${g.cliente_tel.replace(/\D/g,'')}`} target="_blank" rel="noopener noreferrer"
-                          style={{marginLeft:'0.375rem',fontSize:'0.72rem',color:'#25D366'}}>💬</a>
+                          style={{marginLeft:'0.375rem',fontSize:'0.65rem',color:'var(--verde)'}}>WA</a>
                       )}
                     </td>
-                    <td style={{fontSize:'0.82rem',color:'var(--texto-desab)'}}>{new Date(g.data_compra+'T12:00:00').toLocaleDateString('pt-BR')}</td>
-                    <td style={{fontSize:'0.82rem',fontWeight:700,color:ativa&&dias<=30?'var(--amarelo)':ativa?'var(--verde)':'var(--vermelho)'}}>
+                    <td style={{fontSize:'0.72rem',color:'var(--texto-desab)',fontVariantNumeric:'tabular-nums'}}>{new Date(g.data_compra+'T12:00:00').toLocaleDateString('pt-BR')}</td>
+                    <td style={{fontSize:'0.72rem',fontWeight:700,color:ativa&&dias<=30?'var(--amarelo)':ativa?'var(--verde)':'var(--vermelho)'}}>
                       {new Date(g.data_vencimento+'T12:00:00').toLocaleDateString('pt-BR')}
                     </td>
                     <td style={{textAlign:'center',fontWeight:700,color:!ativa?'var(--vermelho)':dias<=30?'var(--amarelo)':'var(--verde)'}}>
-                      {!ativa ? 'Vencida' : `${dias}d`}
+                      {!ativa ? 'VENCIDA' : `${dias}d`}
                     </td>
                     <td style={{textAlign:'center'}}>
-                      <span className={ativa?'status-ok':'status-neutro'} style={{fontSize:'0.78rem'}}>
-                        {ativa?'● Ativa':'○ Vencida'}
+                      <span className={ativa?'status-ok':'status-neutro'} style={{fontSize:'0.7rem'}}>
+                        {ativa?'● ATIVA':'○ VENCIDA'}
                       </span>
                     </td>
                     <td style={{textAlign:'center',display:'flex',gap:'0.25rem',justifyContent:'center',flexWrap:'wrap'}}>
-                      <button onClick={()=>setSelecionada(g)} className="btn btn-secondary" style={{fontSize:'0.72rem',padding:'0.2rem 0.5rem',display:'inline-flex',alignItems:'center',gap:'0.25rem'}}>
-                        <Printer size={12}/> Termo
-                      </button>
+                      <button onClick={()=>setSelecionada(g)} className="btn btn-secondary" style={{fontSize:'0.62rem',padding:'0.15rem 0.4rem'}}>TERMO</button>
                       {ativa && (
-                        <button onClick={()=>{setDevGarantia(g);setShowDev(true);setDevMotivo('')}} className="btn btn-secondary" style={{fontSize:'0.72rem',padding:'0.2rem 0.5rem',display:'inline-flex',alignItems:'center',gap:'0.25rem',color:'var(--texto)'}}>
-                          ↩ Devolução
-                        </button>
+                        <button onClick={()=>{setDevGarantia(g);setShowDev(true);setDevMotivo('')}} className="btn btn-secondary" style={{fontSize:'0.62rem',padding:'0.15rem 0.4rem',color:'var(--amarelo)'}}>DEVOL.</button>
                       )}
                     </td>
                   </tr>
@@ -241,28 +231,28 @@ export default function GarantiasPage() {
 
       {/* Modal termo de garantia */}
       {selecionada&&(
-        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000}}>
-          <div className="card" style={{width:'100%',maxWidth:'500px',margin:'1rem'}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem'}}>
-              <h3 style={{fontWeight:800}}>🛡️ Termo de Garantia</h3>
-              <button onClick={()=>setSelecionada(null)} style={{background:'none',border:'none',cursor:'pointer',fontSize:'1.25rem',color:'var(--texto-desab)'}}>✕</button>
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.88)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000}}>
+          <div className="anim-pop" style={{width:'100%',maxWidth:'480px',margin:'1rem',background:'var(--surface)',border:'1px solid var(--borda-forte)',borderRadius:'2px'}}>
+            <div style={{padding:'0.75rem 1rem',borderBottom:'2px solid var(--verde)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <p style={{fontWeight:700,fontSize:'0.78rem',color:'var(--verde)',letterSpacing:'0.06em',textTransform:'uppercase'}}>CERTIFICADO DE GARANTIA</p>
+              <button onClick={()=>setSelecionada(null)} style={{background:'none',border:'none',cursor:'pointer',fontSize:'1rem',color:'var(--texto-desab)'}}>✕</button>
             </div>
-            <div style={{border:'2px solid var(--verde)',borderRadius:'var(--radius)',padding:'1.25rem',background:'var(--surface-alt)'}}>
-              <p style={{fontWeight:900,fontSize:'1.1rem',marginBottom:'0.75rem',textAlign:'center'}}>CERTIFICADO DE GARANTIA</p>
-              <div style={{display:'flex',flexDirection:'column',gap:'0.5rem',fontSize:'0.875rem'}}>
-                <p><strong>Produto:</strong> {selecionada.produto_nome}</p>
-                {selecionada.num_serie&&<p><strong>Nº de Série:</strong> {selecionada.num_serie}</p>}
-                {selecionada.cliente_nome&&<p><strong>Cliente:</strong> {selecionada.cliente_nome}</p>}
-                <p><strong>Data da compra:</strong> {new Date(selecionada.data_compra+'T12:00:00').toLocaleDateString('pt-BR')}</p>
-                <p><strong>Válida até:</strong> {new Date(selecionada.data_vencimento+'T12:00:00').toLocaleDateString('pt-BR')}</p>
-                {selecionada.texto_garantia&&<p style={{marginTop:'0.5rem',fontStyle:'italic',color:'var(--texto-sec)'}}>{selecionada.texto_garantia}</p>}
+            <div style={{padding:'1rem'}}>
+              <div style={{border:'1px solid var(--borda-forte)',padding:'1rem',background:'var(--fundo-painel)'}}>
+                <p style={{fontWeight:900,fontSize:'0.82rem',marginBottom:'0.75rem',textAlign:'center',letterSpacing:'0.12em',color:'var(--verde)'}}>▶ CERTIFICADO DE GARANTIA ◀</p>
+                <div style={{display:'flex',flexDirection:'column',gap:'0.4rem',fontSize:'0.78rem',fontVariantNumeric:'tabular-nums'}}>
+                  <p><span style={{color:'var(--texto-sec)'}}>PRODUTO........</span> {selecionada.produto_nome}</p>
+                  {selecionada.num_serie&&<p><span style={{color:'var(--texto-sec)'}}>Nº SÉRIE......</span> {selecionada.num_serie}</p>}
+                  {selecionada.cliente_nome&&<p><span style={{color:'var(--texto-sec)'}}>CLIENTE........</span> {selecionada.cliente_nome}</p>}
+                  <p><span style={{color:'var(--texto-sec)'}}>COMPRA.........</span> {new Date(selecionada.data_compra+'T12:00:00').toLocaleDateString('pt-BR')}</p>
+                  <p><span style={{color:'var(--verde)'}}>VÁLIDA ATÉ.....</span> {new Date(selecionada.data_vencimento+'T12:00:00').toLocaleDateString('pt-BR')}</p>
+                  {selecionada.texto_garantia&&<p style={{marginTop:'0.5rem',fontSize:'0.72rem',color:'var(--texto-sec)'}}>{selecionada.texto_garantia}</p>}
+                </div>
               </div>
-            </div>
-            <div style={{display:'flex',justifyContent:'flex-end',gap:'0.5rem',marginTop:'1rem'}}>
-              <button onClick={()=>setSelecionada(null)} className="btn btn-ghost">Fechar</button>
-              <button onClick={()=>window.print()} className="btn btn-primary" style={{display:'flex',alignItems:'center',gap:'0.375rem'}}>
-                <Printer size={14}/> Imprimir
-              </button>
+              <div style={{display:'flex',justifyContent:'flex-end',gap:'0.375rem',marginTop:'0.75rem'}}>
+                <button onClick={()=>setSelecionada(null)} className="btn btn-secondary" style={{fontSize:'0.72rem'}}>FECHAR</button>
+                <button onClick={()=>window.print()} className="btn btn-primary" style={{fontSize:'0.72rem'}}>IMPRIMIR</button>
+              </div>
             </div>
           </div>
         </div>
