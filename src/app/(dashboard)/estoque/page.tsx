@@ -64,18 +64,19 @@ export default function EstoquePage() {
   const valorEstoque  = produtos.reduce((a,p)=>a+p.qtd_atual*p.preco_custo,0)
   const totalItens    = produtos.reduce((a,p)=>a+p.qtd_atual,0)
 
-  const tipoMov = { entrada:'✅ Entrada', venda:'🛒 Venda', brinde:'🎁 Brinde', ajuste:'🔧 Ajuste' } as Record<string,string>
+  const tipoMov = { entrada:'ENTRADA', venda:'VENDA', brinde:'BRINDE', ajuste:'AJUSTE' } as Record<string,string>
+  const corMov  = { entrada:'var(--verde)', venda:'var(--azul)', brinde:'var(--amarelo)', ajuste:'var(--texto-sec)' } as Record<string,string>
 
   return (
-    <div className="anim-fade" style={{display:'flex',flexDirection:'column',gap:'0.875rem'}}>
+    <div className="anim-fade" style={{display:'flex',flexDirection:'column',gap:'0.75rem'}}>
       <div className="pg-header">
         <div>
-          <h1 className="pg-titulo">📉 Estoque</h1>
-          <p className="pg-sub">Valor do estoque físico: {formatCurrency(valorEstoque)}</p>
+          <h1 className="pg-titulo">ESTOQUE — MOVIMENTAÇÕES</h1>
+          <p className="pg-sub">VALOR EM ESTOQUE: {formatCurrency(valorEstoque)}</p>
         </div>
-        <div style={{display:'flex',gap:'0.5rem'}}>
-          <button onClick={()=>{setAjuste(p=>({...p,tipo:'ajuste'}));setShowModal(true)}} className="btn btn-secondary">Ajuste (-)</button>
-          <button onClick={()=>{setAjuste(p=>({...p,tipo:'entrada'}));setShowModal(true)}} className="btn btn-primary">Entrada (+)</button>
+        <div style={{display:'flex',gap:'0.375rem'}}>
+          <button onClick={()=>{setAjuste(p=>({...p,tipo:'ajuste'}));setShowModal(true)}} className="btn btn-secondary">- AJUSTE</button>
+          <button onClick={()=>{setAjuste(p=>({...p,tipo:'entrada'}));setShowModal(true)}} className="btn btn-primary">+ ENTRADA</button>
         </div>
       </div>
 
@@ -86,50 +87,50 @@ export default function EstoquePage() {
       ]} />
 
       {/* KPIs */}
-      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'0.625rem'}}>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'0.5rem'}}>
         {[
-          {l:'Valor do estoque',  v:formatCurrency(valorEstoque), c:'var(--texto)'},
-          {l:'Total de itens',    v:String(totalItens),           c:'var(--verde)'},
-          {l:'Produtos críticos', v:String(criticos),             c:criticos>0?'var(--vermelho)':'var(--verde)'},
+          {l:'VALOR ESTOQUE', v:formatCurrency(valorEstoque), dot:'var(--azul)',    c:'var(--texto-mono)'},
+          {l:'TOTAL ITENS',   v:String(totalItens),           dot:'var(--verde)',   c:'var(--verde)'},
+          {l:'ESTQ. CRÍTICO', v:String(criticos),             dot:criticos>0?'var(--vermelho)':'var(--verde)', c:criticos>0?'var(--vermelho)':'var(--verde)'},
         ].map(k=>(
-          <div key={k.l} className="card" style={{padding:'0.875rem'}}>
-            <p style={{fontSize:'0.78rem',color:'var(--texto-desab)',marginBottom:'0.25rem'}}>{k.l}</p>
-            <p style={{fontWeight:900,fontSize:'1.5rem',color:k.c,fontFamily:'monospace'}}>{k.v}</p>
+          <div key={k.l} className="kpi-card">
+            <div style={{display:'flex',alignItems:'center',gap:'0.35rem'}}>
+              <span style={{color:k.dot,fontSize:'0.55rem'}}>●</span>
+              <p className="kpi-label">{k.l}</p>
+            </div>
+            <p className="kpi-valor" style={{color:k.c,fontSize:'1.25rem'}}>{k.v}</p>
           </div>
         ))}
       </div>
 
       {criticos>0&&(
-        <div className="alerta alerta-perigo" style={{display:'flex',gap:'0.5rem',alignItems:'center'}}>
-          ⚠️ <strong>{criticos} produto(s)</strong> abaixo do estoque mínimo
+        <div className="alerta alerta-perigo">
+          ⚠ <strong>{criticos} produto(s)</strong> abaixo do estoque mínimo
         </div>
       )}
 
-      <div style={{display:'flex',gap:'0.5rem',flexWrap:'wrap'}}>
-        {([['todos','Todos'],['criticos','⚠ Críticos'],['brindes','🎁 Brindes']] as const).map(([v,l])=>(
-          <button key={v} onClick={()=>setFiltro(v)} className={filtro===v?'btn btn-primary':'btn btn-secondary'} style={{fontSize:'0.78rem',padding:'0.25rem 0.625rem'}}>{l}</button>
+      <div style={{display:'flex',gap:'0.375rem',flexWrap:'wrap',alignItems:'center'}}>
+        {([['todos','TODOS'],['criticos','⚠ CRÍTICOS'],['brindes','★ BRINDES']] as const).map(([v,l])=>(
+          <button key={v} onClick={()=>setFiltro(v)} className={filtro===v?'btn btn-primary':'btn btn-secondary'} style={{fontSize:'0.65rem',padding:'0.3rem 0.625rem'}}>{l}</button>
         ))}
-        <div style={{position:'relative',flex:1,maxWidth:'300px'}}>
-          <Search size={13} style={{position:'absolute',left:'0.625rem',top:'50%',transform:'translateY(-50%)',color:'var(--texto-desab)'}}/>
-          <input className="campo" placeholder="Buscar produto..." style={{paddingLeft:'2rem'}} value={busca} onChange={e=>setBusca(e.target.value)}/>
-        </div>
+        <input className="campo" placeholder="BUSCAR PRODUTO_" style={{flex:1,maxWidth:'280px'}} value={busca} onChange={e=>setBusca(e.target.value)}/>
       </div>
 
       {loading ? (
-        <div style={{display:'flex',justifyContent:'center',padding:'2rem',gap:'0.75rem',color:'var(--texto-desab)'}}>
-          <Loader2 size={18} style={{animation:'spin 1s linear infinite'}}/> Carregando...
+        <div style={{display:'flex',justifyContent:'center',padding:'2rem',flexDirection:'column',alignItems:'center',gap:'0.5rem'}}>
+          <p style={{color:'var(--verde)',fontSize:'0.75rem',letterSpacing:'0.08em'}}>CARREGANDO ESTOQUE<span className="blink">_</span></p>
         </div>
       ) : (
         <div className="tabela-wrap">
           <table className="tabela">
             <thead>
-              <tr style={{background:'#364a60'}}>
-                <th>Produto</th><th>SKU</th><th>Categoria</th>
-                <th style={{textAlign:'center'}}>Qtd. Atual</th>
-                <th style={{textAlign:'center'}}>Mínimo</th>
-                <th style={{textAlign:'right'}}>Custo unit.</th>
-                <th style={{textAlign:'right'}}>Valor total</th>
-                <th style={{textAlign:'center'}}>Status</th>
+              <tr>
+                <th>PRODUTO</th><th>SKU</th><th>CATEGORIA</th>
+                <th style={{textAlign:'center'}}>ATUAL</th>
+                <th style={{textAlign:'center'}}>MÍN.</th>
+                <th style={{textAlign:'right'}}>CUSTO</th>
+                <th style={{textAlign:'right'}}>TOTAL</th>
+                <th style={{textAlign:'center'}}>STATUS</th>
               </tr>
             </thead>
             <tbody>
@@ -138,15 +139,15 @@ export default function EstoquePage() {
                 return (
                   <tr key={p.id}>
                     <td style={{fontWeight:700}}>{p.nome}</td>
-                    <td><code style={{fontSize:'0.78rem'}}>{p.sku||'—'}</code></td>
-                    <td style={{fontSize:'0.82rem'}}>{p.categoria||'—'}</td>
-                    <td style={{textAlign:'center',fontWeight:900,color:critico?'var(--vermelho)':'var(--verde)',fontFamily:'monospace',fontSize:'1.1rem'}}>{p.qtd_atual}</td>
-                    <td style={{textAlign:'center',color:'var(--texto-desab)',fontFamily:'monospace'}}>{p.qtd_minima}</td>
-                    <td style={{textAlign:'right',fontFamily:'monospace',fontSize:'0.85rem'}}>{formatCurrency(p.preco_custo)}</td>
-                    <td style={{textAlign:'right',fontWeight:700,fontFamily:'monospace'}}>{formatCurrency(p.qtd_atual*p.preco_custo)}</td>
+                    <td style={{color:'var(--texto-mono)',fontSize:'0.72rem',letterSpacing:'0.04em'}}>{p.sku||'—'}</td>
+                    <td style={{fontSize:'0.72rem',color:'var(--texto-sec)'}}>{p.categoria||'—'}</td>
+                    <td style={{textAlign:'center',fontWeight:700,color:critico?'var(--vermelho)':'var(--verde)',fontVariantNumeric:'tabular-nums',fontSize:'1rem'}}>{p.qtd_atual}</td>
+                    <td style={{textAlign:'center',color:'var(--texto-desab)',fontVariantNumeric:'tabular-nums'}}>{p.qtd_minima}</td>
+                    <td style={{textAlign:'right',fontSize:'0.78rem',color:'var(--texto-sec)',fontVariantNumeric:'tabular-nums'}}>{formatCurrency(p.preco_custo)}</td>
+                    <td style={{textAlign:'right',fontWeight:700,color:'var(--texto-mono)',fontVariantNumeric:'tabular-nums'}}>{formatCurrency(p.qtd_atual*p.preco_custo)}</td>
                     <td style={{textAlign:'center'}}>
-                      <span className={critico?'status-perigo':p.qtd_atual===0?'status-neutro':'status-ok'} style={{fontSize:'0.78rem'}}>
-                        {critico?'⚠ Crítico':p.qtd_atual===0?'Zerado':'OK'}
+                      <span className={critico?'status-erro':p.qtd_atual===0?'status-neutro':'status-ok'} style={{fontSize:'0.7rem'}}>
+                        {critico?'⚠ CRÍTICO':p.qtd_atual===0?'ZERADO':'● OK'}
                       </span>
                     </td>
                   </tr>
@@ -158,70 +159,68 @@ export default function EstoquePage() {
       )}
 
       {/* Últimas movimentações */}
-      <div>
-        <p style={{fontWeight:800,marginBottom:'0.625rem'}}>📋 Últimas Movimentações</p>
-        <div className="tabela-wrap">
-          <table className="tabela">
-            <thead>
-              <tr style={{background:'#364a60'}}><th>Produto</th><th>Tipo</th><th style={{textAlign:'center'}}>Qtd</th><th>Observação</th><th>Data</th></tr>
-            </thead>
-            <tbody>
-              {movs.length===0 ? (
-                <tr><td colSpan={5} style={{textAlign:'center',color:'var(--texto-desab)',padding:'1.5rem'}}>Nenhuma movimentação registrada ainda</td></tr>
-              ) : movs.map(m=>(
-                <tr key={m.id}>
-                  <td style={{fontWeight:600}}>{m.produtos?.[0]?.nome||'—'}</td>
-                  <td><span style={{fontSize:'0.8rem'}}>{tipoMov[m.tipo]||m.tipo}</span></td>
-                  <td style={{textAlign:'center',fontWeight:800,color:m.quantidade>0?'var(--verde)':'var(--vermelho)',fontFamily:'monospace'}}>
-                    {m.quantidade>0?'+':''}{m.quantidade}
-                  </td>
-                  <td style={{fontSize:'0.8rem',color:'var(--texto-desab)'}}>{m.obs||'—'}</td>
-                  <td style={{fontSize:'0.78rem',color:'var(--texto-desab)'}}>
-                    {new Date(m.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      <div className="card" style={{padding:0,overflow:'hidden'}}>
+        <div className="sec-header"><span>ÚLTIMAS MOVIMENTAÇÕES</span></div>
+        <table className="tabela">
+          <thead>
+            <tr><th>PRODUTO</th><th>TIPO</th><th style={{textAlign:'center'}}>QTD</th><th>OBS.</th><th>DATA/HORA</th></tr>
+          </thead>
+          <tbody>
+            {movs.length===0 ? (
+              <tr><td colSpan={5} style={{textAlign:'center',color:'var(--texto-desab)',padding:'1.5rem',fontSize:'0.72rem',letterSpacing:'0.06em'}}>[ NENHUMA MOVIMENTAÇÃO REGISTRADA ]</td></tr>
+            ) : movs.map(m=>(
+              <tr key={m.id}>
+                <td style={{fontWeight:600}}>{m.produtos?.[0]?.nome||'—'}</td>
+                <td><span style={{fontSize:'0.68rem',fontWeight:700,color:corMov[m.tipo]||'var(--texto-sec)',letterSpacing:'0.06em'}}>{tipoMov[m.tipo]||m.tipo}</span></td>
+                <td style={{textAlign:'center',fontWeight:700,color:m.quantidade>0?'var(--verde)':'var(--vermelho)',fontVariantNumeric:'tabular-nums'}}>
+                  {m.quantidade>0?'+':''}{m.quantidade}
+                </td>
+                <td style={{fontSize:'0.72rem',color:'var(--texto-desab)'}}>{m.obs||'—'}</td>
+                <td style={{fontSize:'0.68rem',color:'var(--texto-desab)',fontVariantNumeric:'tabular-nums'}}>
+                  {new Date(m.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       {/* Modal ajuste de estoque */}
       {showModal && (
-        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000}}>
-          <div className="card" style={{width:'100%',maxWidth:'420px',margin:'1rem'}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem'}}>
-              <h3 style={{fontWeight:800}}>Ajustar Estoque</h3>
-              <button onClick={()=>setShowModal(false)} style={{background:'none',border:'none',cursor:'pointer',fontSize:'1.25rem',color:'var(--texto-desab)'}}>✕</button>
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.88)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:'1rem'}}>
+          <div className="anim-pop" style={{width:'100%',maxWidth:'400px',background:'var(--surface)',border:'1px solid var(--borda-forte)',borderRadius:'2px'}}>
+            <div style={{padding:'0.75rem 1rem',borderBottom:'2px solid var(--verde)',display:'flex',justifyContent:'space-between',alignItems:'center',background:'var(--fundo-painel)'}}>
+              <p style={{fontWeight:700,fontSize:'0.78rem',color:'var(--verde)',textTransform:'uppercase',letterSpacing:'0.06em'}}>AJUSTAR ESTOQUE</p>
+              <button onClick={()=>setShowModal(false)} className="btn-icon" style={{fontSize:'0.8rem'}}>✕</button>
             </div>
-            <div style={{display:'flex',flexDirection:'column',gap:'0.75rem'}}>
+            <div style={{padding:'1rem',display:'flex',flexDirection:'column',gap:'0.75rem'}}>
               <div>
-                <label className="campo-label">Produto *</label>
-                <select className="campo" style={{marginTop:'0.375rem'}} value={ajuste.produtoId} onChange={e=>setAjuste(a=>({...a,produtoId:e.target.value}))}>
+                <label className="campo-label">PRODUTO *</label>
+                <select className="campo" style={{marginTop:'0.25rem'}} value={ajuste.produtoId} onChange={e=>setAjuste(a=>({...a,produtoId:e.target.value}))}>
                   <option value="">Selecionar produto...</option>
                   {produtos.map(p=><option key={p.id} value={p.id}>{p.nome} (atual: {p.qtd_atual})</option>)}
                 </select>
               </div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.625rem'}}>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.5rem'}}>
                 <div>
-                  <label className="campo-label">Tipo</label>
-                  <select className="campo" style={{marginTop:'0.375rem'}} value={ajuste.tipo} onChange={e=>setAjuste(a=>({...a,tipo:e.target.value as 'entrada'|'ajuste'}))}>
-                    <option value="entrada">✅ Entrada</option>
-                    <option value="ajuste">🔧 Ajuste</option>
+                  <label className="campo-label">TIPO</label>
+                  <select className="campo" style={{marginTop:'0.25rem'}} value={ajuste.tipo} onChange={e=>setAjuste(a=>({...a,tipo:e.target.value as 'entrada'|'ajuste'}))}>
+                    <option value="entrada">ENTRADA (+)</option>
+                    <option value="ajuste">AJUSTE (-)</option>
                   </select>
                 </div>
                 <div>
-                  <label className="campo-label">Quantidade</label>
-                  <input className="campo" type="number" min="1" style={{marginTop:'0.375rem',textAlign:'center',fontWeight:800}} value={ajuste.quantidade} onChange={e=>setAjuste(a=>({...a,quantidade:parseInt(e.target.value)||1}))}/>
+                  <label className="campo-label">QUANTIDADE</label>
+                  <input className="campo" type="number" min="1" style={{marginTop:'0.25rem',textAlign:'center',fontWeight:700}} value={ajuste.quantidade} onChange={e=>setAjuste(a=>({...a,quantidade:parseInt(e.target.value)||1}))}/>
                 </div>
               </div>
               <div>
-                <label className="campo-label">Observação (opcional)</label>
-                <input className="campo" style={{marginTop:'0.375rem'}} placeholder="Ex: Compra do fornecedor..." value={ajuste.obs} onChange={e=>setAjuste(a=>({...a,obs:e.target.value}))}/>
+                <label className="campo-label">OBSERVAÇÃO (OPCIONAL)</label>
+                <input className="campo" style={{marginTop:'0.25rem'}} placeholder="Ex: Compra do fornecedor..." value={ajuste.obs} onChange={e=>setAjuste(a=>({...a,obs:e.target.value}))}/>
               </div>
-              <div style={{display:'flex',gap:'0.5rem',justifyContent:'flex-end',marginTop:'0.5rem'}}>
-                <button onClick={()=>setShowModal(false)} className="btn btn-ghost">Cancelar</button>
-                <button onClick={salvarAjuste} className="btn btn-primary" disabled={!ajuste.produtoId}>Confirmar ajuste</button>
+              <div style={{display:'flex',gap:'0.375rem',justifyContent:'flex-end'}}>
+                <button onClick={()=>setShowModal(false)} className="btn btn-secondary">CANCELAR</button>
+                <button onClick={salvarAjuste} className="btn btn-primary" disabled={!ajuste.produtoId}>▶ CONFIRMAR</button>
               </div>
             </div>
           </div>

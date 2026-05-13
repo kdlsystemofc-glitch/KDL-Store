@@ -47,30 +47,30 @@ export default function ProdutosPage() {
   const valorEstoque = produtos.reduce((a, p) => a + p.qtd_atual * p.preco_custo, 0)
 
   return (
-    <div className="anim-fade" style={{ display:'flex', flexDirection:'column', gap:'0.875rem' }}>
+    <div className="anim-fade" style={{ display:'flex', flexDirection:'column', gap:'0.75rem' }}>
 
       <div className="pg-header">
         <div>
-          <h1 className="pg-titulo">📦 Produtos & Estoque</h1>
-          <p className="pg-sub">{produtos.length} produtos cadastrados · {totalItens} itens em estoque</p>
+          <h1 className="pg-titulo">PRODUTOS &amp; ESTOQUE</h1>
+          <p className="pg-sub">{produtos.length} CADASTROS · {totalItens} ITENS EM ESTOQUE</p>
         </div>
-        <button onClick={() => setShowModal(true)} className="btn btn-primary" style={{ display:'flex', alignItems:'center', gap:'0.375rem' }}>
-          <Plus size={15}/> Novo Produto
+        <button onClick={() => setShowModal(true)} className="btn btn-primary">
+          + NOVO PRODUTO
         </button>
       </div>
 
       {showModal && (
-        <div style={{ position:'fixed', inset:0, zIndex:100, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' }}
+        <div style={{ position:'fixed', inset:0, zIndex:100, background:'rgba(0,0,0,0.88)', display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' }}
           onClick={e=>{if(e.target===e.currentTarget)setShowModal(false)}}>
-          <div className="card anim-pop" style={{ width:'100%', maxWidth:'800px', maxHeight:'90vh', overflowY:'auto', padding:'0' }}>
-            <div style={{ padding:'1.25rem', borderBottom:'1px solid var(--borda)', display:'flex', justifyContent:'space-between', alignItems:'center', position:'sticky', top:0, background:'var(--surface)', zIndex:10 }}>
+          <div className="anim-pop" style={{ width:'100%', maxWidth:'800px', maxHeight:'90vh', overflowY:'auto', background:'var(--surface)', border:'1px solid var(--borda-forte)', borderRadius:'2px' }}>
+            <div style={{ padding:'0.75rem 1rem', borderBottom:'2px solid var(--verde)', display:'flex', justifyContent:'space-between', alignItems:'center', position:'sticky', top:0, background:'var(--fundo-painel)', zIndex:10 }}>
               <div>
-                <h2 style={{ fontSize:'1.25rem', fontWeight:800 }}>📦 Cadastrar Novo Produto</h2>
-                <p style={{ fontSize:'0.85rem', color:'var(--texto-desab)' }}>Preencha os dados do item</p>
+                <p style={{ fontSize:'0.78rem', fontWeight:700, color:'var(--verde)', textTransform:'uppercase', letterSpacing:'0.06em' }}>CADASTRAR NOVO PRODUTO</p>
+                <p style={{ fontSize:'0.65rem', color:'var(--texto-desab)' }}>Preencha os dados do item</p>
               </div>
-              <button onClick={()=>setShowModal(false)} className="btn-icon"><X size={20}/></button>
+              <button onClick={()=>setShowModal(false)} className="btn-icon"><X size={16}/></button>
             </div>
-            <div style={{ padding:'1.25rem' }}>
+            <div style={{ padding:'1rem' }}>
               <FormProduto onSuccess={() => { alert('Salvo com sucesso!'); setShowModal(false); if (empresaId) carregar(empresaId); }} onCancel={() => setShowModal(false)} />
             </div>
           </div>
@@ -84,51 +84,52 @@ export default function ProdutosPage() {
       ]} />
 
       {/* KPIs */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'0.625rem' }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'0.5rem' }}>
         {[
-          { label:'Total de produtos', valor: produtos.length, suf:'cadastros', cor:'var(--verde)' },
-          { label:'Valor do estoque',  valor: formatCurrency(valorEstoque), suf:'(preço de custo)', cor:'var(--texto)' },
-          { label:'Abaixo do mínimo', valor: criticos.length, suf:'produtos críticos', cor: criticos.length > 0 ? 'var(--vermelho)' : 'var(--verde)' },
+          { label:'TOTAL PRODUTOS', valor: String(produtos.length), suf:'cadastros', dot:'var(--verde)', cor:'var(--verde)' },
+          { label:'VALOR ESTOQUE',  valor: formatCurrency(valorEstoque), suf:'preço de custo', dot:'var(--azul)', cor:'var(--texto-mono)' },
+          { label:'ESTQ. CRÍTICO',  valor: String(criticos.length), suf:'abaixo do mínimo', dot: criticos.length > 0 ? 'var(--vermelho)' : 'var(--verde)', cor: criticos.length > 0 ? 'var(--vermelho)' : 'var(--verde)' },
         ].map(k => (
-          <div key={k.label} className="card" style={{ padding:'0.875rem' }}>
-            <p style={{ fontSize:'0.78rem', color:'var(--texto-desab)', marginBottom:'0.25rem' }}>{k.label}</p>
-            <p style={{ fontWeight:900, fontSize:'1.5rem', color:k.cor, fontFamily:'monospace' }}>{k.valor}</p>
-            <p style={{ fontSize:'0.72rem', color:'var(--texto-desab)' }}>{k.suf}</p>
+          <div key={k.label} className="kpi-card">
+            <div style={{ display:'flex', alignItems:'center', gap:'0.35rem' }}>
+              <span style={{ color:k.dot, fontSize:'0.55rem' }}>●</span>
+              <p className="kpi-label">{k.label}</p>
+            </div>
+            <p className="kpi-valor" style={{ color:k.cor, fontSize:'1.25rem' }}>{k.valor}</p>
+            <p className="kpi-sub">{k.suf}</p>
           </div>
         ))}
       </div>
 
       {/* Alerta críticos */}
       {criticos.length > 0 && (
-        <div className="alerta alerta-perigo" style={{ display:'flex', gap:'0.625rem', alignItems:'center' }}>
-          <AlertTriangle size={16}/>
-          <span><strong>{criticos.length} produto(s)</strong> abaixo do estoque mínimo: {criticos.map(p=>p.nome).join(', ')}</span>
+        <div className="alerta alerta-perigo">
+          ⚠ <strong>{criticos.length} produto(s)</strong> abaixo do estoque mínimo: {criticos.map(p=>p.nome).join(', ')}
         </div>
       )}
 
       {/* Busca */}
-      <div style={{ position:'relative', maxWidth:'380px' }}>
-        <Search size={14} style={{ position:'absolute', left:'0.75rem', top:'50%', transform:'translateY(-50%)', color:'var(--texto-desab)' }}/>
-        <input className="campo" placeholder="Buscar por nome, SKU ou categoria..."
-          style={{ paddingLeft:'2.25rem' }}
+      <div style={{ maxWidth:'360px' }}>
+        <input className="campo" placeholder="BUSCAR POR NOME, SKU OU CATEGORIA_"
           value={busca} onChange={e => setBusca(e.target.value)} />
       </div>
 
       {/* Lista */}
       {loading ? (
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'center', padding:'3rem', gap:'0.75rem', color:'var(--texto-desab)' }}>
-          <Loader2 size={20} style={{ animation:'spin 1s linear infinite' }}/> Carregando produtos...
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'center', padding:'3rem', flexDirection:'column', gap:'0.5rem' }}>
+          <p style={{ color:'var(--verde)', fontSize:'0.75rem', letterSpacing:'0.08em' }}>CARREGANDO PRODUTOS<span className="blink">_</span></p>
         </div>
       ) : erro ? (
         <div className="alerta alerta-perigo">{erro}</div>
       ) : filtrados.length === 0 ? (
-        <div style={{ textAlign:'center', padding:'3rem', color:'var(--texto-desab)' }}>
-          {busca ? `Nenhum produto encontrado para "${busca}"` : (
+        <div style={{ textAlign:'center', padding:'3rem', color:'var(--texto-desab)', border:'1px solid var(--borda)', background:'var(--surface)' }}>
+          {busca ? (
+            <p style={{ fontSize:'0.78rem', letterSpacing:'0.04em' }}>[ NENHUM PRODUTO ENCONTRADO PARA &quot;{busca}&quot; ]</p>
+          ) : (
             <div>
-              <p style={{ fontSize:'2rem', marginBottom:'0.5rem' }}>📦</p>
-              <p style={{ fontWeight:700, marginBottom:'0.25rem' }}>Nenhum produto cadastrado ainda</p>
-              <p style={{ fontSize:'0.85rem', marginBottom:'1rem' }}>Comece cadastrando seu primeiro produto</p>
-              <button onClick={() => setShowModal(true)} className="btn btn-primary">+ Cadastrar primeiro produto</button>
+              <p style={{ fontSize:'0.7rem', color:'var(--borda-forte)', letterSpacing:'0.1em', fontWeight:700, marginBottom:'0.5rem' }}>[ ESTOQUE VAZIO ]</p>
+              <p style={{ fontSize:'0.72rem', marginBottom:'1rem' }}>Cadastre seu primeiro produto para começar</p>
+              <button onClick={() => setShowModal(true)} className="btn btn-primary">+ CADASTRAR PRODUTO</button>
             </div>
           )}
         </div>
@@ -136,40 +137,37 @@ export default function ProdutosPage() {
         <div className="tabela-wrap">
           <table className="tabela">
             <thead>
-              <tr style={{ background:'#364a60' }}>
-                <th>Produto</th><th>SKU</th><th>Categoria</th>
-                <th style={{ textAlign:'right' }}>Custo</th>
-                <th style={{ textAlign:'right' }}>Venda</th>
-                <th style={{ textAlign:'center' }}>Estoque</th>
-                <th style={{ textAlign:'center' }}>Status</th>
-                <th style={{ textAlign:'center' }}>Ações</th>
+              <tr>
+                <th>PRODUTO</th><th>SKU</th><th>CATEGORIA</th>
+                <th style={{ textAlign:'right' }}>CUSTO</th>
+                <th style={{ textAlign:'right' }}>VENDA</th>
+                <th style={{ textAlign:'center' }}>ESTQ.</th>
+                <th style={{ textAlign:'center' }}>STATUS</th>
+                <th style={{ textAlign:'center' }}>AÇÃO</th>
               </tr>
             </thead>
             <tbody>
               {filtrados.map(p => {
                 const critico = p.qtd_atual <= p.qtd_minima && p.qtd_minima > 0
-                const margem  = p.preco_varejo > 0 ? ((p.preco_varejo - p.preco_custo) / p.preco_varejo * 100) : 0
                 return (
                   <tr key={p.id}>
-                    <td><span style={{ fontWeight:700 }}>{p.nome}</span></td>
-                    <td><code style={{ fontSize:'0.78rem' }}>{p.sku || '—'}</code></td>
-                    <td style={{ fontSize:'0.82rem' }}>{p.categoria || '—'}</td>
-                    <td style={{ textAlign:'right', fontFamily:'monospace', fontSize:'0.85rem' }}>{formatCurrency(p.preco_custo)}</td>
-                    <td style={{ textAlign:'right', fontWeight:800, color:'var(--verde)', fontFamily:'monospace' }}>{formatCurrency(p.preco_varejo)}</td>
+                    <td style={{ fontWeight:700, maxWidth:'200px' }}>{p.nome}</td>
+                    <td style={{ color:'var(--texto-mono)', fontSize:'0.75rem', letterSpacing:'0.04em' }}>{p.sku || '—'}</td>
+                    <td style={{ fontSize:'0.75rem', color:'var(--texto-sec)' }}>{p.categoria || '—'}</td>
+                    <td style={{ textAlign:'right', fontSize:'0.78rem', color:'var(--texto-sec)', fontVariantNumeric:'tabular-nums' }}>{formatCurrency(p.preco_custo)}</td>
+                    <td style={{ textAlign:'right', fontWeight:700, color:'var(--verde)', fontVariantNumeric:'tabular-nums' }}>{formatCurrency(p.preco_varejo)}</td>
                     <td style={{ textAlign:'center' }}>
-                      <span style={{ fontWeight:800, color: critico ? 'var(--vermelho)' : 'var(--verde)', fontFamily:'monospace' }}>
-                        {p.qtd_atual}
-                      </span>
-                      {critico && <span style={{ fontSize:'0.7rem', color:'var(--vermelho)', display:'block' }}>⚠ mínimo</span>}
+                      <span style={{ fontWeight:700, color: critico ? 'var(--vermelho)' : 'var(--texto)', fontVariantNumeric:'tabular-nums' }}>{p.qtd_atual}</span>
+                      {critico && <span style={{ fontSize:'0.62rem', color:'var(--vermelho)', display:'block', letterSpacing:'0.04em' }}>⚠ MÍNIMO</span>}
                     </td>
                     <td style={{ textAlign:'center' }}>
-                      <span className={p.ativo ? 'status-ok' : 'status-neutro'} style={{ fontSize:'0.8rem' }}>
-                        {p.ativo ? '● Ativo' : '○ Inativo'}
+                      <span className={p.ativo ? 'status-ok' : 'status-neutro'} style={{ fontSize:'0.72rem' }}>
+                        {p.ativo ? '● ATIVO' : '○ INATIVO'}
                       </span>
                     </td>
                     <td style={{ textAlign:'center' }}>
-                      <Link href={`/produtos/${p.id}/editar`} className="btn btn-secondary" style={{ fontSize:'0.75rem', padding:'0.25rem 0.625rem' }}>
-                        Editar
+                      <Link href={`/produtos/${p.id}/editar`} className="btn btn-secondary" style={{ fontSize:'0.65rem', padding:'0.2rem 0.5rem' }}>
+                        EDITAR
                       </Link>
                     </td>
                   </tr>
