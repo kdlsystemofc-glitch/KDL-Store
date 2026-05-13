@@ -117,20 +117,16 @@ export default function RelatoriosPage() {
   const listaComissoes = Object.values(cMap).sort((a,b) => b.valor - a.valor)
 
   return (
-    <div className="anim-fade" style={{display:'flex',flexDirection:'column',gap:'1.25rem'}}>
+    <div className="anim-fade" style={{display:'flex',flexDirection:'column',gap:'0.75rem'}}>
       <div className="pg-header no-print">
         <div>
-          <h1 className="pg-titulo">📊 Relatório Consolidado</h1>
-          <p className="pg-sub">DRE, Vendas e Comissões</p>
+          <h1 className="pg-titulo">RELATÓRIO CONSOLIDADO</h1>
+          <p className="pg-sub">DRE · TOP PRODUTOS · COMISSÕES</p>
         </div>
-        <div style={{display:'flex',gap:'0.5rem',alignItems:'center'}}>
-          <input type="month" className="campo" style={{width:'auto'}} value={mesAno} onChange={e=>setMesAno(e.target.value)} />
-          <button onClick={()=>window.print()} className="btn btn-secondary" style={{display:'flex',gap:'0.375rem',alignItems:'center'}}>
-            <Printer size={15}/> Imprimir
-          </button>
-          <button onClick={()=>alert('Exportação em PDF será disponibilizada na próxima atualização!')} className="btn btn-primary" style={{display:'flex',gap:'0.375rem',alignItems:'center'}}>
-            <Download size={15}/> Exportar PDF
-          </button>
+        <div style={{display:'flex',gap:'0.375rem',alignItems:'center'}}>
+          <input type="month" className="campo" style={{width:'auto',fontSize:'0.75rem'}} value={mesAno} onChange={e=>setMesAno(e.target.value)} />
+          <button onClick={()=>window.print()} className="btn btn-secondary" style={{fontSize:'0.72rem'}}>IMP.</button>
+          <button onClick={()=>alert('Exportação em PDF será disponibilizada na próxima atualização!')} className="btn btn-primary" style={{fontSize:'0.72rem'}}>PDF</button>
         </div>
       </div>
 
@@ -139,49 +135,58 @@ export default function RelatoriosPage() {
       </div>
 
       {loading ? (
-        <div style={{display:'flex',justifyContent:'center',padding:'3rem',color:'var(--texto-desab)'}}>
-          <Loader2 size={24} style={{animation:'spin 1s linear infinite'}}/>
+        <div style={{display:'flex',justifyContent:'center',padding:'3rem',flexDirection:'column',alignItems:'center',gap:'0.5rem'}}>
+          <p style={{color:'var(--verde)',fontSize:'0.75rem',letterSpacing:'0.08em'}}>GERANDO RELATÓRIO<span className="blink">_</span></p>
         </div>
       ) : vendas.length === 0 && despesas.length === 0 ? (
-        <div style={{textAlign:'center',padding:'3rem',color:'var(--texto-desab)'}}>
-          <p style={{fontSize:'2rem',marginBottom:'0.5rem'}}>👻</p>
-          <p style={{fontWeight:700}}>Nenhum dado no período selecionado</p>
+        <div style={{textAlign:'center',padding:'3rem',color:'var(--texto-desab)',border:'1px solid var(--borda)',background:'var(--surface)'}}>
+          <p style={{fontSize:'0.7rem',letterSpacing:'0.1em',fontWeight:700,marginBottom:'0.375rem'}}>[ NENHUM DADO NO PERÍODO ]</p>
+          <p style={{fontSize:'0.72rem'}}>Selecione outro mês ou registre vendas.</p>
         </div>
       ) : (
-        <div style={{display:'flex',flexDirection:'column',gap:'1.25rem'}}>
-          
+        <div style={{display:'flex',flexDirection:'column',gap:'0.75rem'}}>
+
           {/* Seção 1: DRE */}
-          <div className="card">
-            <h2 style={{fontWeight:900,fontSize:'1.1rem',marginBottom:'1rem',borderBottom:'2px solid var(--borda)',paddingBottom:'0.5rem'}}>1. Resumo Financeiro (DRE Estimado)</h2>
-            <div style={{display:'flex',flexDirection:'column',gap:'0.375rem',fontFamily:'monospace',fontSize:'0.9rem'}}>
-              <div style={{display:'flex',justifyContent:'space-between',fontWeight:800}}><span>Faturamento Bruto</span><span>{formatCurrency(faturamentoBruto)} (100%)</span></div>
-              <div style={{display:'flex',justifyContent:'space-between',color:'var(--vermelho)'}}><span>(-) Descontos Concedidos</span><span>{formatCurrency(totalDescontos)} ({pct(totalDescontos)})</span></div>
-              <div style={{display:'flex',justifyContent:'space-between',color:'var(--vermelho)'}}><span>(-) Custo dos Produtos (CPV)</span><span>{formatCurrency(custoProdutos)} ({pct(custoProdutos)})</span></div>
-              <div style={{display:'flex',justifyContent:'space-between',color:'var(--vermelho)'}}><span>(-) Custo de Brindes</span><span>{formatCurrency(custoBrindes)} ({pct(custoBrindes)})</span></div>
-              <div style={{display:'flex',justifyContent:'space-between',color:'var(--vermelho)'}}><span>(-) Despesas Operacionais</span><span>{formatCurrency(despesasOp)} ({pct(despesasOp)})</span></div>
-              <div style={{display:'flex',justifyContent:'space-between',fontWeight:900,fontSize:'1.1rem',marginTop:'0.5rem',paddingTop:'0.5rem',borderTop:'2px dashed var(--borda)',color:lucroLiquido>=0?'var(--verde)':'var(--vermelho)'}}>
-                <span>(=) Lucro Líquido Estimado</span><span>{formatCurrency(lucroLiquido)} ({pct(Math.abs(lucroLiquido))})</span>
+          <div className="card" style={{padding:0,overflow:'hidden'}}>
+            <div className="sec-header"><span>1. DRE ESTIMADO — RESUMO FINANCEIRO</span></div>
+            <div style={{padding:'0.75rem',display:'flex',flexDirection:'column',gap:'0.25rem',fontVariantNumeric:'tabular-nums'}}>
+              {[
+                {l:'(+) FATURAMENTO BRUTO',      v:faturamentoBruto, pct:'100%',    c:'var(--verde)',    neg:false, bold:true},
+                {l:'(-) DESCONTOS CONCEDIDOS',   v:totalDescontos,   pct:pct(totalDescontos),   c:'var(--vermelho)', neg:true,  bold:false},
+                {l:'(-) CUSTO DOS PRODUTOS CPV', v:custoProdutos,    pct:pct(custoProdutos),    c:'var(--vermelho)', neg:true,  bold:false},
+                {l:'(-) CUSTO DE BRINDES',       v:custoBrindes,     pct:pct(custoBrindes),     c:'var(--vermelho)', neg:true,  bold:false},
+                {l:'(-) DESPESAS OPERACIONAIS',  v:despesasOp,       pct:pct(despesasOp),       c:'var(--vermelho)', neg:true,  bold:false},
+              ].map(r=>(
+                <div key={r.l} style={{display:'flex',justifyContent:'space-between',padding:'0.25rem 0',borderBottom:'1px solid var(--borda-leve)'}}>
+                  <span style={{fontSize:'0.72rem',letterSpacing:'0.04em',color:r.bold?'var(--texto)':'var(--texto-sec)',fontWeight:r.bold?700:400}}>{r.l}</span>
+                  <span style={{fontSize:'0.78rem',fontWeight:700,color:r.c}}>{r.neg?'- ':''}{formatCurrency(r.v)} <span style={{fontSize:'0.65rem',opacity:.7}}>({r.pct})</span></span>
+                </div>
+              ))}
+              <div style={{display:'flex',justifyContent:'space-between',padding:'0.5rem 0',borderTop:'1px dashed var(--borda-forte)',marginTop:'0.25rem'}}>
+                <span style={{fontWeight:700,fontSize:'0.75rem',letterSpacing:'0.06em'}}>{'(=) LUCRO LÍQUIDO ESTIMADO'}</span>
+                <span style={{fontWeight:700,fontSize:'1rem',color:lucroLiquido>=0?'var(--verde)':'var(--vermelho)'}}>{formatCurrency(lucroLiquido)} <span style={{fontSize:'0.65rem'}}>({pct(Math.abs(lucroLiquido))})</span></span>
               </div>
             </div>
           </div>
 
-          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(300px, 1fr))',gap:'1.25rem'}}>
-            
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(280px, 1fr))',gap:'0.625rem'}}>
+
             {/* Seção 2: Top Produtos */}
-            <div className="card">
-              <h2 style={{fontWeight:900,fontSize:'1.1rem',marginBottom:'1rem'}}>2. Produtos Mais Vendidos</h2>
-              {topProdutos.length === 0 ? <p style={{color:'var(--texto-desab)',fontSize:'0.85rem'}}>Nenhuma venda</p> : (
-                <table className="tabela" style={{fontSize:'0.8rem'}}>
-                  <thead><tr><th>Produto</th><th>Qtd</th><th>Receita</th><th>Margem</th></tr></thead>
+            <div className="card" style={{padding:0,overflow:'hidden'}}>
+              <div className="sec-header"><span>2. TOP 10 PRODUTOS MAIS VENDIDOS</span></div>
+              {topProdutos.length === 0 ? <p style={{color:'var(--texto-desab)',fontSize:'0.72rem',padding:'1rem',letterSpacing:'0.04em'}}>[ NENHUMA VENDA ]</p> : (
+                <table className="tabela" style={{fontSize:'0.72rem'}}>
+                  <thead><tr><th>#</th><th>PRODUTO</th><th>QTD</th><th style={{textAlign:'right'}}>RECEITA</th><th>MRG</th></tr></thead>
                   <tbody>
                     {topProdutos.map(([nome, dados], i) => {
                       const margem = dados.receita > 0 ? ((dados.receita - dados.custo) / dados.receita) * 100 : 0
                       return (
                         <tr key={nome}>
-                          <td style={{fontWeight:700,maxWidth:'150px',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{i+1}. {nome}</td>
-                          <td>{dados.qtd}</td>
-                          <td style={{color:'var(--verde)',fontWeight:800}}>{formatCurrency(dados.receita)}</td>
-                          <td>{margem.toFixed(1)}%</td>
+                          <td style={{color:'var(--texto-desab)',width:'24px'}}>{i+1}</td>
+                          <td style={{fontWeight:700,maxWidth:'130px',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{nome}</td>
+                          <td style={{fontVariantNumeric:'tabular-nums'}}>{dados.qtd}</td>
+                          <td style={{textAlign:'right',color:'var(--verde)',fontWeight:700,fontVariantNumeric:'tabular-nums'}}>{formatCurrency(dados.receita)}</td>
+                          <td style={{color:margem>20?'var(--verde)':'var(--texto-desab)'}}>{margem.toFixed(1)}%</td>
                         </tr>
                       )
                     })}
@@ -190,45 +195,49 @@ export default function RelatoriosPage() {
               )}
             </div>
 
-            <div style={{display:'flex',flexDirection:'column',gap:'1.25rem'}}>
+            <div style={{display:'flex',flexDirection:'column',gap:'0.625rem'}}>
               {/* Seção 3: Formas de Pagamento */}
-              <div className="card">
-                <h2 style={{fontWeight:900,fontSize:'1.1rem',marginBottom:'1rem'}}>3. Formas de Pagamento</h2>
-                {formas.length === 0 ? <p style={{color:'var(--texto-desab)',fontSize:'0.85rem'}}>Nenhum pagamento</p> : (
-                  <div style={{display:'flex',flexDirection:'column',gap:'0.5rem'}}>
-                    {formas.map(([forma, valor]) => (
-                      <div key={forma}>
-                        <div style={{display:'flex',justifyContent:'space-between',fontSize:'0.85rem',fontWeight:700,marginBottom:'2px'}}>
-                          <span>{forma}</span><span>{formatCurrency(valor)} ({((valor/faturamentoLiquido)*100).toFixed(1)}%)</span>
+              <div className="card" style={{padding:0,overflow:'hidden'}}>
+                <div className="sec-header"><span>3. FORMAS DE PAGAMENTO</span></div>
+                <div style={{padding:'0.625rem'}}>
+                  {formas.length === 0 ? <p style={{color:'var(--texto-desab)',fontSize:'0.72rem',letterSpacing:'0.04em'}}>[ NENHUM PAGAMENTO ]</p> : (
+                    <div style={{display:'flex',flexDirection:'column',gap:'0.4rem'}}>
+                      {formas.map(([forma, valor]) => (
+                        <div key={forma}>
+                          <div style={{display:'flex',justifyContent:'space-between',fontSize:'0.7rem',fontWeight:700,marginBottom:'2px',textTransform:'uppercase',letterSpacing:'0.04em'}}>
+                            <span>{forma}</span><span style={{color:'var(--verde)',fontVariantNumeric:'tabular-nums'}}>{formatCurrency(valor)} ({((valor/faturamentoLiquido)*100).toFixed(1)}%)</span>
+                          </div>
+                          <div style={{width:'100%',height:'5px',background:'var(--surface-alt)',border:'1px solid var(--borda-leve)'}}>
+                            <div style={{width:`${(valor/faturamentoLiquido)*100}%`,height:'100%',background:'var(--verde)'}}/>
+                          </div>
                         </div>
-                        <div style={{width:'100%',height:'6px',background:'var(--surface-alt)',borderRadius:'3px'}}>
-                          <div style={{width:`${(valor/faturamentoLiquido)*100}%`,height:'100%',background:'var(--verde)',borderRadius:'3px'}}/>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Seção 4: Comissões */}
-              <div className="card">
-                <h2 style={{fontWeight:900,fontSize:'1.1rem',marginBottom:'1rem'}}>4. Comissões Geradas no Período</h2>
-                <div style={{display:'flex',gap:'1rem',marginBottom:'1rem'}}>
-                  <div><p style={{fontSize:'0.75rem',color:'var(--texto-desab)'}}>Total a Pagar</p><p style={{fontWeight:800,color:'var(--amarelo)'}}>{formatCurrency(totalComissoes)}</p></div>
+              <div className="card" style={{padding:0,overflow:'hidden'}}>
+                <div className="sec-header"><span>4. COMISSÕES GERADAS</span></div>
+                <div style={{padding:'0.625rem'}}>
+                  <div style={{display:'flex',gap:'0.5rem',marginBottom:'0.5rem'}}>
+                    <div><p style={{fontSize:'0.65rem',color:'var(--texto-desab)',letterSpacing:'0.04em'}}>TOTAL A PAGAR</p><p style={{fontWeight:700,color:'var(--amarelo)',fontVariantNumeric:'tabular-nums'}}>{formatCurrency(totalComissoes)}</p></div>
+                  </div>
+                  {listaComissoes.length > 0 && (
+                    <table className="tabela" style={{fontSize:'0.72rem'}}>
+                      <thead><tr><th>VENDEDOR</th><th style={{textAlign:'right'}}>VALOR</th></tr></thead>
+                      <tbody>
+                        {listaComissoes.map((c) => (
+                          <tr key={c.nome}>
+                            <td style={{fontWeight:700}}>{c.nome}</td>
+                            <td style={{textAlign:'right',color:c.valor>0?'var(--amarelo)':'var(--texto-desab)',fontWeight:700,fontVariantNumeric:'tabular-nums'}}>{formatCurrency(c.valor)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
                 </div>
-                {listaComissoes.length > 0 && (
-                  <table className="tabela" style={{fontSize:'0.8rem'}}>
-                    <thead><tr><th>Vendedor</th><th>Valor Total</th></tr></thead>
-                    <tbody>
-                      {listaComissoes.map((c) => (
-                        <tr key={c.nome}>
-                          <td style={{fontWeight:700}}>{c.nome}</td>
-                          <td style={{color:c.valor>0?'var(--amarelo)':'var(--texto-desab)'}}>{formatCurrency(c.valor)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
               </div>
             </div>
 
