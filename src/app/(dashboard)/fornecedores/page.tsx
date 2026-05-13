@@ -40,7 +40,7 @@ export default function FornecedoresPage() {
   async function carregar(eid: string) {
     setLoading(true)
     const supabase = createClient()
-    const [{ data: forn }, { data: peds }] = await Promise.all([
+    const results = await Promise.allSettled([
       supabase.from('fornecedores')
         .select('id,nome,contato,telefone,email,cnpj,categoria,cidade,estado,prazo_entrega,pedido_minimo,anotacoes,ativo')
         .eq('empresa_id', eid).order('nome'),
@@ -48,6 +48,9 @@ export default function FornecedoresPage() {
         .select('id,produto,quantidade,status,criado_em,fornecedores(nome)')
         .eq('empresa_id', eid).order('criado_em', { ascending: false }),
     ])
+    const getRes = (i: number): any => results[i].status === 'fulfilled' ? (results[i] as PromiseFulfilledResult<any>).value || {} : {}
+    const { data: forn } = getRes(0)
+    const { data: peds } = getRes(1)
     setFornecedores(forn || [])
     setPedidos(peds || [])
     setLoading(false)

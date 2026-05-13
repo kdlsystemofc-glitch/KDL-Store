@@ -46,6 +46,16 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
+  // Role-Based Access Control (RBAC)
+  if (user && (pathname.startsWith('/financeiro') || pathname.startsWith('/configuracoes') || pathname.startsWith('/relatorios') || pathname.startsWith('/comissoes'))) {
+    const { data: profile } = await supabase.from('profiles').select('papel').eq('id', user.id).single()
+    if (!profile || profile.papel !== 'admin') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/dashboard'
+      return NextResponse.redirect(url)
+    }
+  }
+
   return supabaseResponse
 }
 

@@ -28,10 +28,13 @@ export default function FechamentoPage() {
     const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0,10)
     const desde = t === 'diario' ? hoje : inicioMes
     const supabase = createClient()
-    const [{ data: v }, { data: d }] = await Promise.all([
+    const results = await Promise.allSettled([
       supabase.from('vendas').select('total,forma_pagamento,criado_em').eq('empresa_id', eid).eq('status','concluida').gte('criado_em', desde),
       supabase.from('despesas').select('descricao,categoria,valor').eq('empresa_id', eid).gte('data', desde),
     ])
+    const getRes = (i: number): any => results[i].status === 'fulfilled' ? (results[i] as PromiseFulfilledResult<any>).value || {} : {}
+    const { data: v } = getRes(0)
+    const { data: d } = getRes(1)
     setVendas(v||[])
     setDespesas(d||[])
     setLoading(false)

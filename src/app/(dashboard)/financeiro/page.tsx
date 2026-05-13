@@ -24,19 +24,26 @@ export default function FinanceiroPage() {
     setLoading(true)
     const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0,10)
     const supabase  = createClient()
-    const [{ data: vendas }, { data: desps }, { data: fiados }, { data: vendasMes }, { data: brindesMov }] = await Promise.all([
+    const results = await Promise.allSettled([
       supabase.from('vendas').select('total,forma_pagamento,criado_em').eq('empresa_id', eid).eq('status','concluida').gte('criado_em', inicioMes),
       supabase.from('despesas').select('categoria,tipo,valor').eq('empresa_id', eid).gte('data', inicioMes),
       supabase.from('fiados').select('valor_aberto').eq('empresa_id', eid).eq('status','aberto'),
       supabase.from('vendas').select('criado_em,total').eq('empresa_id', eid).eq('status','concluida').gte('criado_em', new Date(Date.now()-29*86400000).toISOString()),
       supabase.from('estoque_movimentacoes').select('quantidade,produto_id,produtos(preco_custo)').eq('empresa_id', eid).eq('tipo','brinde').gte('criado_em', inicioMes),
     ])
+    const getRes = (i: number): any => results[i].status === 'fulfilled' ? (results[i] as PromiseFulfilledResult<any>).value || {} : {}
+    const { data: vendas }     = getRes(0)
+    const { data: desps }      = getRes(1)
+    const { data: fiados }     = getRes(2)
+    const { data: vendasMes }  = getRes(3)
+    const { data: brindesMov } = getRes(4)
 
-    const totalReceita = (vendas||[]).reduce((a,v)=>a+v.total,0)
-    const totalDesp    = (desps||[]).reduce((a,d)=>a+d.valor,0)
-    const totalFiado   = (fiados||[]).reduce((a,f)=>a+f.valor_aberto,0)
+    const totalReceita = (vendas||[]).reduce((a: number, v: any) => a + (v.total || 0), 0)
+    const totalDesp    = (desps||[]).reduce((a: number, d: any) => a + (d.valor || 0), 0)
+    const totalFiado   = (fiados||[]).reduce((a: number, f: any) => a + (f.valor_aberto || 0), 0)
+    
     // Custo dos brindes = quantidade * preco_custo do produto
-    const totalBrindes = (brindesMov||[]).reduce((a, m) => {
+    const totalBrindes = (brindesMov||[]).reduce((a: number, m: any) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const prod = m.produtos as any
       const custo = Array.isArray(prod) ? (prod[0]?.preco_custo || 0) : (prod?.preco_custo || 0)
@@ -47,12 +54,12 @@ export default function FinanceiroPage() {
 
     // Formas
     const fMap: Record<string,number> = {}
-    ;(vendas||[]).forEach(v=>{ fMap[v.forma_pagamento]=(fMap[v.forma_pagamento]||0)+v.total })
+    ;(vendas||[]).forEach((v: any)=>{ fMap[v.forma_pagamento]=(fMap[v.forma_pagamento]||0)+v.total })
     setFormas(Object.entries(fMap).sort((a,b)=>b[1]-a[1]).map(([forma,total])=>({forma,total})))
 
     // Gráfico 30 dias
     const dMap: Record<string,number> = {}
-    ;(vendasMes||[]).forEach(v=>{ const d=v.criado_em.slice(0,10); dMap[d]=(dMap[d]||0)+v.total })
+    ;(vendasMes||[]).forEach((v: any)=>{ const d=v.criado_em.slice(0,10); dMap[d]=(dMap[d]||0)+v.total })
     const g = Array.from({length:15},(_,i)=>{
       const d = new Date(Date.now()-(14-i)*86400000).toISOString().slice(0,10)
       return { dia:new Date(d+'T12:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}), total:dMap[d]||0 }

@@ -39,18 +39,7 @@ export default function DashboardPage() {
     const hoje = new Date().toISOString().slice(0,10)
     const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
 
-    const [
-      { data: vendasHoje },
-      { data: todosProdutos },
-      { data: fiados },
-      { data: despesas },
-      { data: vendasSemana },
-      { data: comissoes },
-      { data: clientes },
-      { data: empresaData },
-      { count: totalProdutos },
-      { count: totalVendas },
-    ] = await Promise.all([
+    const results = await Promise.allSettled([
       supabase.from('vendas').select('total').eq('empresa_id', eid).gte('criado_em', hoje).eq('status','concluida'),
       supabase.from('produtos').select('id,qtd_atual,qtd_minima').eq('empresa_id', eid).gt('qtd_minima',0),
       supabase.from('fiados').select('valor_aberto').eq('empresa_id', eid).eq('status','aberto'),
@@ -64,24 +53,37 @@ export default function DashboardPage() {
       supabase.from('vendas').select('*', { count: 'exact', head: true }).eq('empresa_id', eid),
     ])
 
-    // Filtra críticos em JS (PostgREST não suporta comparação coluna-vs-coluna)
-    const criticos = (todosProdutos||[]).filter(p => p.qtd_atual <= p.qtd_minima)
+    const getRes = (index: number): any => results[index].status === 'fulfilled' ? (results[index] as PromiseFulfilledResult<any>).value || {} : {}
 
-    const totalHoje = (vendasHoje||[]).reduce((a,v)=>a+(v.total||0),0)
+    const { data: vendasHoje } = getRes(0)
+    const { data: todosProdutos } = getRes(1)
+    const { data: fiados } = getRes(2)
+    const { data: despesas } = getRes(3)
+    const { data: vendasSemana } = getRes(4)
+    const { data: comissoes } = getRes(5) // Unused but kept for structure
+    const { data: clientes } = getRes(6)
+    const { data: empresaData } = getRes(7)
+    const { count: totalProdutos } = getRes(8)
+    const { count: totalVendas } = getRes(9)
+
+    // Filtra críticos em JS (PostgREST não suporta comparação coluna-vs-coluna)
+    const criticos = (todosProdutos||[]).filter((p: any) => p.qtd_atual <= p.qtd_minima)
+
+    const totalHoje = (vendasHoje||[]).reduce((a: number, v: any) => a + (v.total || 0), 0)
     const qtdHoje   = (vendasHoje||[]).length
-    const fiadoTotal = (fiados||[]).reduce((a,f)=>a+(f.valor_aberto||0),0)
-    const despTotal  = (despesas||[]).reduce((a,d)=>a+(d.valor||0),0)
+    const fiadoTotal = (fiados||[]).reduce((a: number, f: any) => a + (f.valor_aberto || 0), 0)
+    const despTotal  = (despesas||[]).reduce((a: number, d: any) => a + (d.valor || 0), 0)
     
     // Cálculo de comissões (simplificado para o dashboard)
     const comPagar = 0 // Precisaria cruzar vendas com as taxas configuradas na tabela comissoes
     
     const prazo = empresaData?.crm_prazo_inatividade_dias || 60
     const limiteData = new Date(Date.now() - prazo * 86400000).toISOString().slice(0,10)
-    const sumidos = (clientes||[]).filter(c => !c.ultima_compra || c.ultima_compra < limiteData).length
+    const sumidos = (clientes||[]).filter((c: any) => !c.ultima_compra || c.ultima_compra < limiteData).length
 
     // Agrupa vendas por dia
     const porDia: Record<string,number> = {}
-    ;(vendasSemana||[]).forEach(v => {
+    ;(vendasSemana||[]).forEach((v: any) => {
       const d = v.criado_em.slice(0,10)
       porDia[d] = (porDia[d]||0) + v.total
     })

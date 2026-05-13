@@ -24,10 +24,13 @@ export default function EstoquePage() {
   async function carregar(eid: string) {
     setLoading(true)
     const supabase = createClient()
-    const [{ data: prods }, { data: movimentos }] = await Promise.all([
+    const results = await Promise.allSettled([
       supabase.from('produtos').select('id,nome,sku,categoria,qtd_atual,qtd_minima,preco_custo').eq('empresa_id',eid).order('nome'),
       supabase.from('estoque_movimentacoes').select('id,tipo,quantidade,criado_em,obs,produtos(nome)').eq('empresa_id',eid).order('criado_em',{ascending:false}).limit(50),
     ])
+    const getRes = (i: number): any => results[i].status === 'fulfilled' ? (results[i] as PromiseFulfilledResult<any>).value || {} : {}
+    const { data: prods }     = getRes(0)
+    const { data: movimentos } = getRes(1)
     setProdutos(prods||[])
     setMovs(movimentos||[])
     setLoading(false)

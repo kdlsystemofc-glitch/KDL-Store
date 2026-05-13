@@ -110,31 +110,31 @@ export function ComoFoiPainel() {
     const { i, f, pi, pf } = getDates(a)
     const sb = createClient()
 
-    const [
-      { data: vendas },
-      { data: vendasPrev },
-      { data: desps },
-      { data: fiados },
-      { data: comissoes },
-    ] = await Promise.all([
+    const results = await Promise.allSettled([
       sb.from('vendas').select('id, criado_em, total, cliente_nome, status, itens_venda(produto_id,quantidade,preco_unitario,brinde)').eq('empresa_id',eid).eq('status','concluida').gte('criado_em',i).lt('criado_em',f).order('criado_em', { ascending: false }),
       sb.from('vendas').select('total').eq('empresa_id',eid).eq('status','concluida').gte('criado_em',pi).lt('criado_em',pf),
       sb.from('despesas').select('id, criado_em, descricao, valor').eq('empresa_id',eid).gte('criado_em',i).lt('criado_em',f).order('criado_em', { ascending: false }),
       sb.from('fiados').select('valor_aberto').eq('empresa_id',eid).eq('status','aberto').gte('criado_em',i).lt('criado_em',f),
       sb.from('vendas').select('id').eq('empresa_id',eid).eq('status','concluida').not('comissionado_id','is',null).gte('criado_em',i).lt('criado_em',f),
     ])
+    const getRes = (idx: number): any => results[idx].status === 'fulfilled' ? (results[idx] as PromiseFulfilledResult<any>).value || {} : {}
+    const { data: vendas }    = getRes(0)
+    const { data: vendasPrev } = getRes(1)
+    const { data: desps }     = getRes(2)
+    const { data: fiados }    = getRes(3)
+    const { data: comissoes } = getRes(4)
 
-    const itensVendas = (vendas||[]).flatMap(v => v.itens_venda || [])
-    const fat     = (vendas||[]).reduce((s,v)=>s+v.total,0)
-    const fatPrev = (vendasPrev||[]).reduce((s,v)=>s+v.total,0)
-    const desp    = (desps||[]).reduce((s,d)=>s+d.valor,0)
-    const fiadoAb = (fiados||[]).reduce((s,f)=>s+f.valor_aberto,0)
+    const itensVendas = (vendas||[]).flatMap((v: any) => v.itens_venda || [])
+    const fat     = (vendas||[]).reduce((s: number, v: any) => s + v.total, 0)
+    const fatPrev = (vendasPrev||[]).reduce((s: number, v: any) => s + v.total, 0)
+    const desp    = (desps||[]).reduce((s: number, d: any) => s + d.valor, 0)
+    const fiadoAb = (fiados||[]).reduce((s: number, f: any) => s + f.valor_aberto, 0)
 
-    const prodIds = [...new Set((itensVendas||[]).filter(iv=>!iv.brinde).map(iv=>iv.produto_id))]
+    const prodIds = [...new Set((itensVendas||[]).filter((iv: any) => !iv.brinde).map((iv: any) => iv.produto_id))]
     let zerados: string[] = []
     if (prodIds.length > 0) {
       const { data: prods } = await sb.from('produtos').select('id,nome,qtd_atual').in('id', prodIds)
-      zerados = (prods||[]).filter(p=>p.qtd_atual<=0).map(p=>p.nome)
+      zerados = (prods||[]).filter((p: any) => p.qtd_atual <= 0).map((p: any) => p.nome)
     }
 
     let melhorMes = false

@@ -51,10 +51,13 @@ export default function EditarProdutoPage() {
 
   async function carregar(pid: string, eid: string) {
     const supabase = createClient()
-    const [{ data: prod, error }, { data: cats }] = await Promise.all([
+    const results = await Promise.allSettled([
       supabase.from('produtos').select('*').eq('id', pid).single(),
       supabase.from('categorias_produto').select('id,nome').eq('empresa_id', eid).order('nome')
     ])
+    const getRes = (i: number): any => results[i].status === 'fulfilled' ? (results[i] as PromiseFulfilledResult<any>).value || {} : {}
+    const { data: prod, error } = getRes(0)
+    const { data: cats }        = getRes(1)
     if (error || !prod) { setErro('Produto não encontrado.'); setLoading(false); return }
     setProduto(prod)
     setCategorias(cats || [])

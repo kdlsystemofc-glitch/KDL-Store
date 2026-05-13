@@ -25,11 +25,15 @@ export default function ClientePerfilPage() {
   async function carregar(cid: string) {
     setLoading(true)
     const supabase = createClient()
-    const [{ data: c }, { data: v }, { data: f }] = await Promise.all([
+    const results = await Promise.allSettled([
       supabase.from('clientes').select('*').eq('id', cid).single(),
       supabase.from('vendas').select('id,numero,total,forma_pagamento,criado_em,status').eq('cliente_id', cid).order('criado_em', { ascending:false }).limit(20),
       supabase.from('fiados').select('id,valor_aberto,status,criado_em').eq('cliente_id', cid).order('criado_em', { ascending:false }),
     ])
+    const getRes = (i: number): any => results[i].status === 'fulfilled' ? (results[i] as PromiseFulfilledResult<any>).value || {} : {}
+    const { data: c } = getRes(0)
+    const { data: v } = getRes(1)
+    const { data: f } = getRes(2)
     setCliente(c)
     setVendas(v || [])
     setFiados(f || [])

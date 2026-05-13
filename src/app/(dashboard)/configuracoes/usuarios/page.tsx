@@ -33,14 +33,19 @@ export default function UsuariosPage() {
   async function carregar(eid: string) {
     setLoading(true)
     const supabase = createClient()
-    const [{ data: users }, { data: { user } }, { data: convs }] = await Promise.all([
+    const results = await Promise.allSettled([
       supabase.from('profiles').select('id,nome,papel,status,criado_em').eq('empresa_id', eid).order('criado_em'),
       supabase.auth.getUser(),
       supabase.from('convites').select('id,email,nome,papel,status,token,expira_em').eq('empresa_id', eid).order('criado_em', { ascending: false }),
     ])
+    const getRes = (i: number): any => results[i].status === 'fulfilled' ? (results[i] as PromiseFulfilledResult<any>).value || {} : {}
+    const { data: users }   = getRes(0)
+    const { data: userObj } = getRes(1)
+    const { data: convs }   = getRes(2)
+    const user = userObj?.user
     setMeuId(user?.id || null)
     setUsuarios(users || [])
-    setConvites((convs || []).filter(c => c.status === 'pendente'))
+    setConvites((convs || []).filter((c: any) => c.status === 'pendente'))
     setLoading(false)
   }
 

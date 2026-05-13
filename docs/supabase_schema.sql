@@ -393,6 +393,17 @@ begin
 end;
 $$;
 
+-- Helper: verifica se o usuário logado é admin
+create or replace function public.sou_admin()
+returns boolean language plpgsql stable security definer set search_path = public as $$
+declare
+  v_papel text;
+begin
+  select papel into v_papel from public.profiles where id = auth.uid();
+  return coalesce(v_papel, '') = 'admin';
+end;
+$$;
+
 -- Policies genéricas (cada tabela só deixa passar registros da empresa do usuário)
 -- PRODUTOS
 create policy "Empresa vê seus produtos"   on public.produtos for select using (empresa_id = minha_empresa_id());
@@ -447,10 +458,10 @@ create policy "Empresa vê OS"              on public.ordens_servico for select 
 create policy "Empresa insere OS"          on public.ordens_servico for insert with check (empresa_id = minha_empresa_id());
 create policy "Empresa atualiza OS"        on public.ordens_servico for update using (empresa_id = minha_empresa_id());
 
--- DESPESAS
-create policy "Empresa vê despesas"        on public.despesas for select using (empresa_id = minha_empresa_id());
-create policy "Empresa insere despesas"    on public.despesas for insert with check (empresa_id = minha_empresa_id());
-create policy "Empresa deleta despesas"    on public.despesas for delete using (empresa_id = minha_empresa_id());
+-- DESPESAS (Apenas admin)
+create policy "Admin vê despesas"        on public.despesas for select using (empresa_id = minha_empresa_id() and sou_admin());
+create policy "Admin insere despesas"    on public.despesas for insert with check (empresa_id = minha_empresa_id() and sou_admin());
+create policy "Admin deleta despesas"    on public.despesas for delete using (empresa_id = minha_empresa_id() and sou_admin());
 
 -- FIADO
 create policy "Empresa vê fiados"          on public.fiados for select using (empresa_id = minha_empresa_id());
@@ -462,9 +473,9 @@ create policy "Empresa vê devolucoes"       on public.devolucoes for select usi
 create policy "Empresa insere devolucoes"   on public.devolucoes for insert with check (empresa_id = minha_empresa_id());
 create policy "Empresa atualiza devolucoes" on public.devolucoes for update using (empresa_id = minha_empresa_id());
 
--- FECHAMENTOS
-create policy "Empresa vê fechamentos"     on public.fechamentos_caixa for select using (empresa_id = minha_empresa_id());
-create policy "Empresa insere fechamentos" on public.fechamentos_caixa for insert with check (empresa_id = minha_empresa_id());
+-- FECHAMENTOS (Apenas admin)
+create policy "Admin vê fechamentos"     on public.fechamentos_caixa for select using (empresa_id = minha_empresa_id() and sou_admin());
+create policy "Admin insere fechamentos" on public.fechamentos_caixa for insert with check (empresa_id = minha_empresa_id() and sou_admin());
 
 -- PROFILES (lojistas da mesma empresa podem ver outros membros)
 create policy "Usuário vê seu profile"     on public.profiles for select using (id = auth.uid() or empresa_id = minha_empresa_id());

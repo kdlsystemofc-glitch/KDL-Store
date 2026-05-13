@@ -34,13 +34,19 @@ export default function RelatoriosPage() {
     const fimMes    = new Date(ano, mes, 0, 23, 59, 59).toISOString()
 
     const supabase = createClient()
-    const [ { data: v }, { data: d }, { data: c } ] = await Promise.all([
+    const results = await Promise.allSettled([
       supabase.from('vendas').select('id,total,desconto,forma_pagamento,status,comissionado_id,comissionado_nome').eq('empresa_id', eid).eq('status', 'concluida').gte('criado_em', inicioMes).lte('criado_em', fimMes),
       supabase.from('despesas').select('valor').eq('empresa_id', eid).gte('data', inicioMes.slice(0,10)).lte('data', fimMes.slice(0,10)),
       supabase.from('comissoes').select('id,nome,tipo_comissao,taxa').eq('empresa_id', eid)
     ])
 
-    const vendasIds = (v||[]).map(x => x.id)
+    const getRes = (index: number): any => results[index].status === 'fulfilled' ? (results[index] as PromiseFulfilledResult<any>).value || {} : {}
+    
+    const { data: v } = getRes(0)
+    const { data: d } = getRes(1)
+    const { data: c } = getRes(2)
+
+    const vendasIds = (v||[]).map((x: any) => x.id)
     
     let allItens: ItemVenda[] = []
     if (vendasIds.length > 0) {

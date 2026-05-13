@@ -23,6 +23,7 @@ function getPreco(p: ProdDB, tipo: TipoCliente): number {
 export default function NovaPdvPage() {
   const { empresaId } = useEmpresaId()
   const [catalogo,    setCatalogo]    = useState<ProdDB[]>([])
+  const [fiadosAtivos, setFiadosAtivos] = useState<string[]>([])
   const [busca,       setBusca]       = useState('')
   const [itens,       setItens]       = useState<Item[]>([])
   const [tipoCliente, setTipoCliente] = useState<TipoCliente>('varejo')
@@ -40,13 +41,22 @@ export default function NovaPdvPage() {
   const hasCamera = useHasCamera()
 
   const carregar = useCallback(async (eid: string) => {
-    const { data } = await createClient()
+    const supabase = createClient()
+    const { data } = await supabase
       .from('produtos')
       .select('id,nome,sku,ean,preco_varejo,preco_atacado,preco_vip,preco_minimo,qtd_atual,tem_garantia,dias_garantia,texto_garantia')
       .eq('empresa_id', eid)
       .eq('ativo', true)
       .order('nome')
+    
+    const { data: fAbertos } = await supabase
+      .from('fiados')
+      .select('cliente_nome')
+      .eq('empresa_id', eid)
+      .eq('status', 'aberto')
+
     setCatalogo(data || [])
+    setFiadosAtivos((fAbertos || []).map(f => f.cliente_nome.toLowerCase().trim()))
   }, [])
 
   useEffect(() => { if (empresaId) carregar(empresaId) }, [empresaId, carregar])
@@ -114,6 +124,10 @@ export default function NovaPdvPage() {
   async function finalizar() {
     if (!empresaId) return
     if (pagamento === 'Fiado' && !cliente) { setErro('Informe o cliente para registrar no fiado.'); return }
+    if (pagamento === 'Fiado' && fiadosAtivos.includes((cliente||'').toLowerCase().trim())) {
+      setErro(`🚨 O cliente "${cliente}" já possui um Fiado em aberto. Por favor, quite-o antes de abrir um novo.`)
+      return
+    }
     setSalvando(true); setErro(null)
     const supabase = createClient()
 
@@ -270,9 +284,9 @@ export default function NovaPdvPage() {
                 <p style={{fontWeight:600,color:'var(--texto-desab)',marginTop:'0.5rem'}}>Carrinho vazio — busque um produto acima</p>
               </div>
             ) : (
-              <div>
+              <div style={{maxHeight:'50vh',overflowY:'auto'}}>
                 {itens.map((item,idx) => (
-                  <div key={idx} style={{padding:'0.75rem 0.875rem',borderBottom:'1px solid var(--borda-leve)',background:item.brinde?'var(--verde-claro)':idx%2===0?'#fff':'var(--surface-alt)'}}>
+                  <div key={item.produto.id} style={{padding:'0.75rem 0.875rem',borderBottom:'1px solid var(--borda-leve)',background:item.brinde?'var(--verde-claro)':idx%2===0?'#fff':'var(--surface-alt)'}}>
                     <div style={{display:'flex',alignItems:'flex-start',gap:'0.625rem'}}>
                       <div style={{flex:1,minWidth:0}}>
                         <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
