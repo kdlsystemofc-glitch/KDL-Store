@@ -1,111 +1,108 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
 
 export const metadata: Metadata = {
-  title: { default: 'KDL Store', template: '%s | KDL Store' },
-  description: 'Sistema de gestão para pequeno comércio',
+  title: { default: 'NexoCommerce PDV', template: '%s | NexoCommerce' },
+  description: 'Sistema PDV para pequeno comércio — NexoCommerce',
 }
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', fontFamily: "'Inter', sans-serif" }}>
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      fontFamily: "'IBM Plex Mono', 'Courier New', monospace",
+      background: '#060A06',
+      backgroundImage: `repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,204,68,0.012) 2px,
+        rgba(0,204,68,0.012) 4px
+      )`,
+    }}>
 
-      {/* LEFT — Branding */}
+      {/* LEFT — Branding Terminal */}
       <div style={{
-        width: '42%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-        padding: '3rem', position: 'relative', overflow: 'hidden',
-        background: 'linear-gradient(160deg, #0d2218 0%, #14532d 50%, #15803d 100%)'
+        width: '420px',
+        flexShrink: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        padding: '2.5rem 2rem',
+        background: '#030605',
+        borderRight: '1px solid #1A3D20',
       }}>
-        {/* Dots decorativos */}
-        <div style={{
-          position: 'absolute', inset: 0, opacity: 0.06,
-          backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)',
-          backgroundSize: '28px 28px'
-        }} />
-
         {/* Logo */}
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div style={{
-            width: '46px', height: '46px', background: '#fff', borderRadius: '10px',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-            boxShadow: '0 4px 12px rgba(0,0,0,0.25)'
-          }}>
-            <span style={{ color: '#15803d', fontWeight: 900, fontSize: '1.25rem' }}>K</span>
-          </div>
-          <div>
-            <p style={{ color: '#fff', fontWeight: 800, fontSize: '1.1rem', lineHeight: 1 }}>KDL Store</p>
-            <p style={{ color: '#86efac', fontSize: '0.72rem', marginTop: '2px' }}>Sistema de Gestão</p>
-          </div>
+        <div>
+          <p style={{ color: '#00CC44', fontWeight: 700, fontSize: '1.1rem', letterSpacing: '0.12em', marginBottom: '4px' }}>
+            ▓ NEXO PDV
+          </p>
+          <p style={{ color: '#3D6B44', fontSize: '0.65rem', letterSpacing: '0.06em' }}>
+            SISTEMA DE GESTÃO COMERCIAL v2.0
+          </p>
         </div>
 
-        {/* Centro */}
-        <div style={{ position: 'relative' }}>
-          <h1 style={{ color: '#fff', fontWeight: 900, fontSize: '2rem', lineHeight: 1.25, marginBottom: '0.75rem' }}>
-            Seu negócio<br />
-            <span style={{ color: '#86efac' }}>organizado.</span>
-          </h1>
-          <p style={{ color: '#bbf7d0', fontSize: '0.9rem', lineHeight: 1.6, marginBottom: '2rem' }}>
-            Controle vendas, estoque, garantias e fornecedores em minutos.
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        {/* Features */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div>
+            <p style={{
+              color: '#00CC44', fontSize: '0.85rem', fontWeight: 700,
+              letterSpacing: '0.05em', marginBottom: '1rem',
+              borderBottom: '1px solid #1A3D20', paddingBottom: '0.5rem',
+            }}>
+              MÓDULOS DISPONÍVEIS
+            </p>
             {[
-              { e: '🛒', t: 'Venda registrada em menos de 30 segundos' },
-              { e: '📦', t: 'Estoque atualizado a cada venda' },
-              { e: '🛡️', t: 'Garantia digital gerada na hora' },
-              { e: '💸', t: 'Fiado, despesas e fechamento integrados' },
-            ].map(f => (
-              <div key={f.t} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <div style={{
-                  width: '34px', height: '34px', background: 'rgba(255,255,255,0.15)',
-                  borderRadius: '8px', display: 'flex', alignItems: 'center',
-                  justifyContent: 'center', fontSize: '1rem', flexShrink: 0
-                }}>{f.e}</div>
-                <span style={{ color: '#dcfce7', fontSize: '0.83rem', fontWeight: 500 }}>{f.t}</span>
+              ['PDV', 'Frente de caixa — venda em 30s'],
+              ['ESTOQUE', 'Controle de entrada e saída'],
+              ['FINANCEIRO', 'Fiado, despesas e fechamento'],
+              ['GARANTIAS', 'Pós-venda digital'],
+              ['RELATÓRIOS', 'Dashboard e analytics'],
+            ].map(([mod, desc]) => (
+              <div key={mod} style={{
+                display: 'flex', gap: '0.875rem', alignItems: 'flex-start',
+                padding: '0.5rem 0', borderBottom: '1px solid #0F2614',
+              }}>
+                <span style={{ color: '#00CC44', fontSize: '0.7rem', fontWeight: 700, width: '80px', flexShrink: 0 }}>
+                  {mod}
+                </span>
+                <span style={{ color: '#7EC882', fontSize: '0.7rem' }}>{desc}</span>
               </div>
             ))}
           </div>
+
+          {/* Depoimento */}
+          <div style={{
+            border: '1px solid #1A3D20',
+            borderLeft: '3px solid #00CC44',
+            padding: '0.875rem',
+            background: '#0D1F0D',
+          }}>
+            <p style={{ color: '#7EC882', fontSize: '0.72rem', lineHeight: 1.6, marginBottom: '0.625rem' }}>
+              &quot;Antes eu perdia produto sem saber. Agora sei o estoque exato e quanto entrou no dia.&quot;
+            </p>
+            <p style={{ color: '#3D6B44', fontSize: '0.65rem' }}>
+              — José Aparecido · Loja de eletrônicos, SP
+            </p>
+          </div>
         </div>
 
-        {/* Rodapé depoimento */}
-        <div style={{
-          position: 'relative', background: 'rgba(255,255,255,0.1)',
-          borderRadius: '10px', padding: '1rem', border: '1px solid rgba(255,255,255,0.15)'
-        }}>
-          <p style={{ color: '#d1fae5', fontSize: '0.82rem', fontStyle: 'italic', lineHeight: 1.5 }}>
-            "Antes eu perdia produto sem saber. Agora sei o estoque exato e quanto entrou no dia."
-          </p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.625rem' }}>
-            <div style={{
-              width: '30px', height: '30px', background: '#fff', borderRadius: '50%',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '0.75rem', fontWeight: 900, color: '#15803d', flexShrink: 0
-            }}>J</div>
-            <div>
-              <p style={{ color: '#fff', fontSize: '0.75rem', fontWeight: 700 }}>José Aparecido</p>
-              <p style={{ color: '#86efac', fontSize: '0.7rem' }}>Loja de eletrônicos — 25 de Março SP</p>
-            </div>
-          </div>
+        {/* Rodapé */}
+        <div style={{ fontSize: '0.6rem', color: '#3D6B44', letterSpacing: '0.06em' }}>
+          <p>NexoCommerce PDV © 2026</p>
+          <p style={{ marginTop: '2px' }}>● CONEXÃO SEGURA</p>
         </div>
       </div>
 
       {/* RIGHT — Formulário */}
       <div style={{
-        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: '2rem', background: '#f8f9fa'
+        flex: 1,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '2rem',
       }}>
-        <div style={{ width: '100%', maxWidth: '380px' }}>
-
-          {/* Mobile logo */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '2rem' }}>
-            <div style={{
-              width: '36px', height: '36px', background: '#15803d', borderRadius: '8px',
-              display: 'flex', alignItems: 'center', justifyContent: 'center'
-            }}>
-              <span style={{ color: '#fff', fontWeight: 900, fontSize: '1rem' }}>K</span>
-            </div>
-            <span style={{ fontWeight: 800, fontSize: '1.1rem', color: '#1a1a1a' }}>KDL Store</span>
-          </div>
-
+        <div style={{ width: '100%', maxWidth: '360px' }}>
           {children}
         </div>
       </div>
