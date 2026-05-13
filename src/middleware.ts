@@ -47,7 +47,8 @@ export async function middleware(request: NextRequest) {
   }
 
   // Role-Based Access Control (RBAC)
-  if (user && (pathname.startsWith('/financeiro') || pathname.startsWith('/configuracoes') || pathname.startsWith('/relatorios') || pathname.startsWith('/comissoes'))) {
+  // Only /configuracoes requires admin role — financeiro, relatorios, comissoes are open to all authenticated users
+  if (user && pathname.startsWith('/configuracoes')) {
     const { data: profile } = await supabase.from('profiles').select('papel').eq('id', user.id).single()
     if (!profile || profile.papel !== 'admin') {
       const url = request.nextUrl.clone()

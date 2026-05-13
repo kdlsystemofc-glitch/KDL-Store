@@ -87,35 +87,34 @@ export default function DashboardPage() {
   const maxVenda = Math.max(...kpis.vendasSemana.map(d=>d.total), 1)
 
   if (loadingEmpresa || loading) return (
-    <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'60vh',flexDirection:'column',gap:'0.75rem'}}>
-      <div style={{fontFamily:'monospace',color:'var(--verde)',fontSize:'0.8rem',letterSpacing:'0.08em'}}>
-        CARREGANDO DADOS<span className="blink">_</span>
-      </div>
-      <div style={{width:'180px',height:'2px',background:'var(--borda)',borderRadius:'1px',overflow:'hidden'}}>
-        <div style={{height:'100%',background:'var(--verde)',animation:'slideIn 1.2s ease-in-out infinite alternate',width:'60%'}}/>
-      </div>
+    <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'60vh',flexDirection:'column',gap:'1rem'}}>
+      <div style={{width:'36px',height:'36px',border:'3px solid #e5e5e5',borderTopColor:'#1a7a3c',borderRadius:'50%',animation:'spin 0.8s linear infinite'}} />
+      <p style={{color:'#555555',fontSize:'0.85rem'}}>Carregando dados...</p>
     </div>
   )
 
   return (
-    <div className="anim-fade" style={{display:'flex',flexDirection:'column',gap:'0.875rem'}}>
+    <div className="anim-fade" style={{display:'flex',flexDirection:'column',gap:'1rem'}}>
 
       {/* ── ONBOARDING ── */}
       {kpis.totalProdutos === 0 && (
-        <div style={{border:'1px solid var(--borda-forte)',borderLeft:'3px solid var(--verde)',background:'var(--surface)',padding:'1rem'}}>
-          <p style={{fontWeight:700,fontSize:'0.82rem',color:'var(--verde)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:'0.625rem'}}>
-            ▶ CONFIGURAÇÃO INICIAL — PRIMEIROS PASSOS
+        <div style={{border:'1px solid #a8d5ba',borderLeft:'4px solid #1a7a3c',background:'#e8f5ee',padding:'1rem',borderRadius:'4px'}}>
+          <p style={{fontWeight:700,fontSize:'0.9rem',color:'#0f4d25',marginBottom:'0.75rem'}}>
+            Bem-vindo! Configure sua loja nos primeiros passos:
           </p>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'0.625rem'}}>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'0.75rem'}}>
             {[
-              {n:'01', titulo:'CADASTRAR PRODUTO', desc:'Adicione o que você vende ao estoque', href:'/produtos'},
-              {n:'02', titulo:'PRIMEIRA VENDA', desc:'Registre uma venda no PDV para testar', href:'/vendas/nova'},
-              {n:'03', titulo:'FORNECEDORES', desc:'Cadastre de quem você compra', href:'/fornecedores'},
+              {n:'1', titulo:'Cadastrar Produto', desc:'Adicione o que você vende ao estoque', href:'/produtos'},
+              {n:'2', titulo:'Primeira Venda', desc:'Registre uma venda no PDV para testar', href:'/vendas/nova'},
+              {n:'3', titulo:'Fornecedores', desc:'Cadastre de quem você compra', href:'/fornecedores'},
             ].map(p => (
-              <Link key={p.n} href={p.href} style={{textDecoration:'none',display:'block',border:'1px solid var(--borda)',padding:'0.75rem',background:'var(--surface-alt)',color:'var(--texto)',transition:'border-color 0.1s'}}>
-                <p style={{color:'var(--verde-muted)',fontSize:'0.65rem',fontWeight:700,letterSpacing:'0.1em',marginBottom:'4px'}}>PASSO {p.n}</p>
-                <p style={{fontWeight:700,fontSize:'0.78rem',color:'var(--verde)',marginBottom:'3px'}}>{p.titulo}</p>
-                <p style={{fontSize:'0.7rem',color:'var(--texto-desab)'}}>{p.desc}</p>
+              <Link key={p.n} href={p.href} style={{textDecoration:'none',display:'block',border:'1px solid #a8d5ba',padding:'0.75rem',background:'#ffffff',color:'#111111',borderRadius:'4px',transition:'box-shadow 0.1s'}}
+                onMouseEnter={e=>(e.currentTarget.style.boxShadow='0 2px 8px rgba(26,122,60,0.15)')}
+                onMouseLeave={e=>(e.currentTarget.style.boxShadow='none')}
+              >
+                <span style={{display:'inline-block',width:'22px',height:'22px',borderRadius:'50%',background:'#1a7a3c',color:'#fff',fontSize:'0.7rem',fontWeight:700,textAlign:'center',lineHeight:'22px',marginBottom:'6px'}}>{p.n}</span>
+                <p style={{fontWeight:700,fontSize:'0.82rem',color:'#111111',marginBottom:'2px'}}>{p.titulo}</p>
+                <p style={{fontSize:'0.72rem',color:'#555555'}}>{p.desc}</p>
               </Link>
             ))}
           </div>
@@ -125,11 +124,11 @@ export default function DashboardPage() {
       {/* ── CABEÇALHO ── */}
       <div className="pg-header">
         <div>
-          <h1 className="pg-titulo">DASHBOARD — PAINEL GERAL</h1>
-          <p className="pg-sub">{new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'}).toUpperCase()}</p>
+          <h1 className="pg-titulo">Dashboard</h1>
+          <p className="pg-sub">{new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'})}</p>
         </div>
-        <Link href="/vendas/nova" className="btn btn-primary" style={{fontSize:'0.78rem'}}>
-          ⚡ NOVA VENDA
+        <Link href="/vendas/nova" className="btn btn-primary" style={{fontSize:'0.85rem',padding:'0.55rem 1.125rem',fontWeight:700}}>
+          + Nova Venda
         </Link>
       </div>
 
@@ -138,61 +137,53 @@ export default function DashboardPage() {
 
       {/* ── KPIs OPERACIONAIS ── */}
       <div>
-        <p style={{fontSize:'0.65rem',fontWeight:700,color:'var(--texto-desab)',textTransform:'uppercase',letterSpacing:'0.1em',marginBottom:'0.5rem'}}>
-          ══ ALERTAS OPERACIONAIS ══
-        </p>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'0.5rem'}}>
+        <p style={{fontSize:'0.72rem',fontWeight:700,color:'#555555',textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:'0.625rem'}}>Alertas Operacionais</p>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'0.75rem'}}>
           {[
-            {label:'ESTQ. CRÍTICO',  valor:String(kpis.produtosCriticos), suf:'produtos', cor:kpis.produtosCriticos>0?'var(--vermelho)':'var(--verde)', dot:kpis.produtosCriticos>0?'var(--vermelho)':'var(--verde)', href:'/estoque'},
-            {label:'FIADO ABERTO',   valor:formatCurrency(kpis.fiadoAberto), suf:'pendente', cor:kpis.fiadoAberto>0?'var(--amarelo)':'var(--verde)', dot:kpis.fiadoAberto>0?'var(--amarelo)':'var(--verde)', href:'/financeiro/fiado'},
-            {label:'DESP. MÊS',      valor:formatCurrency(kpis.despesasMes), suf:'este mês', cor:'var(--texto)', dot:'var(--azul)', href:'/financeiro/despesas'},
-            {label:'CLI. SUMIDOS',   valor:String(kpis.clientesSumidos), suf:'inativos', cor:kpis.clientesSumidos>0?'var(--amarelo)':'var(--verde)', dot:kpis.clientesSumidos>0?'var(--amarelo)':'var(--verde)', href:'/clientes'},
+            {label:'Estoque Crítico',  valor:String(kpis.produtosCriticos), suf:'produto(s)', cor:kpis.produtosCriticos>0?'#c0392b':'#1a7a3c', top:kpis.produtosCriticos>0?'#c0392b':'#1a7a3c', href:'/estoque'},
+            {label:'Fiado em Aberto',  valor:formatCurrency(kpis.fiadoAberto), suf:'pendente', cor:kpis.fiadoAberto>0?'#b7860b':'#1a7a3c', top:kpis.fiadoAberto>0?'#b7860b':'#cccccc', href:'/financeiro/fiado'},
+            {label:'Despesas do Mês',  valor:formatCurrency(kpis.despesasMes), suf:'lançados', cor:'#111111', top:'#1a5fa8', href:'/financeiro/despesas'},
+            {label:'Clientes Sumidos', valor:String(kpis.clientesSumidos), suf:'inativos', cor:kpis.clientesSumidos>0?'#b7860b':'#1a7a3c', top:kpis.clientesSumidos>0?'#b7860b':'#cccccc', href:'/clientes'},
           ].map(k => (
-            <Link key={k.label} href={k.href} style={{textDecoration:'none',display:'block',border:'1px solid var(--borda)',borderTop:'2px solid var(--borda-forte)',background:'var(--surface)',padding:'0.75rem',color:'inherit',transition:'border-color 0.1s'}}>
-              <div style={{display:'flex',alignItems:'center',gap:'0.35rem',marginBottom:'0.35rem'}}>
-                <span style={{color:k.dot,fontSize:'0.55rem'}}>●</span>
-                <p style={{fontSize:'0.6rem',color:'var(--texto-desab)',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em'}}>{k.label}</p>
-              </div>
-              <p style={{fontWeight:700,fontSize:'1.1rem',color:k.cor,lineHeight:1,fontVariantNumeric:'tabular-nums'}}>{k.valor}</p>
-              <p style={{fontSize:'0.62rem',color:'var(--texto-desab)',marginTop:'2px'}}>{k.suf}</p>
+            <Link key={k.label} href={k.href} style={{textDecoration:'none',display:'block',background:'#ffffff',border:'1px solid #cccccc',borderTop:`3px solid ${k.top}`,borderRadius:'4px',padding:'0.875rem',color:'inherit',transition:'box-shadow 0.12s',boxShadow:'0 1px 3px rgba(0,0,0,0.06)'}}
+              onMouseEnter={e=>(e.currentTarget.style.boxShadow='0 3px 10px rgba(0,0,0,0.1)')}
+              onMouseLeave={e=>(e.currentTarget.style.boxShadow='0 1px 3px rgba(0,0,0,0.06)')}
+            >
+              <p style={{fontSize:'0.72rem',color:'#555555',fontWeight:600,marginBottom:'0.375rem',textTransform:'uppercase',letterSpacing:'0.04em'}}>{k.label}</p>
+              <p style={{fontWeight:800,fontSize:'1.25rem',color:k.cor,lineHeight:1,fontFamily:"'JetBrains Mono', monospace",fontVariantNumeric:'tabular-nums'}}>{k.valor}</p>
+              <p style={{fontSize:'0.68rem',color:'#999999',marginTop:'3px'}}>{k.suf}</p>
             </Link>
           ))}
         </div>
       </div>
 
-      {/* ── GRÁFICO BARRAS — ASCII style ── */}
+      {/* ── GRÁFICO BARRAS ── */}
       <div className="card" style={{padding:0,overflow:'hidden'}}>
         <div className="sec-header">
-          <span>VENDAS — ÚLTIMOS 7 DIAS</span>
-          <Link href="/relatorios" style={{fontSize:'0.65rem',color:'var(--verde-muted)',textDecoration:'none'}}>VER RELATÓRIO ▶</Link>
+          <span>Vendas — Últimos 7 dias</span>
+          <Link href="/relatorios" style={{fontSize:'0.72rem',color:'#1a7a3c',textDecoration:'none',fontWeight:600}}>Ver relatório →</Link>
         </div>
-        <div style={{padding:'0.875rem'}}>
+        <div style={{padding:'1rem'}}>
           {kpis.vendasSemana.length === 0 ? (
-            <p style={{fontSize:'0.72rem',color:'var(--texto-desab)',textAlign:'center',padding:'1rem 0'}}>Nenhuma venda nos últimos 7 dias.</p>
+            <p style={{fontSize:'0.82rem',color:'#999999',textAlign:'center',padding:'1rem 0'}}>Nenhuma venda nos últimos 7 dias.</p>
           ) : (
-            <div style={{display:'flex',flexDirection:'column',gap:'0.375rem'}}>
+            <div style={{display:'flex',flexDirection:'column',gap:'0.5rem'}}>
               {[...kpis.vendasSemana].reverse().map((d,i) => {
                 const pct = Math.max((d.total/maxVenda)*100, d.total>0?2:0)
                 const isToday = i === 0
                 return (
-                  <div key={d.dia} style={{display:'flex',alignItems:'center',gap:'0.625rem'}}>
-                    <p style={{width:'30px',fontSize:'0.65rem',fontWeight:700,color:isToday?'var(--verde)':'var(--texto-desab)',flexShrink:0,textAlign:'right'}}>{d.dia}</p>
-                    <div style={{flex:1,height:'16px',background:'var(--surface-alt)',border:'1px solid var(--borda-leve)',position:'relative',borderRadius:'1px',overflow:'hidden'}}>
+                  <div key={d.dia} style={{display:'flex',alignItems:'center',gap:'0.875rem'}}>
+                    <p style={{width:'35px',fontSize:'0.72rem',fontWeight:600,color:isToday?'#1a7a3c':'#555555',flexShrink:0,textAlign:'right'}}>{d.dia}</p>
+                    <div style={{flex:1,height:'20px',background:'#f0f0f0',border:'1px solid #e0e0e0',borderRadius:'2px',position:'relative',overflow:'hidden'}}>
                       <div style={{
                         position:'absolute',left:0,top:0,bottom:0,
                         width:`${pct}%`,
-                        background: isToday ? 'var(--verde)' : 'var(--verde-muted)',
+                        background: isToday ? '#1a7a3c' : '#2d8a4e',
+                        borderRadius:'2px',
                         transition:'width 0.4s ease',
-                        borderRight: pct > 0 ? '2px solid var(--verde-brilho)' : 'none',
                       }}/>
-                      {/* ASCII fill for empty */}
-                      {d.total === 0 && (
-                        <p style={{position:'absolute',left:'4px',top:0,bottom:0,display:'flex',alignItems:'center',fontSize:'0.55rem',color:'var(--borda-forte)',letterSpacing:'2px'}}>
-                          {'░'.repeat(20)}
-                        </p>
-                      )}
                     </div>
-                    <p style={{width:'90px',fontSize:'0.68rem',fontWeight:700,color:d.total>0?'var(--texto-mono)':'var(--texto-desab)',flexShrink:0,textAlign:'right',fontVariantNumeric:'tabular-nums'}}>
+                    <p style={{width:'90px',fontSize:'0.78rem',fontWeight:700,color:d.total>0?'#111111':'#cccccc',flexShrink:0,textAlign:'right',fontFamily:"'JetBrains Mono', monospace",fontVariantNumeric:'tabular-nums'}}>
                       {d.total > 0 ? formatCurrency(d.total) : '—'}
                     </p>
                   </div>
@@ -205,30 +196,28 @@ export default function DashboardPage() {
 
       {/* ── AÇÕES RÁPIDAS ── */}
       <div>
-        <p style={{fontSize:'0.65rem',fontWeight:700,color:'var(--texto-desab)',textTransform:'uppercase',letterSpacing:'0.1em',marginBottom:'0.5rem'}}>
-          ══ ACESSO RÁPIDO ══
-        </p>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'0.5rem'}}>
+        <p style={{fontSize:'0.72rem',fontWeight:700,color:'#555555',textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:'0.625rem'}}>Acesso Rápido</p>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'0.75rem'}}>
           {[
-            {href:'/vendas/nova',            label:'NOVA VENDA',     desc:'Frente de caixa',      prefix:'[F2]'},
-            {href:'/financeiro/fiado',       label:'VER FIADO',      desc:formatCurrency(kpis.fiadoAberto)+' aberto', prefix:'[  ]'},
-            {href:'/financeiro/despesas',    label:'LANÇAR DESP.',   desc:'Registrar saída',      prefix:'[  ]'},
-            {href:'/financeiro/fechamento',  label:'FECHAR CAIXA',   desc:'Conferência do dia',   prefix:'[  ]'},
+            {href:'/vendas/nova',           label:'Nova Venda',      desc:'Frente de caixa',      primary:true},
+            {href:'/financeiro/fiado',       label:'Ver Fiado',       desc:formatCurrency(kpis.fiadoAberto)+' aberto', primary:false},
+            {href:'/financeiro/despesas',    label:'Lançar Despesa',  desc:'Registrar saída',      primary:false},
+            {href:'/financeiro/fechamento',  label:'Fechar Caixa',    desc:'Conferência do dia',   primary:false},
           ].map(a => (
             <Link key={a.href} href={a.href} style={{
-              display:'block',padding:'0.625rem 0.75rem',textDecoration:'none',
-              border:'1px solid var(--borda)',borderBottom:'2px solid var(--borda-forte)',
-              background:'var(--surface-alt)',color:'var(--texto)',
-              transition:'border-color 0.08s, background 0.08s',
+              display:'block',padding:'0.875rem',textDecoration:'none',
+              border: a.primary ? '2px solid #1a7a3c' : '1px solid #cccccc',
+              background: a.primary ? '#1a7a3c' : '#ffffff',
+              color: a.primary ? '#ffffff' : '#111111',
+              borderRadius:'4px',
+              transition:'box-shadow 0.12s',
+              boxShadow:'0 1px 3px rgba(0,0,0,0.06)',
             }}
-              onMouseEnter={e=>{(e.currentTarget as HTMLElement).style.borderColor='var(--verde)';(e.currentTarget as HTMLElement).style.background='var(--verde-claro)'}}
-              onMouseLeave={e=>{(e.currentTarget as HTMLElement).style.borderColor='var(--borda)';(e.currentTarget as HTMLElement).style.background='var(--surface-alt)'}}
+              onMouseEnter={e=>(e.currentTarget.style.boxShadow='0 3px 10px rgba(0,0,0,0.12)')}
+              onMouseLeave={e=>(e.currentTarget.style.boxShadow='0 1px 3px rgba(0,0,0,0.06)')}
             >
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
-                <p style={{fontWeight:700,fontSize:'0.72rem',color:'var(--verde)',letterSpacing:'0.04em'}}>{a.label}</p>
-                <span style={{fontSize:'0.6rem',color:'var(--texto-desab)'}}>{a.prefix}</span>
-              </div>
-              <p style={{fontSize:'0.65rem',color:'var(--texto-desab)',marginTop:'2px'}}>{a.desc}</p>
+              <p style={{fontWeight:700,fontSize:'0.82rem',marginBottom:'2px'}}>{a.label}</p>
+              <p style={{fontSize:'0.72rem',opacity:0.7}}>{a.desc}</p>
             </Link>
           ))}
         </div>
@@ -239,7 +228,7 @@ export default function DashboardPage() {
         <div className="alerta alerta-perigo">
           <span>⚠</span>
           <span><strong>{kpis.produtosCriticos} produto(s)</strong> com estoque abaixo do mínimo.{' '}
-            <Link href="/estoque" style={{color:'var(--vermelho)',fontWeight:700}}>VER ESTOQUE ▶</Link>
+            <Link href="/estoque" style={{color:'#c0392b',fontWeight:700}}>Ver estoque →</Link>
           </span>
         </div>
       )}
@@ -247,7 +236,7 @@ export default function DashboardPage() {
         <div className="alerta alerta-aviso">
           <span>●</span>
           <span>{formatCurrency(kpis.fiadoAberto)} em fiado pendente.{' '}
-            <Link href="/financeiro/fiado" style={{color:'var(--amarelo)',fontWeight:700}}>COBRAR AGORA ▶</Link>
+            <Link href="/financeiro/fiado" style={{color:'#7a5a00',fontWeight:700}}>Cobrar agora →</Link>
           </span>
         </div>
       )}

@@ -46,81 +46,71 @@ export default function LoginPage() {
     router.push('/dashboard'); router.refresh()
   }
 
+  // Estilos limpos sem efeito terminal
   const labelStyle: React.CSSProperties = {
-    display: 'block', fontWeight: 700, fontSize: '0.65rem',
-    color: '#2E7D42', marginBottom: '0.25rem',
-    textTransform: 'uppercase', letterSpacing: '0.07em',
+    display: 'block', fontWeight: 600, fontSize: '0.78rem',
+    color: '#555555', marginBottom: '0.25rem',
   }
-
   const inpStyle: React.CSSProperties = {
-    width: '100%', padding: '0.5rem 0.625rem',
-    border: '1px solid #1A3D20', borderBottom: '2px solid #2D6B35',
-    borderRadius: '2px', fontSize: '0.8rem', outline: 'none',
-    background: '#0A0F0A', color: '#D4EDD4',
-    fontFamily: "'IBM Plex Mono', monospace",
-    boxSizing: 'border-box', transition: 'border-color 0.1s',
+    width: '100%', padding: '0.5rem 0.75rem',
+    border: '1px solid #cccccc', borderRadius: '4px',
+    fontSize: '0.85rem', outline: 'none',
+    background: '#ffffff', color: '#111111',
+    fontFamily: "'Inter', Arial, sans-serif",
+    boxSizing: 'border-box', transition: 'border-color 0.12s, box-shadow 0.12s',
   }
 
   return (
     <div>
-      <h2 style={{ fontWeight: 700, fontSize: '1rem', color: '#00CC44', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-        ACESSO AO SISTEMA
+      <h2 style={{ fontWeight: 800, fontSize: '1.25rem', color: '#111111', marginBottom: '0.25rem' }}>
+        Entrar na plataforma
       </h2>
-      <p style={{ color: '#3D6B44', marginBottom: '1.5rem', fontSize: '0.72rem', letterSpacing: '0.04em' }}>
-        Digite suas credenciais para continuar
+      <p style={{ color: '#555555', marginBottom: '1.5rem', fontSize: '0.85rem' }}>
+        Digite suas credenciais para acessar o sistema
       </p>
-
-      {/* Linha separadora estilo terminal */}
-      <div style={{ borderTop: '1px solid #1A3D20', marginBottom: '1.25rem', position: 'relative' }}>
-        <span style={{
-          position: 'absolute', top: '-9px', left: 0,
-          background: '#060A06', paddingRight: '8px',
-          fontSize: '0.6rem', color: '#1C4A28', letterSpacing: '0.06em',
-        }}>LOGIN</span>
-      </div>
 
       {erro && (
         <div style={{
-          background: '#1A0505', border: '1px solid #FF4444', borderLeft: '3px solid #FF4444',
-          padding: '0.5rem 0.75rem', marginBottom: '1rem', color: '#FF4444',
-          fontSize: '0.75rem', fontWeight: 600,
+          background: '#fdf2f1', border: '1px solid #f1a99e', borderLeft: '3px solid #c0392b',
+          padding: '0.625rem 0.75rem', marginBottom: '1rem', color: '#c0392b',
+          fontSize: '0.82rem', fontWeight: 500, borderRadius: '3px',
         }}>
-          ⚠ {erro}
+          {erro}
         </div>
       )}
 
-      <form onSubmit={entrar} style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+      <form onSubmit={entrar} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         <div>
-          <label style={labelStyle}>E-MAIL</label>
+          <label style={labelStyle}>E-mail</label>
           <input id="login-email" type="email" style={inpStyle}
-            placeholder="usuario@loja.com"
+            placeholder="usuario@suporte.com"
             value={email} onChange={e => setEmail(e.target.value)}
-            onFocus={e => { e.target.style.borderColor = '#00CC44'; e.target.style.borderBottomColor = '#00CC44'; e.target.style.background = '#0D1F0D' }}
-            onBlur={e => { e.target.style.borderColor = '#1A3D20'; e.target.style.borderBottomColor = '#2D6B35'; e.target.style.background = '#0A0F0A' }}
+            onFocus={e => { e.target.style.borderColor = '#1a7a3c'; e.target.style.boxShadow = '0 0 0 2px rgba(26,122,60,0.15)' }}
+            onBlur={e  => { e.target.style.borderColor = '#cccccc'; e.target.style.boxShadow = 'none' }}
             required />
         </div>
 
         <div>
-          <label style={labelStyle}>SENHA</label>
+          <label style={labelStyle}>Senha</label>
           <div style={{ position: 'relative' }}>
             <input id="login-senha" type={showPwd ? 'text' : 'password'}
-              style={{ ...inpStyle, paddingRight: '2.5rem' }}
+              style={{ ...inpStyle, paddingRight: '2.75rem' }}
               placeholder="••••••••" value={senha} onChange={e => setSenha(e.target.value)}
-              onFocus={e => { e.target.style.borderColor = '#00CC44'; e.target.style.borderBottomColor = '#00CC44'; e.target.style.background = '#0D1F0D' }}
-              onBlur={e => { e.target.style.borderColor = '#1A3D20'; e.target.style.borderBottomColor = '#2D6B35'; e.target.style.background = '#0A0F0A' }}
+              onFocus={e => { e.target.style.borderColor = '#1a7a3c'; e.target.style.boxShadow = '0 0 0 2px rgba(26,122,60,0.15)' }}
+              onBlur={e  => { e.target.style.borderColor = '#cccccc'; e.target.style.boxShadow = 'none' }}
               required />
             <button type="button" onClick={() => setShowPwd(v => !v)} style={{
               position: 'absolute', right: '0.625rem', top: '50%', transform: 'translateY(-50%)',
-              background: 'none', border: 'none', cursor: 'pointer', color: '#2E7D42', fontSize: '0.75rem',
+              background: 'none', border: 'none', cursor: 'pointer', color: '#999999', fontSize: '0.75rem',
               fontFamily: 'inherit',
             }}>
-              {showPwd ? 'OCU' : 'VER'}
+              {showPwd ? 'Ocultar' : 'Ver'}
             </button>
           </div>
-          <div style={{ textAlign: 'right', marginTop: '0.3rem' }}>
+          <div style={{ textAlign: 'right', marginTop: '0.375rem' }}>
             <button type="button" id="link-forgot-password"
               onClick={() => { setShowRec(!showRec); setMsgRec(null) }}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#2E7D42', fontSize: '0.65rem', fontFamily: 'inherit' }}>
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#1a7a3c', fontSize: '0.78rem', fontFamily: 'inherit', fontWeight: 500 }}>
               Esqueci minha senha
             </button>
           </div>
@@ -128,39 +118,48 @@ export default function LoginPage() {
 
         {/* Recuperação inline */}
         {showRec && (
-          <div style={{ background: '#0A0F0A', padding: '0.875rem', border: '1px solid #1A3D20', borderLeft: '3px solid #00CC44', display:'flex', flexDirection:'column', gap:'0.5rem' }} className="anim-fade">
-            <p style={{ fontWeight: 700, fontSize: '0.72rem', color: '#7EC882', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Recuperar Acesso</p>
+          <div style={{ background: '#f5f5f5', padding: '0.875rem', border: '1px solid #cccccc', borderLeft: '3px solid #1a7a3c', display:'flex', flexDirection:'column', gap:'0.5rem', borderRadius: '3px' }} className="anim-fade">
+            <p style={{ fontWeight: 700, fontSize: '0.82rem', color: '#111111' }}>Recuperar acesso</p>
             {msgRec && (
-              <div style={{ padding:'0.4rem 0.5rem', fontSize:'0.72rem', fontWeight:600, background: msgRec.tipo==='ok'?'#0D1F0D':'#1A0505', color: msgRec.tipo==='ok'?'#00CC44':'#FF4444', border: `1px solid ${msgRec.tipo==='ok'?'#1C4A28':'#3A0A0A'}` }}>
-                {msgRec.tipo==='ok'?'OK: ':'ERRO: '}{msgRec.texto}
+              <div style={{ padding:'0.4rem 0.625rem', fontSize:'0.78rem', fontWeight:500,
+                background: msgRec.tipo==='ok'?'#e8f5ee':'#fdf2f1',
+                color: msgRec.tipo==='ok'?'#1a7a3c':'#c0392b',
+                border: `1px solid ${msgRec.tipo==='ok'?'#a8d5ba':'#f1a99e'}`,
+                borderRadius: '3px',
+              }}>
+                {msgRec.texto}
               </div>
             )}
-            <input type="email" style={inpStyle} placeholder="Seu e-mail..." value={emailRec} onChange={e => setEmailRec(e.target.value)} />
+            <input type="email" style={inpStyle} placeholder="Seu e-mail" value={emailRec} onChange={e => setEmailRec(e.target.value)}
+              onFocus={e => { e.target.style.borderColor = '#1a7a3c'; e.target.style.boxShadow = '0 0 0 2px rgba(26,122,60,0.15)' }}
+              onBlur={e  => { e.target.style.borderColor = '#cccccc'; e.target.style.boxShadow = 'none' }}
+            />
             <button type="button" onClick={recuperarSenha} disabled={loadingRec} style={{
-              width: '100%', padding: '0.4rem', border: '1px solid #1A3D20',
-              background: '#0D1F0D', color: '#7EC882', fontWeight: 700, fontSize: '0.72rem',
-              cursor: loadingRec ? 'not-allowed' : 'pointer', fontFamily: 'inherit', borderRadius: '2px',
+              width: '100%', padding: '0.45rem', border: '1px solid #1a7a3c',
+              background: '#1a7a3c', color: '#fff', fontWeight: 600, fontSize: '0.82rem',
+              cursor: loadingRec ? 'not-allowed' : 'pointer', fontFamily: 'Inter, Arial, sans-serif', borderRadius: '3px',
+              opacity: loadingRec ? 0.6 : 1,
             }}>
-              {loadingRec ? 'Enviando...' : 'ENVIAR LINK'}
+              {loadingRec ? 'Enviando...' : 'Enviar link de recuperação'}
             </button>
           </div>
         )}
 
         <button id="btn-login-submit" type="submit" disabled={loading}
           className="btn btn-primary"
-          style={{ width: '100%', fontSize: '0.82rem', padding: '0.625rem', marginTop: '0.25rem' }}>
-          {loading ? 'Verificando...' : '▶ ENTRAR NO SISTEMA'}
+          style={{ width: '100%', fontSize: '0.9rem', padding: '0.7rem', marginTop: '0.25rem', fontWeight: 700 }}>
+          {loading ? 'Verificando...' : 'Entrar no sistema'}
         </button>
       </form>
 
-      <div style={{ borderTop: '1px solid #0F2614', marginTop: '1.25rem', paddingTop: '1rem', textAlign: 'center' }}>
-        <p style={{ fontSize: '0.72rem', color: '#3D6B44' }}>
+      <div style={{ borderTop: '1px solid #e5e5e5', marginTop: '1.25rem', paddingTop: '1rem', textAlign: 'center' }}>
+        <p style={{ fontSize: '0.82rem', color: '#555555' }}>
           Não tem acesso?{' '}
-          <Link id="link-go-to-register" href="/cadastro" style={{ color: '#00CC44', fontWeight: 700 }}>
+          <Link id="link-go-to-register" href="/cadastro" style={{ color: '#1a7a3c', fontWeight: 700, textDecoration: 'none' }}>
             Criar conta grátis
           </Link>
         </p>
-        <p style={{ fontSize: '0.62rem', color: '#1C4A28', marginTop: '0.5rem', letterSpacing: '0.04em' }}>
+        <p style={{ fontSize: '0.72rem', color: '#999999', marginTop: '0.375rem' }}>
           30 dias grátis · Sem cartão de crédito
         </p>
       </div>
