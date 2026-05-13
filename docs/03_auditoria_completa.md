@@ -1,4 +1,4 @@
-# NexoCommerce â€” Auditoria Completa de Telas, BotÃµes e ConexÃµes
+﻿# NexoCommerce â€” Auditoria Completa de Telas, BotÃµes e ConexÃµes
 
 > **Regra:** Este arquivo DEVE ser atualizado a cada mudança no código.
 > **Última atualização:** 08/05/2026 v2.2.0 — Relatórios, Esqueceu a Senha, Cancelamento de Venda e Devoluções
@@ -342,3 +342,4 @@
 2.  **Acionar Fornecedor:** Refatorado para salvar pedidos diretamente na tabela `pedidos_fornecedor` no Supabase e enviar WhatsApp.
 3.  **ComissÃµes:** Usa a tabela `comissoes` do Supabase de forma nativa e calcula as comissÃµes dinamicamente associando com o ID da Venda (`comissionado_id`).
 4.  **Tudo 100% no Banco:** O sistema **NÃƒO utiliza** `localStorage` nem estado local temporÃ¡rio para armazenamento persistente de dados. Qualquer dado financeiro, venda, cliente, produto e comissÃµes sÃ£o restritos ao PostgreSQL (Supabase) garantindo sincronizaÃ§Ã£o e seguranÃ§a.
+

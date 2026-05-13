@@ -1,0 +1,14 @@
+[
+  {
+    "etapa": "Etapa 1 - Abertura",
+    "status": "✅ Passou",
+    "obs": "Dashboard carregado. KPIs visíveis: True",
+    "screenshot": "screenshot_etapa1_dashboard.png"
+  },
+  {
+    "etapa": "Erro Fatal",
+    "status": "❌ Falhou",
+    "obs": "Page.fill: Error: Cannot type text into input[type=number]\nCall log:\n  - waiting for locator(\"input[placeholder='0,00']\")\n    - locator resolved to 2 elements. Proceeding with the first one: <input min=\"0\" value=\"\" step=\"0.01\" class=\"campo\" type=\"number\" placeholder=\"0,00\"/>\n    - fill(\"180,00\")\n  - attempting fill action\n    - waiting for element to be visible, enabled and editable\n",
+    "screenshot": "screenshot_erro_fatal.png"
+  }
+]
