@@ -31,8 +31,9 @@ export async function middleware(request: NextRequest) {
   })
 
   const { data: { user } } = await supabase.auth.getUser()
-  const publicRoutes = ['/login', '/cadastro', '/garantia']
-  const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))
+  // Landing page (/) and other marketing routes are public
+  const publicRoutes = ['/', '/login', '/cadastro', '/garantia']
+  const isPublicRoute = publicRoutes.some(route => pathname === route || (route !== '/' && pathname.startsWith(route)))
 
   // Redirect unauthenticated users to login
   if (!user && !isPublicRoute) {
@@ -41,8 +42,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // Redirect authenticated users away from auth pages
-  if (user && (pathname === '/login' || pathname === '/cadastro')) {
+  // Redirect authenticated users away from auth/marketing pages
+  if (user && (pathname === '/login' || pathname === '/cadastro' || pathname === '/')) {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
     return NextResponse.redirect(url)
