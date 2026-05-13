@@ -216,10 +216,13 @@ export default function NovaPdvPage() {
   )
 
   return (
-    <div className="anim-fade" style={{display:'flex',flexDirection:'column',gap:'0.875rem'}}>
+    <div className="anim-fade" style={{display:'flex',flexDirection:'column',gap:'0.75rem'}}>
       <div className="pg-header">
-        <div><h1 className="pg-titulo">🛒 PDV — Nova Venda</h1><p className="pg-sub">Registre a venda rapidamente</p></div>
-        <Link href="/vendas" className="btn btn-secondary">← Voltar</Link>
+        <div>
+          <h1 className="pg-titulo">PDV — FRENTE DE CAIXA</h1>
+          <p className="pg-sub">REGISTRE A VENDA · ENTER ADICIONA PRODUTO</p>
+        </div>
+        <Link href="/vendas" className="btn btn-secondary">◀ VOLTAR</Link>
       </div>
 
       {erro && <div className="alerta alerta-perigo">{erro}</div>}
@@ -232,8 +235,8 @@ export default function NovaPdvPage() {
           {/* Busca */}
           <div style={{position:'relative', display:'flex', gap:'0.375rem'}}>
             <input id="pdv-busca" className="campo"
-              style={{flex:1, fontSize:'1rem',padding:'0.75rem',paddingLeft:'2.5rem'}}
-              placeholder="🔍  Buscar por nome, SKU ou EAN..."
+              style={{flex:1, fontSize:'0.9rem',padding:'0.625rem 0.75rem',letterSpacing:'0.02em'}}
+              placeholder="BUSCAR POR NOME, SKU OU EAN_"
               value={busca} onChange={e=>setBusca(e.target.value)} onKeyDown={handleKeyDown} autoFocus/>
             {hasCamera && (
               <button type="button" onClick={() => setShowScanner(true)} className="btn btn-secondary" style={{ padding:'0 0.75rem' }} title="Ler código de barras">
@@ -242,21 +245,21 @@ export default function NovaPdvPage() {
             )}
             
             {resultados.length > 0 && (
-              <div className="card anim-pop" style={{position:'absolute',top:'100%',left:0,right:0,zIndex:50,padding:0,marginTop:'2px',overflow:'hidden'}}>
+              <div className="anim-pop" style={{position:'absolute',top:'100%',left:0,right:0,zIndex:50,marginTop:'2px',overflow:'hidden',border:'1px solid var(--verde)',borderTop:'2px solid var(--verde)',background:'var(--surface)'}}>
                 {resultados.map(p => (
                   <button key={p.id} onClick={()=>addItem(p)} style={{
-                    display:'flex',alignItems:'center',gap:'0.75rem',width:'100%',padding:'0.625rem 0.875rem',
+                    display:'flex',alignItems:'center',gap:'0.75rem',width:'100%',padding:'0.5rem 0.75rem',
                     border:'none',borderBottom:'1px solid var(--borda-leve)',background:'transparent',cursor:'pointer',textAlign:'left',fontFamily:'inherit'
                   }}
                     onMouseEnter={e=>(e.currentTarget.style.background='var(--verde-claro)')}
                     onMouseLeave={e=>(e.currentTarget.style.background='transparent')}>
                     <div style={{flex:1,minWidth:0}}>
-                      <p style={{fontWeight:700,fontSize:'0.875rem'}}>{p.nome}</p>
-                      <p style={{fontSize:'0.72rem',color:'var(--texto-desab)'}}>SKU: {p.sku||'—'} · Estoque: {p.qtd_atual}</p>
+                      <p style={{fontWeight:700,fontSize:'0.78rem',color:'var(--texto)'}}>{p.nome}</p>
+                      <p style={{fontSize:'0.65rem',color:'var(--texto-desab)',letterSpacing:'0.02em'}}>SKU: {p.sku||'—'} · ESTQ: {p.qtd_atual}</p>
                     </div>
                     <div style={{textAlign:'right',flexShrink:0}}>
-                      <p style={{fontWeight:900,color:'var(--verde)',fontFamily:'monospace'}}>{formatCurrency(getPreco(p,tipoCliente))}</p>
-                      {tipoCliente!=='varejo' && <p style={{fontSize:'0.68rem',color:'var(--texto-desab)',textDecoration:'line-through'}}>{formatCurrency(p.preco_varejo)}</p>}
+                      <p style={{fontWeight:700,color:'var(--verde)',fontVariantNumeric:'tabular-nums',fontSize:'0.82rem'}}>{formatCurrency(getPreco(p,tipoCliente))}</p>
+                      {tipoCliente!=='varejo' && <p style={{fontSize:'0.65rem',color:'var(--texto-desab)',textDecoration:'line-through'}}>{formatCurrency(p.preco_varejo)}</p>}
                     </div>
                   </button>
                 ))}
@@ -276,23 +279,23 @@ export default function NovaPdvPage() {
           )}
 
           {/* Carrinho */}
-          <div className="card" style={{padding:0,overflow:'hidden'}}>
-            <div className="sec-header"><span>🛒 Carrinho ({itens.length} {itens.length===1?'item':'itens'})</span></div>
+          <div style={{border:'1px solid var(--borda-forte)',borderTop:'2px solid var(--verde)',overflow:'hidden',background:'var(--surface)'}}>
+            <div className="sec-header"><span>CARRINHO — {itens.length} {itens.length===1?'ITEM':'ITENS'}</span></div>
             {itens.length === 0 ? (
-              <div style={{padding:'2.5rem',textAlign:'center'}}>
-                <p style={{fontSize:'2rem'}}>🛒</p>
-                <p style={{fontWeight:600,color:'var(--texto-desab)',marginTop:'0.5rem'}}>Carrinho vazio — busque um produto acima</p>
+              <div style={{padding:'2rem',textAlign:'center'}}>
+                <p style={{fontSize:'0.7rem',color:'var(--borda-forte)',letterSpacing:'0.1em',fontWeight:700}}>[ CARRINHO VAZIO ]</p>
+                <p style={{fontSize:'0.7rem',color:'var(--texto-desab)',marginTop:'0.5rem'}}>Busque um produto no campo acima</p>
               </div>
             ) : (
               <div style={{maxHeight:'50vh',overflowY:'auto'}}>
                 {itens.map((item,idx) => (
-                  <div key={item.produto.id} style={{padding:'0.75rem 0.875rem',borderBottom:'1px solid var(--borda-leve)',background:item.brinde?'var(--verde-claro)':idx%2===0?'#fff':'var(--surface-alt)'}}>
+                  <div key={item.produto.id} style={{padding:'0.5rem 0.75rem',borderBottom:'1px solid var(--borda-leve)',background:item.brinde?'var(--verde-claro)':idx%2===0?'var(--surface)':'var(--surface-alt)'}}>
                     <div style={{display:'flex',alignItems:'flex-start',gap:'0.625rem'}}>
                       <div style={{flex:1,minWidth:0}}>
                         <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
                           <div>
-                            <p style={{fontWeight:700,fontSize:'0.875rem'}}>{item.produto.nome}</p>
-                            {item.brinde && <span className="tag tag-verde">🎁 BRINDE</span>}
+                            <p style={{fontWeight:700,fontSize:'0.78rem',color:'var(--texto)'}}>{item.produto.nome}</p>
+                            {item.brinde && <span className="tag tag-verde">★ BRINDE</span>}
                           </div>
                           <button onClick={()=>setItens(prev=>prev.filter((_,i)=>i!==idx))}
                             style={{background:'none',border:'none',cursor:'pointer',color:'var(--vermelho)',fontSize:'1rem'}}>✕</button>
@@ -354,9 +357,9 @@ export default function NovaPdvPage() {
                     </div>
                   </div>
                 ))}
-                <div style={{padding:'0.75rem 0.875rem',background:'var(--surface-alt)',borderTop:'1px solid var(--borda-leve)',display:'flex',gap:'0.5rem',alignItems:'center'}}>
-                  <label style={{fontSize:'0.78rem',fontWeight:700,color:'var(--texto-sec)',whiteSpace:'nowrap'}}>Desconto (R$):</label>
-                  <input className="campo" type="number" min="0" style={{width:'110px',fontSize:'0.875rem'}}
+                <div style={{padding:'0.5rem 0.75rem',background:'var(--fundo-painel)',borderTop:'1px solid var(--borda-forte)',display:'flex',gap:'0.5rem',alignItems:'center'}}>
+                  <label style={{fontSize:'0.65rem',fontWeight:700,color:'var(--verde-muted)',whiteSpace:'nowrap',textTransform:'uppercase',letterSpacing:'0.06em'}}>DESCONTO R$:</label>
+                  <input className="campo" type="number" min="0" style={{width:'100px',fontSize:'0.8rem'}}
                     placeholder="0,00" value={desconto||''} onChange={e=>setDesconto(parseFloat(e.target.value)||0)}/>
                 </div>
               </div>
@@ -368,21 +371,16 @@ export default function NovaPdvPage() {
         <div style={{display:'flex',flexDirection:'column',gap:'0.75rem'}}>
 
           {/* Tipo cliente */}
-          <div className="card" style={{padding:'0.75rem'}}>
-            <label className="campo-label">Tipo de Cliente</label>
+          <div style={{border:'1px solid var(--borda-forte)',borderTop:'2px solid var(--borda-forte)',background:'var(--surface)',padding:'0.625rem'}}>
+            <label className="campo-label">TABELA DE PREÇO</label>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'0.25rem',marginTop:'0.375rem'}}>
               {(['varejo','atacado','vip'] as TipoCliente[]).map(t=>(
                 <button key={t} onClick={()=>{
                   setTipoCliente(t)
                   setItens(prev=>prev.map(i=>i.brinde?i:{...i,precoUsado:getPreco(i.produto,t)}))
-                }} style={{
-                  padding:'0.5rem 0.25rem',borderRadius:'var(--radius-sm)',border:'1px solid',
-                  cursor:'pointer',fontWeight:700,fontSize:'0.75rem',fontFamily:'inherit',
-                  background:tipoCliente===t?'var(--verde)':'var(--surface)',
-                  color:tipoCliente===t?'#fff':'var(--texto-sec)',
-                  borderColor:tipoCliente===t?'var(--verde-esc)':'var(--borda)',
-                }}>
-                  {t==='varejo'?'🏪 Varejo':t==='atacado'?'📦 Atacado':'⭐ VIP'}
+                }} className={tipoCliente===t ? 'btn btn-primary' : 'btn btn-secondary'}
+                  style={{fontSize:'0.65rem',padding:'0.4rem 0.25rem',textTransform:'uppercase'}}>
+                  {t==='varejo'?'VAREJO':t==='atacado'?'ATACADO':'VIP'}
                 </button>
               ))}
             </div>
@@ -405,78 +403,80 @@ export default function NovaPdvPage() {
           </div>
 
           {/* Pagamento */}
-          <div className="card" style={{padding:'0.75rem'}}>
-            <label className="campo-label">Forma de Pagamento</label>
+          <div style={{border:'1px solid var(--borda-forte)',borderTop:'2px solid var(--borda-forte)',background:'var(--surface)',padding:'0.625rem'}}>
+            <label className="campo-label">FORMA DE PAGAMENTO</label>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.375rem',marginTop:'0.375rem'}}>
               {FORMAS.map(f=>(
-                <button key={f} onClick={()=>setPagamento(f)} style={{
-                  padding:'0.625rem 0.5rem',borderRadius:'var(--radius-sm)',
-                  border:`2px solid ${pagamento===f?'var(--verde)':'var(--borda)'}`,
-                  background:pagamento===f?'var(--verde-claro)':'var(--surface)',
-                  color:pagamento===f?'var(--verde-esc)':'var(--texto-sec)',
-                  fontWeight:800,fontSize:'0.8rem',cursor:'pointer',fontFamily:'inherit',
-                }}>
-                  {f==='PIX'?'📱':f==='Dinheiro'?'💵':f==='Crédito'?'💳':f==='Débito'?'💴':'📒'} {f}
+                <button key={f} onClick={()=>setPagamento(f)}
+                  className={pagamento===f ? 'btn btn-primary' : 'btn btn-secondary'}
+                  style={{fontSize:'0.72rem',padding:'0.5rem 0.25rem',textTransform:'uppercase',letterSpacing:'0.04em'}}>
+                  {f}
                 </button>
               ))}
             </div>
             {pagamento==='Dinheiro'&&(
               <div style={{marginTop:'0.5rem'}}>
-                <label className="campo-label">Dinheiro recebido</label>
+                <label className="campo-label">DINHEIRO RECEBIDO</label>
                 <input className="campo" type="number" style={{marginTop:'0.25rem'}} placeholder="0,00" value={troco} onChange={e=>setTroco(e.target.value)}/>
-                {troco&&parseFloat(troco)>0&&<p style={{fontSize:'0.82rem',fontWeight:700,color:'var(--verde)',marginTop:'4px'}}>Troco: {formatCurrency(Math.max(0,parseFloat(troco)-total))}</p>}
+                {troco&&parseFloat(troco)>0&&<p style={{fontSize:'0.78rem',fontWeight:700,color:'var(--verde)',marginTop:'4px',fontVariantNumeric:'tabular-nums'}}>TROCO: {formatCurrency(Math.max(0,parseFloat(troco)-total))}</p>}
               </div>
             )}
           </div>
 
-          {/* Resumo */}
-          <div className="card" style={{padding:'0.75rem'}}>
-            <div style={{display:'flex',justifyContent:'space-between',marginBottom:'0.25rem'}}>
-              <span style={{fontSize:'0.82rem',color:'var(--texto-sec)'}}>Subtotal</span>
-              <span style={{fontFamily:'monospace',fontWeight:600}}>{formatCurrency(subtotal)}</span>
+          {/* Resumo — recibo térmico */}
+          <div style={{border:'1px solid var(--borda-forte)',background:'var(--surface-alt)',padding:'0.75rem',fontVariantNumeric:'tabular-nums'}}>
+            <p style={{fontSize:'0.6rem',color:'var(--texto-desab)',letterSpacing:'0.1em',textAlign:'center',marginBottom:'0.5rem',borderBottom:'1px dashed var(--borda-forte)',paddingBottom:'0.375rem'}}>── RESUMO ──────────────────</p>
+            <div style={{display:'flex',justifyContent:'space-between',marginBottom:'0.2rem'}}>
+              <span style={{fontSize:'0.72rem',color:'var(--texto-sec)'}}>SUBTOTAL</span>
+              <span style={{fontSize:'0.78rem',fontWeight:600,color:'var(--texto-mono)'}}>{formatCurrency(subtotal)}</span>
             </div>
             {desconto>0&&(
-              <div style={{display:'flex',justifyContent:'space-between',marginBottom:'0.25rem'}}>
-                <span style={{fontSize:'0.82rem',color:'var(--vermelho)'}}>Desconto</span>
-                <span style={{fontFamily:'monospace',color:'var(--vermelho)',fontWeight:600}}>- {formatCurrency(desconto)}</span>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:'0.2rem'}}>
+                <span style={{fontSize:'0.72rem',color:'var(--vermelho)'}}>DESCONTO</span>
+                <span style={{fontSize:'0.78rem',color:'var(--vermelho)',fontWeight:600}}>- {formatCurrency(desconto)}</span>
               </div>
             )}
-            <div style={{display:'flex',justifyContent:'space-between',borderTop:'2px solid var(--borda)',paddingTop:'0.5rem',marginTop:'0.375rem'}}>
-              <span style={{fontWeight:900,fontSize:'1rem'}}>TOTAL</span>
-              <span style={{fontFamily:'monospace',fontWeight:900,fontSize:'1.5rem',color:'var(--verde)',lineHeight:1}}>{formatCurrency(total)}</span>
+            <div style={{display:'flex',justifyContent:'space-between',borderTop:'1px dashed var(--borda-forte)',paddingTop:'0.5rem',marginTop:'0.375rem'}}>
+              <span style={{fontWeight:700,fontSize:'0.78rem',color:'var(--texto)',letterSpacing:'0.06em'}}>TOTAL A PAGAR</span>
+              <span style={{fontWeight:700,fontSize:'1.75rem',color:'var(--verde)',lineHeight:1}}>{formatCurrency(total)}</span>
             </div>
           </div>
 
           {/* Finalizar */}
-          <button id="btn-finalizar-venda" className="btn btn-primary"
-            style={{width:'100%',padding:'1rem',fontSize:'1rem',fontWeight:900,
-              background:itens.length>0&&pagamento&&!(pagamento==='Fiado'&&!cliente)?'var(--verde)':'#aaa',
-              cursor:itens.length>0&&pagamento&&!(pagamento==='Fiado'&&!cliente)?'pointer':'not-allowed'}}
+          <button id="btn-finalizar-venda"
+            style={{width:'100%',padding:'0.875rem',fontSize:'0.85rem',fontWeight:700,
+              background:itens.length>0&&pagamento&&!(pagamento==='Fiado'&&!cliente)?'var(--verde)':'var(--surface-alt)',
+              color:itens.length>0&&pagamento&&!(pagamento==='Fiado'&&!cliente)?'#060A06':'var(--texto-desab)',
+              border:`1px solid ${itens.length>0&&pagamento?'var(--verde-escuro)':'var(--borda)'}`,
+              borderBottom:`3px solid ${itens.length>0&&pagamento?'var(--verde-terminal)':'var(--borda-leve)'}`,
+              cursor:itens.length>0&&pagamento&&!(pagamento==='Fiado'&&!cliente)?'pointer':'not-allowed',
+              fontFamily:'inherit',letterSpacing:'0.06em',textTransform:'uppercase',transition:'all 0.08s',borderRadius:'2px'}}
             disabled={salvando||itens.length===0||!pagamento||(pagamento==='Fiado'&&!cliente)}
             onClick={finalizar}>
-            {salvando?<><Loader2 size={16} style={{animation:'spin 1s linear infinite',display:'inline',marginRight:'0.5rem'}}/>Salvando...</>
-              :`${pagamento==='Fiado'?'📒 REGISTRAR NO FIADO':'✓ FINALIZAR VENDA'} — ${formatCurrency(total)}`}
+            {salvando
+              ? <>PROCESSANDO<span className="blink">_</span></>
+              : `${pagamento==='Fiado'?'▶ REGISTRAR NO FIADO':'▶ FINALIZAR VENDA'} — ${formatCurrency(total)}`}
           </button>
           {(!pagamento||itens.length===0||(pagamento==='Fiado'&&!cliente))&&(
-            <p style={{fontSize:'0.75rem',color:pagamento==='Fiado'&&!cliente?'var(--vermelho)':'var(--texto-desab)',textAlign:'center',fontWeight:pagamento==='Fiado'&&!cliente?700:400}}>
-              {itens.length===0?'Adicione ao menos 1 produto':pagamento==='Fiado'&&!cliente?'⚠ Informe o cliente para o fiado':'Selecione a forma de pagamento'}
+            <p style={{fontSize:'0.65rem',color:pagamento==='Fiado'&&!cliente?'var(--vermelho)':'var(--texto-desab)',textAlign:'center',fontWeight:700,letterSpacing:'0.04em',textTransform:'uppercase'}}>
+              {itens.length===0?'ADICIONE AO MENOS 1 PRODUTO':pagamento==='Fiado'&&!cliente?'⚠ INFORME O CLIENTE PARA O FIADO':'SELECIONE A FORMA DE PAGAMENTO'}
             </p>
           )}
         </div>
       </div>
 
       {showModalCliente && (
-        <div style={{ position:'fixed', inset:0, zIndex:100, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' }}
+        <div style={{ position:'fixed', inset:0, zIndex:100, background:'rgba(0,0,0,0.88)', display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' }}
           onClick={e=>{if(e.target===e.currentTarget)setShowModalCliente(false)}}>
-          <div className="card anim-pop" style={{ width:'100%', maxWidth:'600px', maxHeight:'90vh', overflowY:'auto', padding:'0' }}>
-            <div style={{ padding:'1.25rem', borderBottom:'1px solid var(--borda)', display:'flex', justifyContent:'space-between', alignItems:'center', position:'sticky', top:0, background:'var(--surface)', zIndex:10 }}>
+          <div className="anim-pop" style={{ width:'100%', maxWidth:'580px', maxHeight:'90vh', overflowY:'auto', background:'var(--surface)', border:'1px solid var(--borda-forte)', borderRadius:'2px' }}>
+            <div style={{ padding:'0.75rem 1rem', borderBottom:'2px solid var(--verde)', display:'flex', justifyContent:'space-between', alignItems:'center', position:'sticky', top:0, background:'var(--fundo-painel)', zIndex:10 }}>
               <div>
-                <h2 style={{ fontSize:'1.25rem', fontWeight:800 }}>👤 Cadastrar Novo Cliente</h2>
-                <p style={{ fontSize:'0.85rem', color:'var(--texto-desab)' }}>Preencha os dados do cliente</p>
+                <p style={{ fontSize:'0.78rem', fontWeight:700, color:'var(--verde)', textTransform:'uppercase', letterSpacing:'0.06em' }}>CADASTRAR NOVO CLIENTE</p>
+                <p style={{ fontSize:'0.65rem', color:'var(--texto-desab)' }}>Preencha os dados do cliente</p>
               </div>
-              <button onClick={()=>setShowModalCliente(false)} className="btn-icon"><X size={20}/></button>
+              <button onClick={()=>setShowModalCliente(false)} className="btn-icon"><X size={16}/></button>
             </div>
-            <div style={{ padding:'1.25rem' }}>
+            <div style={{ padding:'1rem' }}>
               <FormCliente onSuccess={() => { 
                 setShowModalCliente(false); 
                 const nomeInput = document.getElementById('cli-nome') as HTMLInputElement;
