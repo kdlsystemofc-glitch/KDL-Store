@@ -7,7 +7,7 @@ export function PageTabs({ tabs }: { tabs: { label: string; href: string }[] }) 
   const pathname = usePathname()
 
   return (
-    <div style={{ display: 'flex', borderBottom: '2px solid var(--borda)', marginBottom: '1.25rem', gap: '0.25rem', padding: '0 0.25rem' }}>
+    <div style={{ display: 'flex', borderBottom: '2px solid var(--borda)', marginBottom: '0.75rem', gap: '0' }}>
       {tabs.map(tab => {
         const isActive = pathname === tab.href || pathname.startsWith(tab.href + '/')
         return (
@@ -15,23 +15,22 @@ export function PageTabs({ tabs }: { tabs: { label: string; href: string }[] }) 
             key={tab.href}
             href={tab.href}
             style={{
-              padding: '0.625rem 1.25rem',
-              fontSize: '0.85rem',
-              fontWeight: isActive ? 800 : 600,
-              color: isActive ? 'var(--texto)' : 'var(--texto-sec)',
-              background: isActive ? 'var(--surface)' : 'var(--fundo)',
-              border: '2px solid var(--borda)',
-              borderBottom: isActive ? '2px solid var(--surface)' : '2px solid var(--borda)',
-              borderTopLeftRadius: '6px',
-              borderTopRightRadius: '6px',
+              padding: '0.45rem 0.875rem',
+              fontSize: '0.68rem',
+              fontWeight: 700,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              color: isActive ? 'var(--verde)' : 'var(--texto-desab)',
+              background: isActive ? 'var(--surface)' : 'transparent',
+              border: 'none',
+              borderBottom: isActive ? '2px solid var(--verde)' : '2px solid transparent',
               textDecoration: 'none',
-              transition: 'all 0.1s',
-              marginBottom: '-2px', // Overlap bottom border
-              zIndex: isActive ? 10 : 1,
-              boxShadow: isActive ? 'none' : 'inset 0 -2px 5px rgba(0,0,0,0.02)'
+              transition: 'color 0.1s, border-color 0.1s',
+              marginBottom: '-2px',
+              whiteSpace: 'nowrap',
             }}
           >
-            {tab.label}
+            {isActive ? '▶ ' : ''}{tab.label.toUpperCase()}
           </Link>
         )
       })}

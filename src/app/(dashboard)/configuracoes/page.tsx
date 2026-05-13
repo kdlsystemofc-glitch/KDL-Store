@@ -6,11 +6,11 @@ import { useEmpresaId } from '@/lib/useEmpresaId'
 import { ChevronRight, Crown, Check, Loader2, Save } from 'lucide-react'
 
 const sections = [
-  { href: '/configuracoes/empresa',    emoji: '🏪', title: 'Dados da Empresa',       desc: 'Nome, logo, CNPJ, telefone e endereço' },
-  { href: '/configuracoes/usuarios',   emoji: '👥', title: 'Usuários e Acessos',      desc: 'Gerenciar vendedores e técnicos com permissões' },
-  { href: '/configuracoes/pagamentos', emoji: '💳', title: 'Formas de Pagamento',     desc: 'PIX, Dinheiro, Crédito, Débito, Fiado' },
-  { href: '/configuracoes/categorias', emoji: '🏷️', title: 'Categorias de Produtos', desc: 'Criar e organizar categorias' },
-  { href: '/catalogo',                 emoji: '🌐', title: 'Catálogo Online',         desc: 'Configurar e visualizar seu catálogo público' },
+  { href: '/configuracoes/empresa',    icon: '[EMP]', title: 'DADOS DA EMPRESA',       desc: 'Nome, logo, CNPJ, telefone e endereço' },
+  { href: '/configuracoes/usuarios',   icon: '[USR]', title: 'USUÁRIOS E ACESSOS',      desc: 'Gerenciar vendedores e técnicos com permissões' },
+  { href: '/configuracoes/pagamentos', icon: '[PAG]', title: 'FORMAS DE PAGAMENTO',     desc: 'PIX, Dinheiro, Crédito, Débito, Fiado' },
+  { href: '/configuracoes/categorias', icon: '[CAT]', title: 'CATEGORIAS DE PRODUTOS',  desc: 'Criar e organizar categorias' },
+  { href: '/catalogo',                 icon: '[WWW]', title: 'CATÁLOGO ONLINE',          desc: 'Configurar e visualizar seu catálogo público' },
 ]
 
 const planFeatures = ['PDV ilimitado', 'Controle de estoque', 'Emissão de garantias', 'Ordens de serviço', 'Módulo Financeiro', 'CRM de Sumição', 'Comissões']
@@ -41,100 +41,106 @@ export default function ConfiguracoesPage() {
     if (window.confirm(`${msg}\n\nTem certeza? Isso não pode ser desfeito.`)) cb()
   }
   return (
-    <div className="anim-fade" style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem', maxWidth: '680px' }}>
+    <div className="anim-fade" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxWidth: '680px' }}>
 
       <div>
-        <h1 className="pg-titulo">⚙️ Configurações</h1>
-        <p className="pg-sub">Gerencie sua conta, usuários e preferências</p>
+        <h1 className="pg-titulo">CONFIGURAÇÕES</h1>
+        <p className="pg-sub">CONTA · USUÁRIOS · PREFERÊNCIAS</p>
       </div>
 
-      {/* Plano */}
+      {/* Plano — estilo terminal */}
       <div style={{
-        borderRadius: '8px', padding: '1.25rem', position: 'relative', overflow: 'hidden',
-        background: 'linear-gradient(135deg, #14532d, var(--verde))',
-        border: '2px solid var(--verde-esc)'
+        padding: '0.875rem 1rem', position: 'relative', overflow: 'hidden',
+        background: 'var(--fundo-painel)',
+        border: '1px solid var(--verde)',
+        borderLeft: '4px solid var(--verde)'
       }}>
-        <div style={{ position: 'absolute', top: 0, right: 0, width: '120px', height: '120px', borderRadius: '50%', background: 'rgba(255,255,255,0.06)', transform: 'translate(30%,-30%)' }} />
-        <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.375rem' }}>
-              <Crown size={18} style={{ color: '#fbbf24' }} fill="currentColor" />
-              <span style={{ color: '#fbbf24', fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Plano Atual</span>
+              <span style={{ color: 'var(--amarelo)', fontWeight: 700, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>● PLANO ATUAL</span>
             </div>
-            <h2 style={{ color: '#fff', fontWeight: 900, fontSize: '2rem', lineHeight: 1 }}>Essencial</h2>
-            <p style={{ color: '#86efac', fontSize: '0.8rem', marginTop: '0.25rem' }}>
-              Renova em 05/06/2026 · <strong style={{ color: '#fff' }}>R$ 39/mês</strong>
+            <p style={{ color: 'var(--verde)', fontWeight: 900, fontSize: '1.5rem', lineHeight: 1, letterSpacing: '0.06em' }}>ESSENCIAL</p>
+            <p style={{ color: 'var(--texto-sec)', fontSize: '0.72rem', marginTop: '0.25rem', letterSpacing: '0.04em' }}>
+              RENOVA EM 05/06/2026 · <span style={{ color: 'var(--verde)', fontWeight: 700 }}>R$ 39/MES</span>
             </p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginTop: '0.625rem' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem 1rem', marginTop: '0.5rem' }}>
               {planFeatures.map(f => (
-                <span key={f} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.72rem', fontWeight: 600, color: '#dcfce7' }}>
-                  <Check size={11} /> {f}
+                <span key={f} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.65rem', fontWeight: 700, color: 'var(--texto-sec)', letterSpacing: '0.04em' }}>
+                  <Check size={10} style={{ color: 'var(--verde)' }} /> {f.toUpperCase()}
                 </span>
               ))}
             </div>
           </div>
           <Link href="/configuracoes/planos"
-            className="btn"
-            style={{ background: '#fff', color: 'var(--verde-esc)', border: 'none', fontWeight: 800, flexShrink: 0, gap: '0.375rem' }}>
-            <Crown size={14} fill="currentColor" /> Upgrade
+            className="btn btn-primary"
+            style={{ fontWeight: 800, flexShrink: 0, fontSize: '0.72rem' }}>
+            <Crown size={13} fill="currentColor" /> UPGRADE
           </Link>
         </div>
       </div>
 
       {/* Seções */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        {sections.map(s => (
-          <Link key={s.href} href={s.href} className="card-click" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div style={{
-              width: '42px', height: '42px', borderRadius: '6px',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '1.375rem', background: 'var(--verde-claro)',
-              border: '1px solid var(--verde-borda)', flexShrink: 0
-            }}>
-              {s.emoji}
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontWeight: 700, color: 'var(--texto)' }}>{s.title}</p>
-              <p style={{ fontSize: '0.78rem', color: 'var(--texto-desab)', marginTop: '1px' }}>{s.desc}</p>
-            </div>
-            <ChevronRight size={16} style={{ color: 'var(--texto-desab)', flexShrink: 0 }} />
-          </Link>
-        ))}
+      <div className="card" style={{padding:0,overflow:'hidden'}}>
+        <div className="sec-header"><span>MENU DE CONFIGURAÇÕES</span></div>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {sections.map((s, i) => (
+            <Link key={s.href} href={s.href} style={{
+              display: 'flex', alignItems: 'center', gap: '0.875rem',
+              padding: '0.6rem 0.875rem',
+              borderBottom: i < sections.length-1 ? '1px solid var(--borda-leve)' : 'none',
+              textDecoration: 'none',
+              transition: 'background 0.12s'
+            }}
+              onMouseEnter={e=>(e.currentTarget.style.background='var(--surface-alt)')}
+              onMouseLeave={e=>(e.currentTarget.style.background='transparent')}
+            >
+              <span style={{ fontFamily:'monospace', fontSize:'0.65rem', color:'var(--verde)', fontWeight:700, flexShrink:0 }}>{s.icon}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontWeight: 700, color: 'var(--texto)', fontSize:'0.78rem', letterSpacing:'0.04em' }}>{s.title}</p>
+                <p style={{ fontSize: '0.68rem', color: 'var(--texto-desab)', marginTop: '1px' }}>{s.desc}</p>
+              </div>
+              <ChevronRight size={14} style={{ color: 'var(--texto-desab)', flexShrink: 0 }} />
+            </Link>
+          ))}
+        </div>
       </div>
 
       {/* Preferências do CRM */}
-      <div className="card">
-        <p style={{ fontWeight: 800, marginBottom: '0.25rem' }}>🎯 Preferências do CRM</p>
-        <p style={{ fontSize: '0.82rem', color: 'var(--texto-desab)', marginBottom: '1rem' }}>Configure quando os clientes devem ser considerados sumidos.</p>
-        <div style={{ display:'flex', gap:'0.5rem', alignItems:'flex-end' }}>
-          <div style={{ flex: 1, maxWidth:'250px' }}>
-            <label className="campo-label">Alertar clientes inativos após (dias)</label>
-            <input type="number" min={7} max={365} className="campo" style={{marginTop:'0.375rem'}} value={prazoCrm} onChange={e=>setPrazoCrm(Number(e.target.value))} />
+      <div className="card" style={{padding:0,overflow:'hidden'}}>
+        <div className="sec-header"><span>PREFERÊNCIAS DO CRM</span></div>
+        <div style={{padding:'0.75rem'}}>
+          <p style={{ fontSize: '0.72rem', color: 'var(--texto-desab)', marginBottom: '0.75rem', letterSpacing:'0.03em' }}>CONFIGURE QUANDO OS CLIENTES DEVEM SER CONSIDERADOS SUMIDOS.</p>
+          <div style={{ display:'flex', gap:'0.5rem', alignItems:'flex-end' }}>
+            <div style={{ flex: 1, maxWidth:'250px' }}>
+              <label className="campo-label" style={{fontSize:'0.65rem'}}>ALERTAR CLIENTES INATIVOS APÓS (DIAS)</label>
+              <input type="number" min={7} max={365} className="campo" style={{marginTop:'0.375rem',fontSize:'0.78rem'}} value={prazoCrm} onChange={e=>setPrazoCrm(Number(e.target.value))} />
+            </div>
+            <button onClick={salvarPrazo} disabled={salvandoCrm} className="btn btn-primary" style={{height:'36px',fontSize:'0.72rem'}}>
+              {salvandoCrm ? 'SALVANDO...' : '▶ SALVAR'}
+            </button>
           </div>
-          <button onClick={salvarPrazo} disabled={salvandoCrm} className="btn btn-primary" style={{display:'flex', alignItems:'center', gap:'0.375rem', height:'38px'}}>
-            {salvandoCrm ? <Loader2 size={16} style={{animation:'spin 1s linear infinite'}}/> : <Save size={16}/>} Salvar
-          </button>
         </div>
       </div>
 
       {/* Zona de perigo */}
-      <div className="card" style={{ border: '1px solid #fca5a5' }}>
-        <p style={{ fontWeight: 800, color: 'var(--vermelho)', marginBottom: '0.25rem' }}>⚠️ Zona de Perigo</p>
-        <p style={{ fontSize: '0.82rem', color: 'var(--texto-desab)', marginBottom: '0.875rem' }}>Ações irreversíveis. Tome cuidado.</p>
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <button className="btn btn-danger"
-            onClick={()=>confirmarAcao('Limpar todos os dados de teste?', ()=>alert('Dados limpos!'))}>
-            🗑 Limpar dados de teste
-          </button>
-          <button className="btn btn-danger"
-            onClick={()=>confirmarAcao('Encerrar sua conta permanentemente?', ()=>alert('Conta encerrada.'))}>
-            ✕ Encerrar conta
-          </button>
+      <div className="card" style={{ border: '1px solid var(--vermelho)', padding:0, overflow:'hidden' }}>
+        <div style={{padding:'0.5rem 0.875rem',borderBottom:'1px solid var(--vermelho)',background:'rgba(220,38,38,0.06)'}}>
+          <p style={{ fontWeight: 800, color: 'var(--vermelho)', fontSize:'0.72rem', letterSpacing:'0.08em' }}>!! ZONA DE PERIGO !!</p>
+        </div>
+        <div style={{padding:'0.75rem'}}>
+          <p style={{ fontSize: '0.72rem', color: 'var(--texto-desab)', marginBottom: '0.75rem', letterSpacing:'0.03em' }}>AÇÕES IRREVERSÍVEIS. TOME CUIDADO.</p>
+          <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+            <button className="btn btn-danger" style={{fontSize:'0.72rem'}}
+              onClick={()=>confirmarAcao('Limpar todos os dados de teste?', ()=>alert('Dados limpos!'))}>DEL DADOS DE TESTE</button>
+            <button className="btn btn-danger" style={{fontSize:'0.72rem'}}
+              onClick={()=>confirmarAcao('Encerrar sua conta permanentemente?', ()=>alert('Conta encerrada.'))}>ENCERRAR CONTA</button>
+          </div>
         </div>
       </div>
 
-      <p style={{ fontSize: '0.72rem', color: 'var(--texto-desab)', textAlign: 'center', marginTop: '0.5rem' }}>
-        NexoCommerce v1.2.0 · Feito para o pequeno comércio brasileiro 🇧🇷
+      <p style={{ fontSize: '0.65rem', color: 'var(--texto-desab)', textAlign: 'center', marginTop: '0.5rem', letterSpacing:'0.06em' }}>
+        NEXOCOMMERCE v1.2.0 · FEITO PARA O PEQUENO COMÉRCIO BRASILEIRO
       </p>
     </div>
   )
