@@ -1,8 +1,9 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 
 export const metadata: Metadata = {
-  title: { default: 'NexoCommerce PDV', template: '%s | NexoCommerce' },
-  description: 'Sistema PDV para pequeno comércio — NexoCommerce',
+  title: { default: 'KDL Store', template: '%s | KDL Store' },
+  description: 'Sistema de gestão para o comércio popular brasileiro.',
 }
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
@@ -10,27 +11,28 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
     <div style={{
       minHeight: '100vh',
       display: 'flex',
-      fontFamily: "'Inter', Arial, Helvetica, sans-serif",
-      background: '#f0f2f5',
+      fontFamily: "'Nunito Sans', sans-serif",
+      background: 'var(--fundo)',
     }}>
 
-      {/* LEFT — Branding */}
+      {/* LEFT — Branding roxo */}
       <div style={{
-        width: '420px',
+        width: '440px',
         flexShrink: 0,
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        padding: '2.5rem 2rem',
-        background: '#1a2535',
+        padding: '2.5rem 2.25rem',
+        background: 'var(--roxo-escuro)',
       }}>
         {/* Logo */}
         <div>
-          <p style={{ color: '#ffffff', fontWeight: 800, fontSize: '1.25rem', letterSpacing: '0.02em', marginBottom: '4px' }}>
-            NexoCommerce
-          </p>
-          <p style={{ color: '#5a7a9a', fontSize: '0.78rem' }}>
-            Sistema de Gestão para Varejo
+          <Link href="/" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'baseline', gap: '2px' }}>
+            <span style={{ color: 'var(--verde)', fontWeight: 900, fontSize: '1.6rem', fontFamily: "'Nunito', sans-serif", fontStyle: 'italic' }}>K</span>
+            <span style={{ color: '#fff', fontWeight: 700, fontSize: '1.05rem', fontFamily: "'Nunito', sans-serif" }}>DL Store</span>
+          </Link>
+          <p style={{ color: 'rgba(240,235,245,0.4)', fontSize: '0.78rem', marginTop: '4px' }}>
+            Gestão mais simples, negócios mais felizes.
           </p>
         </div>
 
@@ -38,54 +40,54 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <div>
             <p style={{
-              color: '#b8c5d6', fontSize: '0.72rem', fontWeight: 700,
-              textTransform: 'uppercase', letterSpacing: '0.08em',
-              marginBottom: '1rem', borderBottom: '1px solid #253347',
+              color: 'rgba(240,235,245,0.5)', fontSize: '0.68rem', fontWeight: 700,
+              textTransform: 'uppercase', letterSpacing: '0.1em',
+              marginBottom: '1rem', borderBottom: '1px solid rgba(255,255,255,0.08)',
               paddingBottom: '0.5rem',
             }}>
               Módulos disponíveis
             </p>
             {[
-              ['PDV',        'Frente de caixa — venda em 30s'],
-              ['Estoque',    'Controle de entrada e saída'],
-              ['Financeiro', 'Fiado, despesas e fechamento'],
-              ['Garantias',  'Pós-venda digital'],
-              ['Relatórios', 'Dashboard e analytics'],
-            ].map(([mod, desc]) => (
+              ['📦', 'PDV',        'Frente de caixa — venda em 30s'],
+              ['📊', 'Estoque',    'Controle em tempo real'],
+              ['💰', 'Financeiro', 'Fiado, despesas e fechamento'],
+              ['🛡️', 'Garantias',  'Pós-venda digital com QR Code'],
+              ['📱', 'Catálogo',   'Vitrine online compartilhável'],
+            ].map(([icon, mod, desc]) => (
               <div key={mod} style={{
-                display: 'flex', gap: '0.875rem', alignItems: 'flex-start',
-                padding: '0.55rem 0', borderBottom: '1px solid #1e2e40',
+                display: 'flex', gap: '0.75rem', alignItems: 'center',
+                padding: '0.6rem 0', borderBottom: '1px solid rgba(255,255,255,0.05)',
               }}>
-                <span style={{ color: '#1a7a3c', fontSize: '0.75rem', fontWeight: 700, width: '80px', flexShrink: 0 }}>
-                  {mod}
-                </span>
-                <span style={{ color: '#7a9ab8', fontSize: '0.75rem' }}>{desc}</span>
+                <span style={{ fontSize: '1rem', width: '24px', textAlign: 'center' }}>{icon}</span>
+                <div>
+                  <span style={{ color: '#fff', fontSize: '0.82rem', fontWeight: 700 }}>{mod}</span>
+                  <span style={{ color: 'rgba(240,235,245,0.4)', fontSize: '0.75rem', marginLeft: '0.5rem' }}>{desc}</span>
+                </div>
               </div>
             ))}
           </div>
 
           {/* Depoimento */}
           <div style={{
-            border: '1px solid #253347',
-            borderLeft: '3px solid #1a7a3c',
-            padding: '0.875rem',
-            background: '#1e2e40',
-            borderRadius: '3px',
+            borderLeft: '3px solid var(--verde)',
+            padding: '1rem',
+            background: 'rgba(0,191,165,0.06)',
+            borderRadius: '0 var(--r-lg) var(--r-lg) 0',
           }}>
-            <p style={{ color: '#b8c5d6', fontSize: '0.78rem', lineHeight: 1.6, marginBottom: '0.5rem' }}>
+            <p style={{ color: 'var(--sobre-escuro)', fontSize: '0.82rem', lineHeight: 1.7, marginBottom: '0.5rem' }}>
               &quot;Antes eu perdia produto sem saber. Agora sei o estoque exato e quanto entrou no dia.&quot;
             </p>
-            <p style={{ color: '#5a7a9a', fontSize: '0.72rem' }}>
-              — José Aparecido · Loja de eletrônicos, SP
+            <p style={{ color: 'rgba(240,235,245,0.4)', fontSize: '0.72rem' }}>
+              — Carlos M. · Loja de Som Automotivo, SP
             </p>
           </div>
         </div>
 
         {/* Rodapé */}
-        <div style={{ fontSize: '0.68rem', color: '#5a7a9a' }}>
-          <p>NexoCommerce PDV © 2026</p>
+        <div style={{ fontSize: '0.68rem', color: 'rgba(240,235,245,0.3)' }}>
+          <p>KDL Store © 2026</p>
           <p style={{ marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ color: '#1a7a3c', fontSize: '0.5rem' }}>●</span> Conexão segura
+            <span style={{ color: 'var(--verde)', fontSize: '0.5rem' }}>●</span> Conexão segura
           </p>
         </div>
       </div>
@@ -97,16 +99,16 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         alignItems: 'center',
         justifyContent: 'center',
         padding: '2rem',
-        background: '#f0f2f5',
+        background: 'var(--fundo)',
       }}>
         <div style={{
           width: '100%',
-          maxWidth: '380px',
-          background: '#ffffff',
-          border: '1px solid #e0e0e0',
-          borderRadius: '6px',
-          padding: '2rem',
-          boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+          maxWidth: '400px',
+          background: 'var(--surface)',
+          border: '1px solid var(--borda)',
+          borderRadius: 'var(--r-xl)',
+          padding: '2.25rem',
+          boxShadow: 'var(--sombra-sm)',
         }}>
           {children}
         </div>

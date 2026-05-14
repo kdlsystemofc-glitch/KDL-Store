@@ -1,0 +1,41 @@
+/* ═══════════════════════════════════════════
+   KDL Store — Design Tokens
+   Importar em globals.css ou layout.tsx
+═══════════════════════════════════════════ */
+:root {
+  /* Cores principais */
+  --roxo: #6B2D8B;
+  --roxo-escuro: #4A1D6B;
+  --roxo-claro: #9B59B6;
+  --verde: #00BFA5;
+  --laranja: #F26522;
+  --amarelo: #F5A623;
+
+  /* Superfícies */
+  --fundo: #F5F3F7;
+  --surface: #ffffff;
+  --texto: #2D1B4E;
+  --muted: #7B6B8A;
+  --sobre-escuro: #F0EBF5;
+  --borda: #E0D6EA;
+
+  /* Sombras */
+  --sombra-sm: 0 2px 8px rgba(107, 45, 139, 0.06);
+  --sombra-md: 0 8px 24px rgba(107, 45, 139, 0.1);
+  --sombra-lg: 0 16px 48px rgba(107, 45, 139, 0.15);
+  --sombra-cta: 0 4px 14px rgba(0, 191, 165, 0.35);
+
+  /* Radius */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 12px;
+  --r-xl: 16px;
+  --r-2xl: 20px;
+
+  /* Espaçamentos */
+  --space-xs: 0.5rem;
+  --space-sm: 0.75rem;
+  --space-md: 1.5rem;
+  --space-lg: 3rem;
+  --space-xl: 5rem;
+}
