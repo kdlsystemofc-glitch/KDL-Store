@@ -6,6 +6,7 @@ import { formatCurrency } from '@/lib/utils'
 import { Loader2, Printer } from 'lucide-react'
 import Link from 'next/link'
 import { PageTabs } from '@/components/PageTabs'
+import { ProOnly } from '@/components/ProOnly'
 
 type Venda = { total:number; forma_pagamento:string; criado_em:string }
 type Despesa = { descricao:string; categoria:string|null; valor:number }
@@ -72,101 +73,103 @@ export default function FechamentoPage() {
         { label: 'Fechamento de Caixa', href: '/financeiro/fechamento' }
       ]} />
 
-      {/* Seletor de período */}
-      <div style={{display:'flex',gap:'0.5rem'}}>
-        {(['diario','mensal'] as const).map(t=>(
-          <button key={t} onClick={()=>setTipo(t)} className={tipo===t?'btn btn-primary':'btn btn-secondary'}>
-            {t==='diario'?'📅 Diário':'📆 Mensal'}
-          </button>
-        ))}
-      </div>
-
-      {loading ? (
-        <div style={{display:'flex',justifyContent:'center',padding:'2rem',gap:'0.75rem',color:'var(--texto-desab)'}}>
-          <Loader2 size={18} style={{animation:'spin 1s linear infinite'}}/> Carregando...
+      <ProOnly>
+        {/* Seletor de período */}
+        <div style={{display:'flex',gap:'0.5rem'}}>
+          {(['diario','mensal'] as const).map(t=>(
+            <button key={t} onClick={()=>setTipo(t)} className={tipo===t?'btn btn-primary':'btn btn-secondary'}>
+              {t==='diario'?'📅 Diário':'📆 Mensal'}
+            </button>
+          ))}
         </div>
-      ) : fechado ? (
-        <div style={{textAlign:'center',padding:'3rem',color:'var(--verde)'}}>
-          <p style={{fontSize:'3rem',marginBottom:'0.5rem'}}>✅</p>
-          <p style={{fontWeight:900,fontSize:'1.25rem'}}>Caixa fechado com sucesso!</p>
-          <p style={{color:'var(--texto-desab)',marginTop:'0.25rem'}}>Período: {labelPeriodo}</p>
-          <div style={{display:'flex',gap:'0.5rem',justifyContent:'center',marginTop:'1rem'}}>
-            <button onClick={()=>setFechado(false)} className="btn btn-secondary">← Voltar</button>
-            <Link href="/dashboard" className="btn btn-primary">Ir ao Dashboard</Link>
-          </div>
-        </div>
-      ) : (
-        <>
-          {/* Entradas por forma */}
-          <div className="card" style={{padding:0,overflow:'hidden'}}>
-            <div className="sec-header"><span>💰 Entradas — {labelPeriodo}</span></div>
-            <div style={{padding:'0.875rem',display:'flex',flexDirection:'column',gap:'0.375rem'}}>
-              {Object.entries(porForma).length===0 ? (
-                <p style={{color:'var(--texto-desab)',fontSize:'0.85rem'}}>Nenhuma venda no período</p>
-              ) : Object.entries(porForma).map(([forma,val])=>(
-                <div key={forma} style={{display:'flex',justifyContent:'space-between',padding:'0.375rem 0',borderBottom:'1px solid var(--borda-leve)'}}>
-                  <span>{forma}</span>
-                  <span style={{fontWeight:800,fontFamily:'monospace',color:'var(--verde)'}}>{formatCurrency(val)}</span>
-                </div>
-              ))}
-              <div style={{display:'flex',justifyContent:'space-between',padding:'0.5rem 0',borderTop:'2px solid var(--borda)',marginTop:'0.25rem'}}>
-                <span style={{fontWeight:800}}>Total Entradas</span>
-                <span style={{fontWeight:900,fontFamily:'monospace',fontSize:'1.1rem',color:'var(--verde)'}}>{formatCurrency(totalReceita)}</span>
-              </div>
-            </div>
-          </div>
 
-          {/* Saídas */}
-          <div className="card" style={{padding:0,overflow:'hidden'}}>
-            <div className="sec-header"><span>💸 Saídas (Despesas)</span></div>
-            <div style={{padding:'0.875rem',display:'flex',flexDirection:'column',gap:'0.375rem'}}>
-              {despesas.length===0 ? (
-                <p style={{color:'var(--texto-desab)',fontSize:'0.85rem'}}>Nenhuma despesa no período</p>
-              ) : despesas.map((d,i)=>(
-                <div key={i} style={{display:'flex',justifyContent:'space-between',padding:'0.375rem 0',borderBottom:'1px solid var(--borda-leve)'}}>
-                  <span style={{fontSize:'0.85rem'}}>{d.descricao}{d.categoria&&<span style={{color:'var(--texto-desab)',fontSize:'0.75rem'}}> · {d.categoria}</span>}</span>
-                  <span style={{fontWeight:700,fontFamily:'monospace',color:'var(--vermelho)'}}>{formatCurrency(d.valor)}</span>
-                </div>
-              ))}
-              <div style={{display:'flex',justifyContent:'space-between',padding:'0.5rem 0',borderTop:'2px solid var(--borda)',marginTop:'0.25rem'}}>
-                <span style={{fontWeight:800}}>Total Saídas</span>
-                <span style={{fontWeight:900,fontFamily:'monospace',fontSize:'1.1rem',color:'var(--vermelho)'}}>{formatCurrency(totalDesp)}</span>
-              </div>
+        {loading ? (
+          <div style={{display:'flex',justifyContent:'center',padding:'2rem',gap:'0.75rem',color:'var(--texto-desab)'}}>
+            <Loader2 size={18} style={{animation:'spin 1s linear infinite'}}/> Carregando...
+          </div>
+        ) : fechado ? (
+          <div style={{textAlign:'center',padding:'3rem',color:'var(--verde)'}}>
+            <p style={{fontSize:'3rem',marginBottom:'0.5rem'}}>✅</p>
+            <p style={{fontWeight:900,fontSize:'1.25rem'}}>Caixa fechado com sucesso!</p>
+            <p style={{color:'var(--texto-desab)',marginTop:'0.25rem'}}>Período: {labelPeriodo}</p>
+            <div style={{display:'flex',gap:'0.5rem',justifyContent:'center',marginTop:'1rem'}}>
+              <button onClick={()=>setFechado(false)} className="btn btn-secondary">← Voltar</button>
+              <Link href="/dashboard" className="btn btn-primary">Ir ao Dashboard</Link>
             </div>
           </div>
+        ) : (
+          <>
+            {/* Entradas por forma */}
+            <div className="card" style={{padding:0,overflow:'hidden'}}>
+              <div className="sec-header"><span>💰 Entradas — {labelPeriodo}</span></div>
+              <div style={{padding:'0.875rem',display:'flex',flexDirection:'column',gap:'0.375rem'}}>
+                {Object.entries(porForma).length===0 ? (
+                  <p style={{color:'var(--texto-desab)',fontSize:'0.85rem'}}>Nenhuma venda no período</p>
+                ) : Object.entries(porForma).map(([forma,val])=>(
+                  <div key={forma} style={{display:'flex',justifyContent:'space-between',padding:'0.375rem 0',borderBottom:'1px solid var(--borda-leve)'}}>
+                    <span>{forma}</span>
+                    <span style={{fontWeight:800,fontFamily:'monospace',color:'var(--verde)'}}>{formatCurrency(val)}</span>
+                  </div>
+                ))}
+                <div style={{display:'flex',justifyContent:'space-between',padding:'0.5rem 0',borderTop:'2px solid var(--borda)',marginTop:'0.25rem'}}>
+                  <span style={{fontWeight:800}}>Total Entradas</span>
+                  <span style={{fontWeight:900,fontFamily:'monospace',fontSize:'1.1rem',color:'var(--verde)'}}>{formatCurrency(totalReceita)}</span>
+                </div>
+              </div>
+            </div>
 
-          {/* Conferência */}
-          <div className="card" style={{padding:0,overflow:'hidden'}}>
-            <div className="sec-header"><span>🧮 Conferência do Caixa</span></div>
-            <div style={{padding:'0.875rem',display:'flex',flexDirection:'column',gap:'0.75rem'}}>
-              <div style={{display:'flex',justifyContent:'space-between',padding:'0.375rem 0'}}>
-                <span style={{fontWeight:600}}>Saldo esperado</span>
-                <span style={{fontWeight:900,fontFamily:'monospace',color:saldoEsperado>=0?'var(--verde)':'var(--vermelho)'}}>{formatCurrency(saldoEsperado)}</span>
-              </div>
-              <div>
-                <label className="campo-label">Saldo físico em caixa (R$)</label>
-                <div style={{position:'relative',marginTop:'0.375rem'}}>
-                  <span style={{position:'absolute',left:'0.625rem',top:'50%',transform:'translateY(-50%)',fontWeight:700,color:'var(--texto-desab)'}}>R$</span>
-                  <input className="campo" type="number" step="0.01" min="0" style={{paddingLeft:'2rem',fontFamily:'monospace'}}
-                    placeholder="0,00" value={saldoFisico} onChange={e=>setSaldoFisico(e.target.value)}/>
+            {/* Saídas */}
+            <div className="card" style={{padding:0,overflow:'hidden'}}>
+              <div className="sec-header"><span>💸 Saídas (Despesas)</span></div>
+              <div style={{padding:'0.875rem',display:'flex',flexDirection:'column',gap:'0.375rem'}}>
+                {despesas.length===0 ? (
+                  <p style={{color:'var(--texto-desab)',fontSize:'0.85rem'}}>Nenhuma despesa no período</p>
+                ) : despesas.map((d,i)=>(
+                  <div key={i} style={{display:'flex',justifyContent:'space-between',padding:'0.375rem 0',borderBottom:'1px solid var(--borda-leve)'}}>
+                    <span style={{fontSize:'0.85rem'}}>{d.descricao}{d.categoria&&<span style={{color:'var(--texto-desab)',fontSize:'0.75rem'}}> · {d.categoria}</span>}</span>
+                    <span style={{fontWeight:700,fontFamily:'monospace',color:'var(--vermelho)'}}>{formatCurrency(d.valor)}</span>
+                  </div>
+                ))}
+                <div style={{display:'flex',justifyContent:'space-between',padding:'0.5rem 0',borderTop:'2px solid var(--borda)',marginTop:'0.25rem'}}>
+                  <span style={{fontWeight:800}}>Total Saídas</span>
+                  <span style={{fontWeight:900,fontFamily:'monospace',fontSize:'1.1rem',color:'var(--vermelho)'}}>{formatCurrency(totalDesp)}</span>
                 </div>
               </div>
-              {saldoFisico && (
-                <div style={{display:'flex',justifyContent:'space-between',padding:'0.625rem',background:Math.abs(diferenca)<0.01?'var(--verde-claro)':diferenca>0?'#dbeafe':'#fee2e2',borderRadius:'var(--radius-sm)'}}>
-                  <span style={{fontWeight:700}}>Diferença</span>
-                  <span style={{fontWeight:900,fontFamily:'monospace',color:Math.abs(diferenca)<0.01?'var(--verde)':diferenca>0?'var(--azul)':'var(--vermelho)'}}>
-                    {diferenca>=0?'+':''}{formatCurrency(diferenca)}
-                    {Math.abs(diferenca)<0.01?' ✓ Conferido':diferenca>0?' ↑ Sobra':' ↓ Falta'}
-                  </span>
-                </div>
-              )}
-              <button onClick={()=>setFechado(true)} className="btn btn-primary" style={{marginTop:'0.25rem'}}>
-                🔒 Confirmar Fechamento
-              </button>
             </div>
-          </div>
-        </>
-      )}
+
+            {/* Conferência */}
+            <div className="card" style={{padding:0,overflow:'hidden'}}>
+              <div className="sec-header"><span>🧮 Conferência do Caixa</span></div>
+              <div style={{padding:'0.875rem',display:'flex',flexDirection:'column',gap:'0.75rem'}}>
+                <div style={{display:'flex',justifyContent:'space-between',padding:'0.375rem 0'}}>
+                  <span style={{fontWeight:600}}>Saldo esperado</span>
+                  <span style={{fontWeight:900,fontFamily:'monospace',color:saldoEsperado>=0?'var(--verde)':'var(--vermelho)'}}>{formatCurrency(saldoEsperado)}</span>
+                </div>
+                <div>
+                  <label className="campo-label">Saldo físico em caixa (R$)</label>
+                  <div style={{position:'relative',marginTop:'0.375rem'}}>
+                    <span style={{position:'absolute',left:'0.625rem',top:'50%',transform:'translateY(-50%)',fontWeight:700,color:'var(--texto-desab)'}}>R$</span>
+                    <input className="campo" type="number" step="0.01" min="0" style={{paddingLeft:'2rem',fontFamily:'monospace'}}
+                      placeholder="0,00" value={saldoFisico} onChange={e=>setSaldoFisico(e.target.value)}/>
+                  </div>
+                </div>
+                {saldoFisico && (
+                  <div style={{display:'flex',justifyContent:'space-between',padding:'0.625rem',background:Math.abs(diferenca)<0.01?'var(--verde-claro)':diferenca>0?'#dbeafe':'#fee2e2',borderRadius:'var(--radius-sm)'}}>
+                    <span style={{fontWeight:700}}>Diferença</span>
+                    <span style={{fontWeight:900,fontFamily:'monospace',color:Math.abs(diferenca)<0.01?'var(--verde)':diferenca>0?'var(--azul)':'var(--vermelho)'}}>
+                      {diferenca>=0?'+':''}{formatCurrency(diferenca)}
+                      {Math.abs(diferenca)<0.01?' ✓ Conferido':diferenca>0?' ↑ Sobra':' ↓ Falta'}
+                    </span>
+                  </div>
+                )}
+                <button onClick={()=>setFechado(true)} className="btn btn-primary" style={{marginTop:'0.25rem'}}>
+                  🔒 Confirmar Fechamento
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </ProOnly>
     </div>
   )
 }

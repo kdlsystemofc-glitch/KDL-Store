@@ -5,6 +5,7 @@ import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
 import { Plus, Loader2, Trash2, X, Save } from 'lucide-react'
 import { PageTabs } from '@/components/PageTabs'
+import { ProOnly } from '@/components/ProOnly'
 
 type Comissao = { id:string; nome:string; telefone:string|null; tipo:string; taxa:number; status:string; criado_em:string }
 type VendaComissao = {
@@ -171,149 +172,151 @@ export default function ComissoesPage() {
         { label: 'Comissões', href: '/comissoes' }
       ]} />
 
-      {/* Sub-abas da página */}
-      <div style={{display:'flex',gap:'0.25rem'}}>
-        {([['cadastro','COMISSIONADOS'],['por-venda','POR VENDA']] as const).map(([v,l])=>(
-          <button key={v} onClick={()=>handleAba(v)}
-            className={aba===v?'btn btn-primary':'btn btn-secondary'}
-            style={{fontSize:'0.65rem',padding:'0.3rem 0.75rem'}}>{l}</button>
-        ))}
-      </div>
+      <ProOnly>
+        {/* Sub-abas da página */}
+        <div style={{display:'flex',gap:'0.25rem'}}>
+          {([['cadastro','COMISSIONADOS'],['por-venda','POR VENDA']] as const).map(([v,l])=>(
+            <button key={v} onClick={()=>handleAba(v)}
+              className={aba===v?'btn btn-primary':'btn btn-secondary'}
+              style={{fontSize:'0.65rem',padding:'0.3rem 0.75rem'}}>{l}</button>
+          ))}
+        </div>
 
-      {/* ── ABA CADASTRO ── */}
-      {aba === 'cadastro' && (
-        <>
-          <div style={{padding:'0.625rem 0.75rem',background:'var(--surface)',border:'1px solid var(--borda)',fontSize:'0.72rem',color:'var(--texto-sec)'}}>
-            ▶ COMISSIONADOS RECEBEM POR CADA VENDA ONDE FORAM INDICADORES.
-          </div>
-          {loading ? (
-            <div style={{display:'flex',justifyContent:'center',padding:'2rem',flexDirection:'column',alignItems:'center',gap:'0.5rem'}}>
-              <p style={{color:'var(--verde)',fontSize:'0.75rem',letterSpacing:'0.08em'}}>CARREGANDO<span className="blink">_</span></p>
+        {/* ── ABA CADASTRO ── */}
+        {aba === 'cadastro' && (
+          <>
+            <div style={{padding:'0.625rem 0.75rem',background:'var(--surface)',border:'1px solid var(--borda)',fontSize:'0.72rem',color:'var(--texto-sec)'}}>
+              ▶ COMISSIONADOS RECEBEM POR CADA VENDA ONDE FORAM INDICADORES.
             </div>
-          ) : lista.length===0 ? (
-            <div style={{textAlign:'center',padding:'3rem',color:'var(--texto-desab)',border:'1px solid var(--borda)',background:'var(--surface)'}}>
-              <p style={{fontSize:'0.7rem',letterSpacing:'0.1em',fontWeight:700,marginBottom:'0.5rem'}}>[ NENHUM COMISSIONADO ]</p>
-              <button onClick={()=>setModal(true)} className="btn btn-primary" style={{marginTop:'0.5rem'}}>+ CADASTRAR PRIMEIRO</button>
-            </div>
-          ) : (
-            <div className="tabela-wrap">
-              <table className="tabela">
-                <thead><tr>
-                    <th>NOME</th><th>WHATSAPP</th><th style={{textAlign:'center'}}>TIPO</th>
-                    <th style={{textAlign:'right'}}>TAXA</th><th style={{textAlign:'center'}}>STATUS</th><th style={{textAlign:'center'}}>AÇÕES</th>
-                </tr></thead>
-                <tbody>
-                  {lista.map(c=>(
-                    <tr key={c.id} style={{opacity:c.status==='ativo'?1:0.55}}>
-                      <td style={{fontWeight:700}}>{c.nome}</td>
-                      <td style={{fontSize:'0.72rem',color:'var(--texto-sec)'}}>{c.telefone||'—'}</td>
-                      <td style={{textAlign:'center'}}><span className={c.tipo==='percentual'?'status-info':'status-neutro'} style={{fontSize:'0.7rem'}}>{c.tipo==='percentual'?'% PCT':'R$ FIXO'}</span></td>
-                      <td style={{textAlign:'right',fontWeight:700}}>{c.tipo==='percentual'?`${c.taxa}%`:formatCurrency(c.taxa)+'/VDA'}</td>
-                      <td style={{textAlign:'center'}}>
-                        <button onClick={()=>alterarStatus(c.id,c.status)} style={{background:'none',border:'none',cursor:'pointer',padding:0}}>
-                          <span className={c.status==='ativo'?'status-ok':'status-neutro'} style={{fontSize:'0.7rem'}}>{c.status==='ativo'?'● ATIVO':'○ INATIVO'}</span>
-                        </button>
-                      </td>
-                      <td style={{textAlign:'center'}}>
-                        <div style={{display:'flex',gap:'0.25rem',justifyContent:'center'}}>
-                          {c.telefone&&(<a href={`https://wa.me/55${c.telefone.replace(/\D/g,'')}`} target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{fontSize:'0.62rem',padding:'0.15rem 0.4rem'}}>WA</a>)}
-                          <button onClick={()=>excluir(c.id)} className="btn btn-secondary" style={{fontSize:'0.62rem',padding:'0.15rem 0.4rem',color:'var(--vermelho)'}}>DEL</button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* ── ABA POR VENDA ── */}
-      {aba === 'por-venda' && (
-        <>
-          {loadingV ? (
-            <div style={{display:'flex',justifyContent:'center',padding:'2rem',flexDirection:'column',alignItems:'center',gap:'0.5rem'}}>
-              <p style={{color:'var(--verde)',fontSize:'0.75rem',letterSpacing:'0.08em'}}>CARREGANDO VENDAS<span className="blink">_</span></p>
-            </div>
-          ) : vendas.length === 0 ? (
-            <div style={{textAlign:'center',padding:'3rem',color:'var(--texto-desab)',border:'1px solid var(--borda)',background:'var(--surface)'}}>
-              <p style={{fontSize:'0.7rem',letterSpacing:'0.1em',fontWeight:700}}>[ NENHUMA VENDA COM COMISSÃO ]</p>
-            </div>
-          ) : (
-            <>
-              {/* KPIs */}
-              <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'0.625rem'}}>
-                {[
-                  {l:'Vendas comissionadas', v:vendas.length, suf:'vendas', c:'var(--texto)'},
-                  {l:'Total vendido',        v:formatCurrency(vendas.reduce((a,v)=>a+v.total,0)), suf:'em vendas com comissão', c:'var(--verde)'},
-                  {l:'Total a pagar',        v:formatCurrency(totalComissoes), suf:'em comissões', c:'var(--amarelo)'},
-                ].map(k=>(
-                  <div key={k.l} className="card" style={{padding:'0.875rem'}}>
-                    <p style={{fontSize:'0.78rem',color:'var(--texto-desab)',marginBottom:'0.25rem'}}>{k.l}</p>
-                    <p style={{fontWeight:900,fontSize:'1.4rem',color:k.c,fontFamily:'monospace'}}>{k.v}</p>
-                    <p style={{fontSize:'0.72rem',color:'var(--texto-desab)'}}>{k.suf}</p>
-                  </div>
-                ))}
+            {loading ? (
+              <div style={{display:'flex',justifyContent:'center',padding:'2rem',flexDirection:'column',alignItems:'center',gap:'0.5rem'}}>
+                <p style={{color:'var(--verde)',fontSize:'0.75rem',letterSpacing:'0.08em'}}>CARREGANDO<span className="blink">_</span></p>
               </div>
-
-              {/* Ranking */}
-              {ranking.length > 1 && (
-                <div className="card" style={{padding:'0.875rem'}}>
-                  <p style={{fontWeight:800,fontSize:'0.85rem',marginBottom:'0.625rem'}}>🏆 Ranking de Indicadores</p>
-                  <div style={{display:'flex',flexDirection:'column',gap:'0.375rem'}}>
-                    {ranking.map((r,i)=>(
-                      <div key={r.nome} style={{display:'flex',alignItems:'center',gap:'0.75rem',padding:'0.375rem 0',borderBottom:'1px solid var(--borda-leve)'}}>
-                        <span style={{fontWeight:900,fontSize:'1rem',width:'1.5rem',color:'var(--texto-desab)'}}>{i+1}°</span>
-                        <span style={{flex:1,fontWeight:700}}>{r.nome}</span>
-                        <span style={{fontSize:'0.82rem',color:'var(--texto-sec)'}}>{r.vendas} venda(s)</span>
-                        <span style={{fontWeight:800,color:'var(--verde)',fontFamily:'monospace',minWidth:'80px',textAlign:'right'}}>{formatCurrency(r.comissao)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Tabela detalhada */}
+            ) : lista.length===0 ? (
+              <div style={{textAlign:'center',padding:'3rem',color:'var(--texto-desab)',border:'1px solid var(--borda)',background:'var(--surface)'}}>
+                <p style={{fontSize:'0.7rem',letterSpacing:'0.1em',fontWeight:700,marginBottom:'0.5rem'}}>[ NENHUM COMISSIONADO ]</p>
+                <button onClick={()=>setModal(true)} className="btn btn-primary" style={{marginTop:'0.5rem'}}>+ CADASTRAR PRIMEIRO</button>
+              </div>
+            ) : (
               <div className="tabela-wrap">
                 <table className="tabela">
                   <thead><tr>
-                      <th>#VENDA</th><th>DATA</th><th>PAGAMENTO</th>
-                      <th>INDICADOR</th>
-                      <th style={{textAlign:'right'}}>TOTAL</th>
-                      <th style={{textAlign:'right'}}>COMISSÃO</th>
+                      <th>NOME</th><th>WHATSAPP</th><th style={{textAlign:'center'}}>TIPO</th>
+                      <th style={{textAlign:'right'}}>TAXA</th><th style={{textAlign:'center'}}>STATUS</th><th style={{textAlign:'center'}}>AÇÕES</th>
                   </tr></thead>
                   <tbody>
-                    {vendas.map(v=>(
-                      <tr key={v.id}>
-                        <td><span style={{fontWeight:700,color:'var(--verde)',fontFamily:'monospace'}}>#{String(v.numero).padStart(4,'0')}</span></td>
-                        <td style={{fontSize:'0.82rem',color:'var(--texto-desab)'}}>{new Date(v.criado_em).toLocaleDateString('pt-BR')}</td>
-                        <td style={{fontSize:'0.82rem'}}>{v.forma_pagamento}</td>
-                        <td style={{fontWeight:600}}>{v.comissionado_nome}</td>
-                        <td style={{textAlign:'right',fontFamily:'monospace',fontWeight:700}}>{formatCurrency(v.total)}</td>
-                        <td style={{textAlign:'right',fontFamily:'monospace',fontWeight:800,color:'var(--amarelo)'}}>
-                          {formatCurrency(v.valor_comissao)}
+                    {lista.map(c=>(
+                      <tr key={c.id} style={{opacity:c.status==='ativo'?1:0.55}}>
+                        <td style={{fontWeight:700}}>{c.nome}</td>
+                        <td style={{fontSize:'0.72rem',color:'var(--texto-sec)'}}>{c.telefone||'—'}</td>
+                        <td style={{textAlign:'center'}}><span className={c.tipo==='percentual'?'status-info':'status-neutro'} style={{fontSize:'0.7rem'}}>{c.tipo==='percentual'?'% PCT':'R$ FIXO'}</span></td>
+                        <td style={{textAlign:'right',fontWeight:700}}>{c.tipo==='percentual'?`${c.taxa}%`:formatCurrency(c.taxa)+'/VDA'}</td>
+                        <td style={{textAlign:'center'}}>
+                          <button onClick={()=>alterarStatus(c.id,c.status)} style={{background:'none',border:'none',cursor:'pointer',padding:0}}>
+                            <span className={c.status==='ativo'?'status-ok':'status-neutro'} style={{fontSize:'0.7rem'}}>{c.status==='ativo'?'● ATIVO':'○ INATIVO'}</span>
+                          </button>
+                        </td>
+                        <td style={{textAlign:'center'}}>
+                          <div style={{display:'flex',gap:'0.25rem',justifyContent:'center'}}>
+                            {c.telefone&&(<a href={`https://wa.me/55${c.telefone.replace(/\D/g,'')}`} target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{fontSize:'0.62rem',padding:'0.15rem 0.4rem'}}>WA</a>)}
+                            <button onClick={()=>excluir(c.id)} className="btn btn-secondary" style={{fontSize:'0.62rem',padding:'0.15rem 0.4rem',color:'var(--vermelho)'}}>DEL</button>
+                          </div>
                         </td>
                       </tr>
                     ))}
                   </tbody>
-                  <tfoot>
-                    <tr style={{background:'var(--surface-alt)'}}>
-                      <td colSpan={4} style={{fontWeight:700,padding:'0.625rem 0.875rem'}}>TOTAL</td>
-                      <td style={{textAlign:'right',fontWeight:900,fontFamily:'monospace',padding:'0.625rem 0.875rem',color:'var(--verde)'}}>
-                        {formatCurrency(vendas.reduce((a,v)=>a+v.total,0))}
-                      </td>
-                      <td style={{textAlign:'right',fontWeight:900,fontFamily:'monospace',padding:'0.625rem 0.875rem',color:'var(--amarelo)'}}>
-                        {formatCurrency(totalComissoes)}
-                      </td>
-                    </tr>
-                  </tfoot>
                 </table>
               </div>
-            </>
-          )}
-        </>
-      )}
+            )}
+          </>
+        )}
+
+        {/* ── ABA POR VENDA ── */}
+        {aba === 'por-venda' && (
+          <>
+            {loadingV ? (
+              <div style={{display:'flex',justifyContent:'center',padding:'2rem',flexDirection:'column',alignItems:'center',gap:'0.5rem'}}>
+                <p style={{color:'var(--verde)',fontSize:'0.75rem',letterSpacing:'0.08em'}}>CARREGANDO VENDAS<span className="blink">_</span></p>
+              </div>
+            ) : vendas.length === 0 ? (
+              <div style={{textAlign:'center',padding:'3rem',color:'var(--texto-desab)',border:'1px solid var(--borda)',background:'var(--surface)'}}>
+                <p style={{fontSize:'0.7rem',letterSpacing:'0.1em',fontWeight:700}}>[ NENHUMA VENDA COM COMISSÃO ]</p>
+              </div>
+            ) : (
+              <>
+                {/* KPIs */}
+                <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'0.625rem'}}>
+                  {[
+                    {l:'Vendas comissionadas', v:vendas.length, suf:'vendas', c:'var(--texto)'},
+                    {l:'Total vendido',        v:formatCurrency(vendas.reduce((a,v)=>a+v.total,0)), suf:'em vendas com comissão', c:'var(--verde)'},
+                    {l:'Total a pagar',        v:formatCurrency(totalComissoes), suf:'em comissões', c:'var(--amarelo)'},
+                  ].map(k=>(
+                    <div key={k.l} className="card" style={{padding:'0.875rem'}}>
+                      <p style={{fontSize:'0.78rem',color:'var(--texto-desab)',marginBottom:'0.25rem'}}>{k.l}</p>
+                      <p style={{fontWeight:900,fontSize:'1.4rem',color:k.c,fontFamily:'monospace'}}>{k.v}</p>
+                      <p style={{fontSize:'0.72rem',color:'var(--texto-desab)'}}>{k.suf}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Ranking */}
+                {ranking.length > 1 && (
+                  <div className="card" style={{padding:'0.875rem'}}>
+                    <p style={{fontWeight:800,fontSize:'0.85rem',marginBottom:'0.625rem'}}>🏆 Ranking de Indicadores</p>
+                    <div style={{display:'flex',flexDirection:'column',gap:'0.375rem'}}>
+                      {ranking.map((r,i)=>(
+                        <div key={r.nome} style={{display:'flex',alignItems:'center',gap:'0.75rem',padding:'0.375rem 0',borderBottom:'1px solid var(--borda-leve)'}}>
+                          <span style={{fontWeight:900,fontSize:'1rem',width:'1.5rem',color:'var(--texto-desab)'}}>{i+1}°</span>
+                          <span style={{flex:1,fontWeight:700}}>{r.nome}</span>
+                          <span style={{fontSize:'0.82rem',color:'var(--texto-sec)'}}>{r.vendas} venda(s)</span>
+                          <span style={{fontWeight:800,color:'var(--verde)',fontFamily:'monospace',minWidth:'80px',textAlign:'right'}}>{formatCurrency(r.comissao)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Tabela detalhada */}
+                <div className="tabela-wrap">
+                  <table className="tabela">
+                    <thead><tr>
+                        <th>#VENDA</th><th>DATA</th><th>PAGAMENTO</th>
+                        <th>INDICADOR</th>
+                        <th style={{textAlign:'right'}}>TOTAL</th>
+                        <th style={{textAlign:'right'}}>COMISSÃO</th>
+                    </tr></thead>
+                    <tbody>
+                      {vendas.map(v=>(
+                        <tr key={v.id}>
+                          <td><span style={{fontWeight:700,color:'var(--verde)',fontFamily:'monospace'}}>#{String(v.numero).padStart(4,'0')}</span></td>
+                          <td style={{fontSize:'0.82rem',color:'var(--texto-desab)'}}>{new Date(v.criado_em).toLocaleDateString('pt-BR')}</td>
+                          <td style={{fontSize:'0.82rem'}}>{v.forma_pagamento}</td>
+                          <td style={{fontWeight:600}}>{v.comissionado_nome}</td>
+                          <td style={{textAlign:'right',fontFamily:'monospace',fontWeight:700}}>{formatCurrency(v.total)}</td>
+                          <td style={{textAlign:'right',fontFamily:'monospace',fontWeight:800,color:'var(--amarelo)'}}>
+                            {formatCurrency(v.valor_comissao)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr style={{background:'var(--surface-alt)'}}>
+                        <td colSpan={4} style={{fontWeight:700,padding:'0.625rem 0.875rem'}}>TOTAL</td>
+                        <td style={{textAlign:'right',fontWeight:900,fontFamily:'monospace',padding:'0.625rem 0.875rem',color:'var(--verde)'}}>
+                          {formatCurrency(vendas.reduce((a,v)=>a+v.total,0))}
+                        </td>
+                        <td style={{textAlign:'right',fontWeight:900,fontFamily:'monospace',padding:'0.625rem 0.875rem',color:'var(--amarelo)'}}>
+                          {formatCurrency(totalComissoes)}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </>
+            )}
+          </>
+        )}
+      </ProOnly>
     </div>
   )
 }

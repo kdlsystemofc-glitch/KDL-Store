@@ -516,7 +516,7 @@ select.campo { cursor: pointer; }
 @keyframes spin    { to { transform:rotate(360deg); } }
 @keyframes blink   { 0%,100%{opacity:1} 50%{opacity:0} }
 
-.anim-fade    { animation: fadeIn  0.2s ease-out; }
+.anim-fade    { /* animation: fadeIn 0.2s ease-out; */ }
 .anim-slide   { animation: slideIn 0.2s ease-out; }
 .anim-pop     { animation: popIn   0.15s ease-out; }
 .animate-spin { animation: spin 1s linear infinite; }

@@ -59,86 +59,88 @@ export default function FiadoPage() {
         { label: 'Fechamento de Caixa', href: '/financeiro/fechamento' }
       ]} />
 
-      {/* KPIs */}
-      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'0.625rem'}}>
-        {[
-          {l:'Total em Aberto',     v:formatCurrency(totalAberto), c:totalAberto>0?'var(--vermelho)':'var(--verde)'},
-          {l:'Recebido este Mês',   v:formatCurrency(totalPagoMes),c:'var(--verde)'},
-          {l:'Nº de Devedores',     v:String(abertos.length),      c:abertos.length>0?'var(--amarelo)':'var(--verde)'},
-        ].map(k=>(
-          <div key={k.l} className="card" style={{padding:'0.875rem'}}>
-            <p style={{fontSize:'0.78rem',color:'var(--texto-desab)',marginBottom:'0.25rem'}}>{k.l}</p>
-            <p style={{fontWeight:900,fontSize:'1.5rem',color:k.c,fontFamily:'monospace'}}>{k.v}</p>
+      <ProOnly>
+        {/* KPIs */}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'0.625rem'}}>
+          {[
+            {l:'Total em Aberto',     v:formatCurrency(totalAberto), c:totalAberto>0?'var(--vermelho)':'var(--verde)'},
+            {l:'Recebido este Mês',   v:formatCurrency(totalPagoMes),c:'var(--verde)'},
+            {l:'Nº de Devedores',     v:String(abertos.length),      c:abertos.length>0?'var(--amarelo)':'var(--verde)'},
+          ].map(k=>(
+            <div key={k.l} className="card" style={{padding:'0.875rem'}}>
+              <p style={{fontSize:'0.78rem',color:'var(--texto-desab)',marginBottom:'0.25rem'}}>{k.l}</p>
+              <p style={{fontWeight:900,fontSize:'1.5rem',color:k.c,fontFamily:'monospace'}}>{k.v}</p>
+            </div>
+          ))}
+        </div>
+
+        {abertos.some(f=>diasAberto(f.criado_em)>=15)&&(
+          <div className="alerta alerta-perigo" style={{display:'flex',gap:'0.5rem',alignItems:'center'}}>
+            🚨 Há clientes com fiado em aberto há mais de 15 dias. Considere cobrar via WhatsApp.
           </div>
-        ))}
-      </div>
+        )}
 
-      {abertos.some(f=>diasAberto(f.criado_em)>=15)&&(
-        <div className="alerta alerta-perigo" style={{display:'flex',gap:'0.5rem',alignItems:'center'}}>
-          🚨 Há clientes com fiado em aberto há mais de 15 dias. Considere cobrar via WhatsApp.
-        </div>
-      )}
-
-      {loading ? (
-        <div style={{display:'flex',justifyContent:'center',padding:'3rem',gap:'0.75rem',color:'var(--texto-desab)'}}>
-          <Loader2 size={20} style={{animation:'spin 1s linear infinite'}}/> Carregando...
-        </div>
-      ) : abertos.length===0 ? (
-        <div style={{textAlign:'center',padding:'3rem',color:'var(--texto-desab)'}}>
-          <p style={{fontSize:'2rem',marginBottom:'0.5rem'}}>🎉</p>
-          <p style={{fontWeight:700}}>Nenhum fiado em aberto!</p>
-          <p style={{fontSize:'0.85rem',marginTop:'0.25rem'}}>Todos os clientes estão em dia.</p>
-        </div>
-      ) : (
-        <div className="tabela-wrap">
-          <table className="tabela">
-            <thead>
-              <tr style={{background:'#364a60'}}>
-                <th>Cliente</th><th style={{textAlign:'right'}}>Valor</th>
-                <th style={{textAlign:'center'}}>Dias em aberto</th>
-                <th>Desde</th><th style={{textAlign:'center'}}>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {abertos.map(f=>{
-                const dias = diasAberto(f.criado_em)
-                return (
-                  <tr key={f.id}>
-                    <td style={{fontWeight:700}}>
-                      {f.cliente_nome}
-                      {dias>=15&&<span style={{fontSize:'0.68rem',fontWeight:800,color:'var(--vermelho)',marginLeft:'0.375rem',padding:'1px 4px',background:'#fee2e2',borderRadius:'3px'}}>URGENTE</span>}
-                    </td>
-                    <td style={{textAlign:'right',fontWeight:900,color:'var(--vermelho)',fontFamily:'monospace',fontSize:'1.1rem'}}>
-                      {formatCurrency(f.valor_aberto)}
-                    </td>
-                    <td style={{textAlign:'center',fontWeight:700,color:dias>=15?'var(--vermelho)':dias>=7?'var(--amarelo)':'var(--verde)'}}>
-                      {dias} dia{dias!==1?'s':''}
-                    </td>
-                    <td style={{fontSize:'0.82rem',color:'var(--texto-desab)'}}>
-                      {new Date(f.criado_em).toLocaleDateString('pt-BR')}
-                    </td>
-                    <td style={{textAlign:'center'}}>
-                      <div style={{display:'flex',gap:'0.375rem',justifyContent:'center'}}>
-                        {f.cliente_tel&&(
-                          <a href={`https://wa.me/55${f.cliente_tel.replace(/\D/g,'')}?text=${encodeURIComponent(`Oi ${f.cliente_nome}, tudo bem? Passando para lembrar que você tem ${formatCurrency(f.valor_aberto)} em aberto aqui na loja. Quando puder aparecer ou me chama no zap! 😊`)}`}
-                            target="_blank" rel="noopener noreferrer"
-                            className="btn btn-secondary" style={{fontSize:'0.72rem',padding:'0.2rem 0.5rem',background:'#25D366',color:'#fff',border:'none'}}>
-                            💬 Cobrar
-                          </a>
-                        )}
-                        <button onClick={()=>marcarPago(f.id,f.cliente_nome,f.valor_aberto)}
-                          className="btn btn-secondary" style={{fontSize:'0.72rem',padding:'0.2rem 0.5rem'}}>
-                          ✓ Pago
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+        {loading ? (
+          <div style={{display:'flex',justifyContent:'center',padding:'3rem',gap:'0.75rem',color:'var(--texto-desab)'}}>
+            <Loader2 size={20} style={{animation:'spin 1s linear infinite'}}/> Carregando...
+          </div>
+        ) : abertos.length===0 ? (
+          <div style={{textAlign:'center',padding:'3rem',color:'var(--texto-desab)'}}>
+            <p style={{fontSize:'2rem',marginBottom:'0.5rem'}}>🎉</p>
+            <p style={{fontWeight:700}}>Nenhum fiado em aberto!</p>
+            <p style={{fontSize:'0.85rem',marginTop:'0.25rem'}}>Todos os clientes estão em dia.</p>
+          </div>
+        ) : (
+          <div className="tabela-wrap">
+            <table className="tabela">
+              <thead>
+                <tr style={{background:'#364a60'}}>
+                  <th>Cliente</th><th style={{textAlign:'right'}}>Valor</th>
+                  <th style={{textAlign:'center'}}>Dias em aberto</th>
+                  <th>Desde</th><th style={{textAlign:'center'}}>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {abertos.map(f=>{
+                  const dias = diasAberto(f.criado_em)
+                  return (
+                    <tr key={f.id}>
+                      <td style={{fontWeight:700}}>
+                        {f.cliente_nome}
+                        {dias>=15&&<span style={{fontSize:'0.68rem',fontWeight:800,color:'var(--vermelho)',marginLeft:'0.375rem',padding:'1px 4px',background:'#fee2e2',borderRadius:'3px'}}>URGENTE</span>}
+                      </td>
+                      <td style={{textAlign:'right',fontWeight:900,color:'var(--vermelho)',fontFamily:'monospace',fontSize:'1.1rem'}}>
+                        {formatCurrency(f.valor_aberto)}
+                      </td>
+                      <td style={{textAlign:'center',fontWeight:700,color:dias>=15?'var(--vermelho)':dias>=7?'var(--amarelo)':'var(--verde)'}}>
+                        {dias} dia{dias!==1?'s':''}
+                      </td>
+                      <td style={{fontSize:'0.82rem',color:'var(--texto-desab)'}}>
+                        {new Date(f.criado_em).toLocaleDateString('pt-BR')}
+                      </td>
+                      <td style={{textAlign:'center'}}>
+                        <div style={{display:'flex',gap:'0.375rem',justifyContent:'center'}}>
+                          {f.cliente_tel&&(
+                            <a href={`https://wa.me/55${f.cliente_tel.replace(/\D/g,'')}?text=${encodeURIComponent(`Oi ${f.cliente_nome}, tudo bem? Passando para lembrar que você tem ${formatCurrency(f.valor_aberto)} em aberto aqui na loja. Quando puder aparecer ou me chama no zap! 😊`)}`}
+                              target="_blank" rel="noopener noreferrer"
+                              className="btn btn-secondary" style={{fontSize:'0.72rem',padding:'0.2rem 0.5rem',background:'#25D366',color:'#fff',border:'none'}}>
+                              💬 Cobrar
+                            </a>
+                          )}
+                          <button onClick={()=>marcarPago(f.id,f.cliente_nome,f.valor_aberto)}
+                            className="btn btn-secondary" style={{fontSize:'0.72rem',padding:'0.2rem 0.5rem'}}>
+                            ✓ Pago
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </ProOnly>
     </div>
   )
 }

@@ -5,6 +5,7 @@ import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
 import { Loader2 } from 'lucide-react'
 import { PageTabs } from '@/components/PageTabs'
+import { ProOnly } from '@/components/ProOnly'
 
 type ClienteInativo = {
   id: string; nome: string; telefone: string|null; ultima_compra: string|null
@@ -99,105 +100,107 @@ export default function ClientesInativosPage() {
         { label: 'Fornecedores', href: '/fornecedores' }
       ]} />
 
-      <div className="alerta alerta-info">
-        <span>💡</span>
-        <span>Recuperar um cliente antigo custa <strong>5x menos</strong> que conquistar um novo. Mande uma mensagem agora.</span>
-      </div>
-
-      {loading ? (
-        <div style={{display:'flex',justifyContent:'center',padding:'3rem',gap:'0.75rem',color:'var(--texto-desab)'}}>
-          <Loader2 size={20} style={{animation:'spin 1s linear infinite'}}/> Analisando clientes...
+      <ProOnly>
+        <div className="alerta alerta-info">
+          <span>💡</span>
+          <span>Recuperar um cliente antigo custa <strong>5x menos</strong> que conquistar um novo. Mande uma mensagem agora.</span>
         </div>
-      ) : inativos.length === 0 ? (
-        <div style={{textAlign:'center',padding:'3rem',color:'var(--texto-desab)'}}>
-          <p style={{fontSize:'2rem',marginBottom:'0.5rem'}}>🎉</p>
-          <p style={{fontWeight:700}}>Nenhum cliente sumido!</p>
-          <p style={{fontSize:'0.85rem',marginTop:'0.25rem'}}>Todos os seus clientes compraram nos últimos 30 dias.</p>
-        </div>
-      ) : (
-        <>
-          {/* KPIs */}
-          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',gap:'0.625rem'}}>
-            {[
-              {...cats.morno,   qtd:mornos,   extra:'Mandar mensagem leve'},
-              {...cats.frio,    qtd:frios,    extra:'Ofereça algo especial'},
-              {...cats.perdido, qtd:perdidos, extra:'Ação urgente!'},
-            ].map(c=>(
-              <div key={c.label} className="card" style={{padding:'0.875rem',borderLeft:`4px solid ${c.cor}`}}>
-                <p style={{fontSize:'0.78rem',color:'var(--texto-desab)',marginBottom:'0.25rem'}}>{c.emoji} {c.label}</p>
-                <p style={{fontWeight:900,fontSize:'1.75rem',color:c.cor,fontFamily:'monospace'}}>{c.qtd}</p>
-                <p style={{fontSize:'0.72rem',color:'var(--texto-desab)'}}>{c.desc}</p>
-                <p style={{fontSize:'0.7rem',color:c.cor,fontWeight:700,marginTop:'0.25rem'}}>{c.extra}</p>
-              </div>
-            ))}
-            <div className="card" style={{padding:'0.875rem',borderLeft:'4px solid var(--verde)'}}>
-              <p style={{fontSize:'0.78rem',color:'var(--texto-desab)',marginBottom:'0.25rem'}}>Ticket Médio dos Sumidos</p>
-              <p style={{fontWeight:900,fontSize:'1.4rem',color:'var(--verde)',fontFamily:'monospace'}}>
-                {formatCurrency(potencial / ((perdidos + frios) || 1))}
-              </p>
-              <p style={{fontSize:'0.72rem',color:'var(--texto-desab)'}}>Potencial de recuperação</p>
-            </div>
-          </div>
 
-          {/* Tabela */}
-          <div className="tabela-wrap">
-            <table className="tabela">
-              <thead>
-                <tr style={{background:'#364a60'}}>
-                  <th>Cliente</th><th>Telefone</th><th>Última Compra</th>
-                  <th style={{textAlign:'right'}}>Dias Parado</th>
-                  <th style={{textAlign:'right'}}>Total Gasto</th>
-                  <th style={{textAlign:'right'}}>Compras</th>
-                  <th>Temperatura</th>
-                  <th style={{textAlign:'center'}}>Ação</th>
-                </tr>
-              </thead>
-              <tbody>
-                {inativos.map(c=>{
-                  const cat = cats[c.categoria]
-                  const msg = encodeURIComponent(msgWhatsApp(c.nome, c.categoria))
-                  const waNum = `55${(c.telefone||'').replace(/\D/g,'')}`
-                  const dataFormatada = c.ultima_compra
-                    ? new Date(c.ultima_compra).toLocaleDateString('pt-BR')
-                    : '—'
-                  return (
-                    <tr key={c.id}>
-                      <td style={{fontWeight:700}}>{c.nome}</td>
-                      <td style={{fontSize:'0.82rem',color:'var(--texto-sec)'}}>{c.telefone||'—'}</td>
-                      <td style={{fontSize:'0.82rem',color:'var(--texto-sec)'}}>{dataFormatada}</td>
-                      <td style={{textAlign:'right',fontWeight:900,color:cat.cor,fontSize:'1rem'}}>{c.diasSemComprar}d</td>
-                      <td style={{textAlign:'right',fontWeight:700,color:'var(--verde)',fontFamily:'monospace'}}>{formatCurrency(c.totalGasto)}</td>
-                      <td style={{textAlign:'right',fontWeight:700}}>{c.numCompras}</td>
-                      <td><span style={{fontWeight:700,color:cat.cor,fontSize:'0.82rem'}}>{cat.emoji} {cat.label}</span></td>
-                      <td style={{textAlign:'center'}}>
-                        {c.telefone ? (
-                          <a href={`https://wa.me/${waNum}?text=${msg}`} target="_blank" rel="noopener noreferrer"
-                            className="btn btn-primary" style={{fontSize:'0.72rem',padding:'0.3rem 0.625rem',background:'#25D366',border:'none'}}>
-                            💬 Chamar no WhatsApp
-                          </a>
-                        ) : <span style={{color:'var(--texto-desab)',fontSize:'0.78rem'}}>Sem telefone</span>}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+        {loading ? (
+          <div style={{display:'flex',justifyContent:'center',padding:'3rem',gap:'0.75rem',color:'var(--texto-desab)'}}>
+            <Loader2 size={20} style={{animation:'spin 1s linear infinite'}}/> Analisando clientes...
           </div>
-
-          {/* Mensagens pré-prontas */}
-          <div className="card">
-            <p style={{fontWeight:800,marginBottom:'0.5rem'}}>📝 Mensagens pré-prontas (personalizadas por temperatura)</p>
-            <div style={{display:'flex',flexDirection:'column',gap:'0.625rem'}}>
-              {Object.entries(cats).map(([key,cat])=>(
-                <div key={key} style={{padding:'0.625rem',background:'var(--surface-alt)',borderRadius:'var(--radius-sm)',borderLeft:`3px solid ${cat.cor}`}}>
-                  <p style={{fontSize:'0.72rem',fontWeight:800,color:cat.cor,marginBottom:'0.25rem'}}>{cat.emoji} CLIENTES {cat.label.toUpperCase()}</p>
-                  <p style={{fontSize:'0.82rem',color:'var(--texto-sec)',fontStyle:'italic'}}>"{msgWhatsApp('Cliente', key)}"</p>
+        ) : inativos.length === 0 ? (
+          <div style={{textAlign:'center',padding:'3rem',color:'var(--texto-desab)'}}>
+            <p style={{fontSize:'2rem',marginBottom:'0.5rem'}}>🎉</p>
+            <p style={{fontWeight:700}}>Nenhum cliente sumido!</p>
+            <p style={{fontSize:'0.85rem',marginTop:'0.25rem'}}>Todos os seus clientes compraram nos últimos 30 dias.</p>
+          </div>
+        ) : (
+          <>
+            {/* KPIs */}
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',gap:'0.625rem'}}>
+              {[
+                {...cats.morno,   qtd:mornos,   extra:'Mandar mensagem leve'},
+                {...cats.frio,    qtd:frios,    extra:'Ofereça algo especial'},
+                {...cats.perdido, qtd:perdidos, extra:'Ação urgente!'},
+              ].map(c=>(
+                <div key={c.label} className="card" style={{padding:'0.875rem',borderLeft:`4px solid ${c.cor}`}}>
+                  <p style={{fontSize:'0.78rem',color:'var(--texto-desab)',marginBottom:'0.25rem'}}>{c.emoji} {c.label}</p>
+                  <p style={{fontWeight:900,fontSize:'1.75rem',color:c.cor,fontFamily:'monospace'}}>{c.qtd}</p>
+                  <p style={{fontSize:'0.72rem',color:'var(--texto-desab)'}}>{c.desc}</p>
+                  <p style={{fontSize:'0.7rem',color:c.cor,fontWeight:700,marginTop:'0.25rem'}}>{c.extra}</p>
                 </div>
               ))}
+              <div className="card" style={{padding:'0.875rem',borderLeft:'4px solid var(--verde)'}}>
+                <p style={{fontSize:'0.78rem',color:'var(--texto-desab)',marginBottom:'0.25rem'}}>Ticket Médio dos Sumidos</p>
+                <p style={{fontWeight:900,fontSize:'1.4rem',color:'var(--verde)',fontFamily:'monospace'}}>
+                  {formatCurrency(potencial / ((perdidos + frios) || 1))}
+                </p>
+                <p style={{fontSize:'0.72rem',color:'var(--texto-desab)'}}>Potencial de recuperação</p>
+              </div>
             </div>
-          </div>
-        </>
-      )}
+
+            {/* Tabela */}
+            <div className="tabela-wrap">
+              <table className="tabela">
+                <thead>
+                  <tr style={{background:'#364a60'}}>
+                    <th>Cliente</th><th>Telefone</th><th>Última Compra</th>
+                    <th style={{textAlign:'right'}}>Dias Parado</th>
+                    <th style={{textAlign:'right'}}>Total Gasto</th>
+                    <th style={{textAlign:'right'}}>Compras</th>
+                    <th>Temperatura</th>
+                    <th style={{textAlign:'center'}}>Ação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {inativos.map(c=>{
+                    const cat = cats[c.categoria]
+                    const msg = encodeURIComponent(msgWhatsApp(c.nome, c.categoria))
+                    const waNum = `55${(c.telefone||'').replace(/\D/g,'')}`
+                    const dataFormatada = c.ultima_compra
+                      ? new Date(c.ultima_compra).toLocaleDateString('pt-BR')
+                      : '—'
+                    return (
+                      <tr key={c.id}>
+                        <td style={{fontWeight:700}}>{c.nome}</td>
+                        <td style={{fontSize:'0.82rem',color:'var(--texto-sec)'}}>{c.telefone||'—'}</td>
+                        <td style={{fontSize:'0.82rem',color:'var(--texto-sec)'}}>{dataFormatada}</td>
+                        <td style={{textAlign:'right',fontWeight:900,color:cat.cor,fontSize:'1rem'}}>{c.diasSemComprar}d</td>
+                        <td style={{textAlign:'right',fontWeight:700,color:'var(--verde)',fontFamily:'monospace'}}>{formatCurrency(c.totalGasto)}</td>
+                        <td style={{textAlign:'right',fontWeight:700}}>{c.numCompras}</td>
+                        <td><span style={{fontWeight:700,color:cat.cor,fontSize:'0.82rem'}}>{cat.emoji} {cat.label}</span></td>
+                        <td style={{textAlign:'center'}}>
+                          {c.telefone ? (
+                            <a href={`https://wa.me/${waNum}?text=${msg}`} target="_blank" rel="noopener noreferrer"
+                              className="btn btn-primary" style={{fontSize:'0.72rem',padding:'0.3rem 0.625rem',background:'#25D366',border:'none'}}>
+                              💬 Chamar no WhatsApp
+                            </a>
+                          ) : <span style={{color:'var(--texto-desab)',fontSize:'0.78rem'}}>Sem telefone</span>}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mensagens pré-prontas */}
+            <div className="card">
+              <p style={{fontWeight:800,marginBottom:'0.5rem'}}>📝 Mensagens pré-prontas (personalizadas por temperatura)</p>
+              <div style={{display:'flex',flexDirection:'column',gap:'0.625rem'}}>
+                {Object.entries(cats).map(([key,cat])=>(
+                  <div key={key} style={{padding:'0.625rem',background:'var(--surface-alt)',borderRadius:'var(--radius-sm)',borderLeft:`3px solid ${cat.cor}`}}>
+                    <p style={{fontSize:'0.72rem',fontWeight:800,color:cat.cor,marginBottom:'0.25rem'}}>{cat.emoji} CLIENTES {cat.label.toUpperCase()}</p>
+                    <p style={{fontSize:'0.82rem',color:'var(--texto-sec)',fontStyle:'italic'}}>"{msgWhatsApp('Cliente', key)}"</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+      </ProOnly>
     </div>
   )
 }
