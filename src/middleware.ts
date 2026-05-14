@@ -3,6 +3,9 @@ import { NextResponse, type NextRequest } from 'next/server'
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
+  // ── 0. Bypass RSC requests (React Server Component prefetch) ──
+  if (request.nextUrl.searchParams.has('_rsc')) return NextResponse.next()
+
   // ── 1. Rotas 100% públicas (sem auth) ──
   const publicRoutes = ['/', '/login', '/cadastro', '/redefinir-senha', '/garantia', '/landing', '/landing.html']
   const isPublic = publicRoutes.some(r => pathname === r || (r !== '/' && r !== '/landing.html' && pathname.startsWith(r)))

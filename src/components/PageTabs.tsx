@@ -9,7 +9,7 @@ export function PageTabs({ tabs }: { tabs: { label: string; href: string }[] }) 
   return (
     <div style={{ display: 'flex', borderBottom: '2px solid var(--borda)', marginBottom: '0.75rem', gap: '0' }}>
       {tabs.map(tab => {
-        const isActive = pathname === tab.href || pathname.startsWith(tab.href + '/')
+        const isActive = pathname === tab.href
         return (
           <Link
             key={tab.href}
