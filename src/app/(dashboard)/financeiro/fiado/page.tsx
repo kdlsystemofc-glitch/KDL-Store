@@ -5,6 +5,7 @@ import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
 import { Loader2 } from 'lucide-react'
 import { PageTabs } from '@/components/PageTabs'
+import { ProOnly } from '@/components/ProOnly'
 
 type Fiado = { id:string; cliente_nome:string; cliente_tel:string|null; valor_aberto:number; criado_em:string; status:string }
 
