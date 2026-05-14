@@ -56,6 +56,6 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     // Exclui todos os assets estáticos incluindo vídeos — só processa rotas de página
-    '/((?!_next/static|_next/image|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|mp4|webm|ogg|mp3|wav|woff|woff2|ttf|otf|ico|xml|txt|pdf)$).*)',
+    '/((?!_next/static|_next/image|favicon\\.ico|.*\\.(?:html|css|js|svg|png|jpg|jpeg|gif|webp|mp4|webm|ogg|mp3|wav|woff|woff2|ttf|otf|ico|xml|txt|pdf|json)$).*)',
   ],
 }
