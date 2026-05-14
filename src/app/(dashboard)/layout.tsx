@@ -22,12 +22,13 @@ const navItems = [
 ]
 
 function Sidebar({
-  isOpen, onClose, nomeLoja, inicialUsuario
+  isOpen, onClose, nomeLoja, inicialUsuario, planoAtivo
 }: {
   isOpen: boolean
   onClose: () => void
   nomeLoja: string
   inicialUsuario: string
+  planoAtivo: string
 }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -49,6 +50,15 @@ function Sidebar({
     router.push('/login')
   }
 
+  const linkBase: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', gap: '0.625rem',
+    padding: '0.5rem 0.875rem', margin: '1px 0.5rem',
+    borderRadius: '10px', textDecoration: 'none',
+    fontSize: '0.82rem', fontWeight: 600,
+    fontFamily: "'Nunito Sans', sans-serif",
+    transition: 'background 0.12s, color 0.12s',
+  }
+
   return (
     <>
       {/* Overlay mobile */}
@@ -63,83 +73,65 @@ function Sidebar({
       <aside
         className={`fixed left-0 top-0 z-50 lg:static lg:z-auto transition-transform duration-200 ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
         style={{
-          width: '220px',
-          background: '#1a2535',
-          borderRight: '1px solid #0f1720',
+          width: '230px',
+          background: 'var(--roxo-escuro)',
+          borderRight: '1px solid rgba(255,255,255,0.06)',
           flexShrink: 0,
           display: 'flex',
           flexDirection: 'column',
           height: '100%',
         }}
       >
-        {/* ── Logo / Nome do Sistema ── */}
+        {/* ── Logo ── */}
         <div style={{
-          padding: '1rem',
-          borderBottom: '1px solid #0f1720',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
+          padding: '1rem 1rem 0.75rem',
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
-          <Link href="/dashboard" style={{ textDecoration: 'none', display: 'block' }}>
-            <p style={{
-              color: '#ffffff',
-              fontWeight: 800,
-              fontSize: '1rem',
-              letterSpacing: '0.04em',
-              lineHeight: 1.1,
-              fontFamily: "'Inter', Arial, sans-serif",
-            }}>
-              NexoCommerce
-            </p>
-            <p style={{
-              color: '#5a7a9a',
-              fontSize: '0.68rem',
-              marginTop: '2px',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              maxWidth: '160px',
-            }}>
-              {nomeLoja}
-            </p>
+          <Link href="/dashboard" style={{ textDecoration: 'none', display: 'flex', alignItems: 'baseline', gap: '2px' }}>
+            <span style={{ color: 'var(--verde)', fontWeight: 900, fontSize: '1.4rem', fontFamily: "'Nunito', sans-serif", fontStyle: 'italic' }}>K</span>
+            <span style={{ color: '#fff', fontWeight: 700, fontSize: '0.95rem', fontFamily: "'Nunito', sans-serif" }}>DL Store</span>
           </Link>
           <button
             onClick={onClose}
             className="lg:hidden"
-            style={{
-              background: 'transparent', border: 'none', cursor: 'pointer',
-              color: '#5a7a9a', padding: '4px',
-            }}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'rgba(240,235,245,0.4)', padding: '4px' }}
           >
             <X size={16} />
           </button>
         </div>
 
-        {/* ── Botão Nova Venda — destaque máximo ── */}
-        <div style={{ padding: '0.75rem', borderBottom: '1px solid #0f1720' }}>
+        {/* ── Nome da loja + Plano ── */}
+        <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          <p style={{ color: '#fff', fontSize: '0.82rem', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {nomeLoja}
+          </p>
+          <span style={{
+            display: 'inline-block', marginTop: '4px',
+            fontSize: '0.62rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em',
+            padding: '2px 8px', borderRadius: '4px',
+            background: planoAtivo === 'pro' ? 'var(--amarelo)' : 'rgba(0,191,165,0.2)',
+            color: planoAtivo === 'pro' ? '#fff' : 'var(--verde)',
+          }}>
+            Plano {planoAtivo === 'pro' ? 'Pro' : 'Start'}
+          </span>
+        </div>
+
+        {/* ── Botão Nova Venda ── */}
+        <div style={{ padding: '0.75rem 0.625rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <Link
             href="/vendas/nova"
             onClick={onClose}
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.5rem',
-              width: '100%',
-              padding: '0.6rem',
-              background: '#1a7a3c',
-              color: '#ffffff',
-              fontWeight: 700,
-              fontSize: '0.82rem',
-              borderRadius: '4px',
-              textDecoration: 'none',
-              border: '1px solid #155f30',
-              boxShadow: '0 2px 0 #0f4d25',
-              transition: 'background 0.12s',
-              fontFamily: "'Inter', Arial, sans-serif",
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+              width: '100%', padding: '0.6rem',
+              background: 'var(--verde)', color: '#fff',
+              fontWeight: 700, fontSize: '0.82rem', borderRadius: 'var(--r-lg)',
+              textDecoration: 'none', border: 'none',
+              boxShadow: 'var(--sombra-cta)',
+              fontFamily: "'Nunito Sans', sans-serif",
+              transition: 'transform 0.12s',
             }}
-            onMouseEnter={e => (e.currentTarget.style.background = '#155f30')}
-            onMouseLeave={e => (e.currentTarget.style.background = '#1a7a3c')}
           >
             <Plus size={15} />
             Nova Venda
@@ -147,7 +139,7 @@ function Sidebar({
         </div>
 
         {/* ── Nav Items ── */}
-        <nav style={{ flex: 1, overflowY: 'auto', padding: '0.5rem 0' }}>
+        <nav style={{ flex: 1, overflowY: 'auto', padding: '0.375rem 0' }}>
           {navItems.map(item => {
             const active = isActive(item.href)
             const Icon = item.icon
@@ -156,7 +148,13 @@ function Sidebar({
                 key={item.href}
                 href={item.href}
                 onClick={onClose}
-                className={active ? 'nav-link-ativo' : 'nav-link'}
+                style={{
+                  ...linkBase,
+                  background: active ? 'rgba(0,191,165,0.15)' : 'transparent',
+                  color: active ? 'var(--verde)' : 'rgba(240,235,245,0.55)',
+                }}
+                onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
+                onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent' }}
               >
                 <Icon size={15} style={{ flexShrink: 0, opacity: active ? 1 : 0.7 }} />
                 <span>{item.label}</span>
@@ -167,22 +165,19 @@ function Sidebar({
 
         {/* ── Rodapé ── */}
         <div style={{
-          padding: '0.75rem',
-          borderTop: '1px solid #0f1720',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.625rem',
+          padding: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.06)',
+          display: 'flex', alignItems: 'center', gap: '0.625rem',
         }}>
           <div style={{
-            width: '30px', height: '30px', borderRadius: '50%',
-            background: '#1a7a3c', display: 'flex', alignItems: 'center',
-            justifyContent: 'center', color: '#fff', fontWeight: 700,
-            fontSize: '0.75rem', flexShrink: 0,
+            width: '32px', height: '32px', borderRadius: '50%',
+            background: 'var(--verde)', display: 'flex', alignItems: 'center',
+            justifyContent: 'center', color: '#fff', fontWeight: 800,
+            fontSize: '0.78rem', flexShrink: 0, fontFamily: "'Nunito', sans-serif",
           }}>
             {inicialUsuario}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontSize: '0.72rem', color: '#b8c5d6', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <p style={{ fontSize: '0.72rem', color: 'rgba(240,235,245,0.5)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {nomeLoja}
             </p>
           </div>
@@ -190,12 +185,12 @@ function Sidebar({
             onClick={handleLogout}
             style={{
               background: 'transparent', border: 'none', cursor: 'pointer',
-              color: '#5a7a9a', padding: '4px', borderRadius: '3px',
+              color: 'rgba(240,235,245,0.3)', padding: '4px', borderRadius: '6px',
               transition: 'color 0.1s',
             }}
             title="Sair"
-            onMouseEnter={e => (e.currentTarget.style.color = '#ffffff')}
-            onMouseLeave={e => (e.currentTarget.style.color = '#5a7a9a')}
+            onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
+            onMouseLeave={e => (e.currentTarget.style.color = 'rgba(240,235,245,0.3)')}
           >
             <LogOut size={15} />
           </button>
@@ -207,8 +202,8 @@ function Sidebar({
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [isMounted,   setIsMounted]   = useState(false)
-  const [headerInfo,  setHeaderInfo]  = useState({ inicial: 'U', nomeLoja: 'Carregando...' })
+  const [isMounted, setIsMounted] = useState(false)
+  const [headerInfo, setHeaderInfo] = useState({ inicial: 'U', nomeLoja: 'Carregando...', plano: 'start' })
   const router = useRouter()
 
   useEffect(() => { setIsMounted(true) }, [])
@@ -223,10 +218,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       const { data: profile } = await supabase.from('profiles').select('nome, empresa_id').eq('id', userId).single()
       if (profile?.empresa_id) {
-        const { data: empresa } = await supabase.from('empresas').select('nome').eq('id', profile.empresa_id).single()
+        const { data: empresa } = await supabase.from('empresas').select('nome, plano').eq('id', profile.empresa_id).single()
         setHeaderInfo({
-          inicial:  (profile.nome || user.email || 'U').charAt(0).toUpperCase(),
+          inicial: (profile.nome || user.email || 'U').charAt(0).toUpperCase(),
           nomeLoja: empresa?.nome || 'Minha Loja',
+          plano: empresa?.plano || 'start',
         })
       }
 
@@ -256,11 +252,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return (
       <div style={{
         display: 'flex', height: '100vh', width: '100vw',
-        background: '#1a2535', alignItems: 'center', justifyContent: 'center',
+        background: 'var(--roxo-escuro)', alignItems: 'center', justifyContent: 'center',
         flexDirection: 'column', gap: '0.5rem',
       }}>
-        <p style={{ color: '#ffffff', fontSize: '1rem', fontWeight: 800, fontFamily: 'Inter, Arial, sans-serif' }}>NexoCommerce</p>
-        <p style={{ color: '#5a7a9a', fontSize: '0.78rem', fontFamily: 'Inter, Arial, sans-serif' }}>Iniciando sistema...</p>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
+          <span style={{ color: 'var(--verde)', fontWeight: 900, fontSize: '1.8rem', fontFamily: "'Nunito', sans-serif", fontStyle: 'italic' }}>K</span>
+          <span style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem', fontFamily: "'Nunito', sans-serif" }}>DL Store</span>
+        </div>
+        <p style={{ color: 'rgba(240,235,245,0.4)', fontSize: '0.78rem' }}>Iniciando sistema...</p>
       </div>
     )
   }
@@ -272,30 +271,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         onClose={() => setSidebarOpen(false)}
         nomeLoja={headerInfo.nomeLoja}
         inicialUsuario={headerInfo.inicial}
+        planoAtivo={headerInfo.plano}
       />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
         {/* Header */}
         <header style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          height: '44px',
-          padding: '0 1rem',
-          flexShrink: 0,
-          background: '#1a2535',
-          borderBottom: '1px solid #0f1720',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          height: '48px', padding: '0 1.25rem', flexShrink: 0,
+          background: 'var(--surface)', borderBottom: '1px solid var(--borda)',
         }}>
           <button
             onClick={() => setSidebarOpen(true)}
             className="lg:hidden"
-            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#b8c5d6', padding: '4px' }}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: '4px' }}
           >
             <Menu size={18} />
           </button>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginLeft: 'auto' }}>
-            <span style={{ fontSize: '0.75rem', color: '#5a7a9a', fontFamily: 'Inter, Arial, sans-serif' }} className="hidden sm:block">
+            <span style={{ fontSize: '0.78rem', color: 'var(--muted)', fontWeight: 500 }} className="hidden sm:block">
               {headerInfo.nomeLoja}
             </span>
           </div>
