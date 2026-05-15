@@ -13,13 +13,12 @@ import { OperadorOnly } from '@/components/OperadorOnly'
 /* ─ Itens de navegação por plano ─ */
 
 // ── Módulos disponíveis para AMBOS os planos ──
-const startItems = [
+const baseItems = [
   { href: '/dashboard',     label: 'Dashboard',           icon: LayoutDashboard },
   { href: '/vendas',        label: 'Histórico de Vendas', icon: ShoppingCart },
   { href: '/produtos',      label: 'Produtos / Estoque',  icon: Package },
   { href: '/clientes',      label: 'Clientes',            icon: Users },
   { href: '/garantias',     label: 'Ops Extras',          icon: Shield },
-  { href: '/configuracoes', label: 'Configurações',       icon: Settings },
 ]
 
 // ── Módulos EXCLUSIVOS do plano Pro ──
@@ -67,9 +66,11 @@ function Sidebar({
     transition: 'background 0.12s, color 0.12s',
   }
 
+  const configItem = { href: '/configuracoes', label: 'Configurações', icon: Settings }
+
   const itensSidebar = (planoAtivo === 'pro'
-    ? [...startItems, ...proItems]
-    : startItems).filter(item => {
+    ? [...baseItems, ...proItems, configItem]
+    : [...baseItems, configItem]).filter(item => {
        if (item.href === '/configuracoes' && papel !== 'admin') return false
        return true
     })
