@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
 import { ComoFoiPainel } from '@/components/ComoFoiPainel'
+import { useSubscription } from '@/hooks/useSubscription'
 
 type KPIs = {
   vendasHoje: number; faturamentoHoje: number; ticketMedio: number
@@ -24,6 +25,8 @@ export default function DashboardPage() {
   const { empresaId, loading: loadingEmpresa } = useEmpresaId()
   const [kpis,    setKpis]    = useState<KPIs>(EMPTY)
   const [loading, setLoading] = useState(true)
+  const { plano } = useSubscription()
+  const isPro = plano === 'pro'
 
   useEffect(() => { if (empresaId) carregar(empresaId) }, [empresaId])
 
@@ -93,10 +96,9 @@ export default function DashboardPage() {
     </div>
   )
 
-  return (
-    <div className="anim-fade" style={{display:'flex',flexDirection:'column',gap:'1rem'}}>
 
-      {/* ── ONBOARDING ── */}
+  return (
+    <div className="anim-fade" style={{display:'flex',flexDirection:'column',gap:'0.75rem'}}>
       {kpis.totalProdutos === 0 && (
         <div style={{border:'1px solid #a8d5ba',borderLeft:'4px solid #1a7a3c',background:'#e8f5ee',padding:'1rem',borderRadius:'4px'}}>
           <p style={{fontWeight:700,fontSize:'0.9rem',color:'#0f4d25',marginBottom:'0.75rem'}}>
@@ -132,8 +134,8 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      {/* ── PAINEL COMO FOI ── */}
-      <ComoFoiPainel />
+      {/* ── PAINEL COMO FOI (apenas Pro) ── */}
+      {isPro && <ComoFoiPainel />}
 
       {/* ── KPIs OPERACIONAIS ── */}
       <div>
@@ -199,11 +201,11 @@ export default function DashboardPage() {
         <p style={{fontSize:'0.72rem',fontWeight:700,color:'#555555',textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:'0.625rem'}}>Acesso Rápido</p>
         <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'0.75rem'}}>
           {[
-            {href:'/vendas/nova',           label:'Nova Venda',      desc:'Frente de caixa',      primary:true},
-            {href:'/financeiro/fiado',       label:'Ver Fiado',       desc:formatCurrency(kpis.fiadoAberto)+' aberto', primary:false},
-            {href:'/financeiro/despesas',    label:'Lançar Despesa',  desc:'Registrar saída',      primary:false},
-            {href:'/financeiro/fechamento',  label:'Fechar Caixa',    desc:'Conferência do dia',   primary:false},
-          ].map(a => (
+            {href:'/vendas/nova',           label:'Nova Venda',      desc:'Frente de caixa',      primary:true,  proOnly:false},
+            {href:'/financeiro/fiado',       label:'Ver Fiado',       desc:formatCurrency(kpis.fiadoAberto)+' aberto', primary:false, proOnly:true},
+            {href:'/financeiro/despesas',    label:'Lançar Despesa',  desc:'Registrar saída',      primary:false, proOnly:true},
+            {href:'/financeiro/fechamento',  label:'Fechar Caixa',    desc:'Conferência do dia',   primary:false, proOnly:true},
+          ].filter(a => !a.proOnly || isPro).map(a => (
             <Link key={a.href} href={a.href} style={{
               display:'block',padding:'0.875rem',textDecoration:'none',
               border: a.primary ? '2px solid #1a7a3c' : '1px solid #cccccc',

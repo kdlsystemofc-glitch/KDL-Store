@@ -9,16 +9,22 @@ import {
   Shield, FileBarChart2, Settings, Plus, LogOut, Menu, X
 } from 'lucide-react'
 
-/* ─ Itens de navegação ─ */
-const navItems = [
-  { href: '/dashboard',     label: 'Dashboard',        icon: LayoutDashboard },
+/* ─ Itens de navegação por plano ─ */
+
+// ── Módulos disponíveis para AMBOS os planos ──
+const startItems = [
+  { href: '/dashboard',     label: 'Dashboard',           icon: LayoutDashboard },
   { href: '/vendas',        label: 'Histórico de Vendas', icon: ShoppingCart },
   { href: '/produtos',      label: 'Produtos / Estoque',  icon: Package },
-  { href: '/clientes',      label: 'Clientes',          icon: Users },
-  { href: '/financeiro',    label: 'Financeiro',         icon: BarChart3 },
-  { href: '/garantias',     label: 'Ops Extras',         icon: Shield },
-  { href: '/relatorios',    label: 'Relatórios',         icon: FileBarChart2 },
-  { href: '/configuracoes', label: 'Configurações',      icon: Settings },
+  { href: '/clientes',      label: 'Clientes',            icon: Users },
+  { href: '/garantias',     label: 'Ops Extras',          icon: Shield },
+  { href: '/configuracoes', label: 'Configurações',       icon: Settings },
+]
+
+// ── Módulos EXCLUSIVOS do plano Pro ──
+const proItems = [
+  { href: '/financeiro',    label: 'Financeiro',          icon: BarChart3 },
+  { href: '/relatorios',    label: 'Relatórios',          icon: FileBarChart2 },
 ]
 
 function Sidebar({
@@ -140,7 +146,7 @@ function Sidebar({
 
         {/* ── Nav Items ── */}
         <nav style={{ flex: 1, overflowY: 'auto', padding: '0.375rem 0' }}>
-          {navItems.map(item => {
+          {[...startItems, ...(planoAtivo === 'pro' ? proItems : [])].map(item => {
             const active = isActive(item.href)
             const Icon = item.icon
             return (
