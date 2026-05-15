@@ -13,6 +13,7 @@
 | 03 | [03_modulos_telas.md](./03_modulos_telas.md) | Todos os módulos e telas detalhados |
 | 04 | [04_banco_de_dados.md](./04_banco_de_dados.md) | Tabelas, colunas, triggers, RLS |
 | 05 | [05_fluxos_seguranca_componentes.md](./05_fluxos_seguranca_componentes.md) | Fluxos, permissões, segurança, componentes, roadmap |
+| 06 | [06_mapeamento_detalhado.md](./06_mapeamento_detalhado.md) | Mapeamento detalhado de formulários, botões, APIs, integrações e UX |
 
 ---
 
