@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="preload" as="video" href="/Hero-oficial.mp4" type="video/mp4">
   <link rel="stylesheet" href="landing.css">
 </head>
 <body>
@@ -35,8 +36,8 @@
   <main>
     <!-- ═══ HERO ═══ -->
     <section class="hero" id="home" aria-label="Apresentação do KDL Store">
-      <video class="hero-video" autoplay muted loop playsinline aria-hidden="true" preload="auto">
-        <source src="Hero-oficial.mp4" type="video/mp4">
+      <video class="hero-video" id="hero-video" autoplay muted loop playsinline aria-hidden="true" preload="auto" poster="/hero-poster.jpg">
+        <source src="/Hero-oficial.mp4" type="video/mp4">
       </video>
       <div class="hero-overlay" aria-hidden="true"></div>
       <div class="hero-content">
@@ -69,35 +70,118 @@
     </section>
 
     <!-- ═══ PROBLEMA ═══ -->
-    <section class="section" id="problema" aria-label="Problemas que o KDL Store resolve">
+    <section class="section" id="problema" aria-label="Diagnóstico honesto">
       <span class="eyebrow reveal">Diagnóstico honesto</span>
       <h2 class="section-title reveal">Você ainda controla sua loja assim?</h2>
-      <p class="problem-intro reveal">A maioria dos lojistas de rua ainda usa caderno, papelzinho e memória para gerir o negócio. O resultado: perda de dinheiro invisível, cliente que some sem você perceber, e fim de mês sem saber se lucrou ou só girou dinheiro.</p>
-      <div class="problems-grid">
-        <article class="problem-card reveal reveal-d1">
-          <div class="problem-icon" aria-hidden="true">📦</div>
-          <h3>Estoque no caderno</h3>
-          <p>Você só descobre que o produto acabou quando o cliente pergunta. Sem alerta, sem histórico, sem controle de mínimo. Com o KDL Store, cada venda atualiza o estoque em tempo real — e você recebe alerta quando está acabando.</p>
-          <a href="#planos" class="card-link">Ver como funciona →</a>
-        </article>
-        <article class="problem-card reveal reveal-d2">
-          <div class="problem-icon" aria-hidden="true">📒</div>
-          <h3>Fiado sem controle</h3>
-          <p>O cliente leva hoje, paga "semana que vem" — e você esquece. Sem registro, sem cobrança, sem WhatsApp na hora certa. Com o KDL Store, o fiado fica registrado por cliente, com cobrança automática via WhatsApp com 1 clique.</p>
-          <a href="#planos" class="card-link">Ver como funciona →</a>
-        </article>
-        <article class="problem-card reveal reveal-d3">
-          <div class="problem-icon" aria-hidden="true">🛡️</div>
-          <h3>Garantia em papel</h3>
-          <p>O cliente perde o comprovante. Você não tem como provar o que foi vendido nem quando. Com o KDL Store, cada produto tem garantia digital com QR Code — o cliente consulta do celular, você tem histórico completo.</p>
-          <a href="#planos" class="card-link">Ver como funciona →</a>
-        </article>
-        <article class="problem-card reveal reveal-d4">
-          <div class="problem-icon" aria-hidden="true">💰</div>
-          <h3>Não sabe se lucrou</h3>
-          <p>O caixa fecha com dinheiro — mas sobrou ou foi custo? Sem DRE, sem painel, sem resposta rápida. Com o Painel "Como foi?" do KDL Store, em 30 segundos você vê faturamento, despesas e lucro real do dia.</p>
-          <a href="#planos" class="card-link">Ver como funciona →</a>
-        </article>
+      <p class="problem-intro reveal">A maioria dos lojistas de rua ainda usa caderno, papelzinho e memória. O resultado: perda de dinheiro invisível, cliente que some sem você perceber e fim de mês sem saber se lucrou ou só girou dinheiro.</p>
+
+      <div class="comparison-wrap reveal">
+        <!-- LADO ESQUERDO -->
+        <div class="comparison-side comparison-bad">
+          <div class="comparison-header">
+            <span class="comparison-icon-header">😓</span>
+            <h3>Sem o KDL Store</h3>
+          </div>
+          <ul class="comparison-list">
+            <li>
+              <span class="comp-icon comp-bad">✗</span>
+              <div>
+                <strong>Controla estoque no caderno</strong>
+                <span class="comp-stat">→ Média de 3 produtos zerados por semana sem perceber</span>
+              </div>
+            </li>
+            <li>
+              <span class="comp-icon comp-bad">✗</span>
+              <div>
+                <strong>Emite garantia em papel</strong>
+                <span class="comp-stat">→ 67% dos papéis de garantia se perdem no primeiro mês</span>
+              </div>
+            </li>
+            <li>
+              <span class="comp-icon comp-bad">✗</span>
+              <div>
+                <strong>Não sabe se lucrou</strong>
+                <span class="comp-stat">→ 8 em 10 lojistas não sabem a margem real dos produtos</span>
+              </div>
+            </li>
+            <li>
+              <span class="comp-icon comp-bad">✗</span>
+              <div>
+                <strong>Cliente some sem aviso</strong>
+                <span class="comp-stat">→ Reconquistar cliente custa 5x menos que buscar um novo</span>
+              </div>
+            </li>
+            <li>
+              <span class="comp-icon comp-bad">✗</span>
+              <div>
+                <strong>Puxador sem controle</strong>
+                <span class="comp-stat">→ Média de R$340/mês perdidos em comissões não calculadas</span>
+              </div>
+            </li>
+            <li>
+              <span class="comp-icon comp-bad">✗</span>
+              <div>
+                <strong>Produto zera no meio da semana</strong>
+                <span class="comp-stat">→ Perda média de R$180 por produto zerado não reposto</span>
+              </div>
+            </li>
+          </ul>
+        </div>
+
+        <!-- DIVISÓRIA -->
+        <div class="comparison-vs" aria-hidden="true"><span>vs</span></div>
+
+        <!-- LADO DIREITO -->
+        <div class="comparison-side comparison-good">
+          <div class="comparison-header">
+            <span class="comparison-icon-header">🚀</span>
+            <h3>Com o KDL Store</h3>
+          </div>
+          <ul class="comparison-list">
+            <li>
+              <span class="comp-icon comp-good">✓</span>
+              <div>
+                <strong>Estoque em tempo real com alerta automático</strong>
+                <span class="comp-stat comp-stat-good">→ Nunca mais perde venda por produto zerado</span>
+              </div>
+            </li>
+            <li>
+              <span class="comp-icon comp-good">✓</span>
+              <div>
+                <strong>Garantia digital com QR Code imprimível</strong>
+                <span class="comp-stat comp-stat-good">→ Histórico completo, cliente nunca perde o comprovante</span>
+              </div>
+            </li>
+            <li>
+              <span class="comp-icon comp-good">✓</span>
+              <div>
+                <strong>Painel "Como foi?" — lucro em 30 segundos</strong>
+                <span class="comp-stat comp-stat-good">→ DRE, faturamento e despesas num único painel</span>
+              </div>
+            </li>
+            <li>
+              <span class="comp-icon comp-good">✓</span>
+              <div>
+                <strong>CRM avisa e abre WhatsApp do cliente sumido</strong>
+                <span class="comp-stat comp-stat-good">→ Recupera clientes que você achava perdidos</span>
+              </div>
+            </li>
+            <li>
+              <span class="comp-icon comp-good">✓</span>
+              <div>
+                <strong>Comissão calculada automaticamente por venda</strong>
+                <span class="comp-stat comp-stat-good">→ Sem briga, sem "combinado de boca"</span>
+              </div>
+            </li>
+            <li>
+              <span class="comp-icon comp-good">✓</span>
+              <div>
+                <strong>Alerta imediato + pedido direto ao fornecedor</strong>
+                <span class="comp-stat comp-stat-good">→ Reposição antes do cliente perceber a falta</span>
+              </div>
+            </li>
+          </ul>
+        </div>
       </div>
     </section>
 
@@ -124,27 +208,97 @@
       </div>
     </section>
 
-    <!-- ═══ GALERIA / MOCKUPS ═══ -->
-    <section class="section section-purple" aria-label="Veja o sistema por dentro">
+    <!-- ═══ MÓDULOS ═══ -->
+    <section class="section section-purple" id="modulos" aria-label="Todos os módulos do KDL Store">
       <span class="eyebrow reveal">Por dentro do sistema</span>
-      <h2 class="section-title reveal" style="color:#fff">Veja o sistema por dentro.</h2>
-      <div class="mockups-grid">
-        <div class="mockup-card reveal reveal-d1" data-icon="🧾">
-          <div class="mockup-label">PDV com leitor de código de barras</div>
-          <div class="mockup-sub">Câmera ou pistola USB</div>
-        </div>
-        <div class="mockup-card reveal reveal-d2" data-icon="📊">
-          <div class="mockup-label">Painel "Como foi?" com lucro do dia</div>
-          <div class="mockup-sub">Faturamento em 30 segundos</div>
-        </div>
-        <div class="mockup-card reveal reveal-d3" data-icon="📒">
-          <div class="mockup-label">Fiado com cobrança via WhatsApp</div>
-          <div class="mockup-sub">Cobrança com 1 clique</div>
-        </div>
-        <div class="mockup-card reveal reveal-d4" data-icon="📱">
-          <div class="mockup-label">Catálogo online com QR Code</div>
-          <div class="mockup-sub">Compartilhe com clientes</div>
-        </div>
+      <h2 class="section-title reveal" style="color:#fff">Tudo que sua loja precisa. Num só lugar.</h2>
+      <p class="section-sub reveal">12 módulos integrados, feitos para o ritmo do comércio de rua.</p>
+      <div class="modules-grid">
+
+        <article class="module-card reveal reveal-d1">
+          <div class="module-icon">🛒</div>
+          <div class="module-name">PDV — Frente de Caixa</div>
+          <p class="module-desc">Registre vendas em segundos. Leitor de código de barras pela câmera do celular ou pistola USB. Suporte a Varejo, Atacado e VIP no mesmo caixa.</p>
+          <div class="module-benefit">→ Fecha uma venda em menos de 30 segundos</div>
+        </article>
+
+        <article class="module-card reveal reveal-d2">
+          <div class="module-icon">📊 <span class="badge-pro">PRO</span></div>
+          <div class="module-name">Painel "Como foi?"</div>
+          <p class="module-desc">Saiba se o dia foi bom antes de fechar a porta. Faturamento, lucro estimado, ticket médio e alertas — tudo numa tela, com linguagem de lojista.</p>
+          <div class="module-benefit">→ Resultado do dia em 30 segundos, sem planilha</div>
+        </article>
+
+        <article class="module-card reveal reveal-d3">
+          <div class="module-icon">📦</div>
+          <div class="module-name">Produtos &amp; Estoque</div>
+          <p class="module-desc">Cadastre produtos com 3 tabelas de preço. O sistema alerta quando o estoque está acabando e registra cada movimentação automaticamente a cada venda.</p>
+          <div class="module-benefit">→ Nunca mais perde venda por produto zerado</div>
+        </article>
+
+        <article class="module-card reveal reveal-d1">
+          <div class="module-icon">👥 <span class="badge-pro">PRO</span></div>
+          <div class="module-name">CRM de Clientes Sumidos</div>
+          <p class="module-desc">Clientes que param de comprar são classificados como Morno, Frio ou Perdido. Mande WhatsApp com mensagem personalizada com 1 clique.</p>
+          <div class="module-benefit">→ Recupera clientes que você achava perdidos</div>
+        </article>
+
+        <article class="module-card reveal reveal-d2">
+          <div class="module-icon">💰 <span class="badge-pro">PRO</span></div>
+          <div class="module-name">Financeiro Completo</div>
+          <p class="module-desc">DRE real com receita, despesas e lucro líquido. Lançamento de despesas por categoria. Fechamento de caixa diário com conferência de saldo.</p>
+          <div class="module-benefit">→ Sabe exatamente onde o dinheiro vai</div>
+        </article>
+
+        <article class="module-card reveal reveal-d3">
+          <div class="module-icon">🛡️</div>
+          <div class="module-name">Garantias Digitais</div>
+          <p class="module-desc">Garantia gerada automaticamente em cada venda. Certificado imprimível com QR Code de verificação. Número de série vinculado ao produto.</p>
+          <div class="module-benefit">→ Chega de papelzinho colado no produto</div>
+        </article>
+
+        <article class="module-card reveal reveal-d1">
+          <div class="module-icon">🎯 <span class="badge-pro">PRO</span></div>
+          <div class="module-name">Comissões de Puxadores</div>
+          <p class="module-desc">Registre quem indicou o cliente e o sistema calcula a comissão automaticamente. Ranking de indicadores e histórico por venda.</p>
+          <div class="module-benefit">→ Fim do combinado de boca que vira briga</div>
+        </article>
+
+        <article class="module-card reveal reveal-d2">
+          <div class="module-icon">📒 <span class="badge-pro">PRO</span></div>
+          <div class="module-name">Fiado com Cobrança</div>
+          <p class="module-desc">Registre compras a prazo e acione o cliente no WhatsApp com mensagem personalizada na hora certa. Histórico completo por cliente.</p>
+          <div class="module-benefit">→ Cobra sem constrangimento, recebe mais rápido</div>
+        </article>
+
+        <article class="module-card reveal reveal-d3">
+          <div class="module-icon">📱</div>
+          <div class="module-name">Catálogo com QR Code</div>
+          <p class="module-desc">Vitrine digital do seu estoque compartilhável pelo WhatsApp. O cliente vê produto, preço e disponibilidade sem precisar ligar.</p>
+          <div class="module-benefit">→ Vende mesmo quando a loja está fechada</div>
+        </article>
+
+        <article class="module-card reveal reveal-d1">
+          <div class="module-icon">🔧</div>
+          <div class="module-name">Ordens de Serviço</div>
+          <p class="module-desc">Registre serviços de instalação, reparo ou manutenção. Acompanhe o status e notifique o cliente quando estiver pronto via WhatsApp.</p>
+          <div class="module-benefit">→ Organiza o pós-venda sem papel</div>
+        </article>
+
+        <article class="module-card reveal reveal-d2">
+          <div class="module-icon">📈 <span class="badge-pro">PRO</span></div>
+          <div class="module-name">Relatórios</div>
+          <p class="module-desc">Produtos mais vendidos, formas de pagamento, desempenho por dia da semana, comissões do período. Exportação em CSV e impressão.</p>
+          <div class="module-benefit">→ Decisões baseadas em número, não em achismo</div>
+        </article>
+
+        <article class="module-card reveal reveal-d3">
+          <div class="module-icon">⚙️ <span class="badge-pro">PRO</span></div>
+          <div class="module-name">Multi-usuário</div>
+          <p class="module-desc">Adicione funcionários com papéis diferentes: admin, operador ou visualizador. Controle quem acessa o quê com convite por email.</p>
+          <div class="module-benefit">→ Delega sem perder o controle</div>
+        </article>
+
       </div>
     </section>
 

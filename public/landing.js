@@ -84,4 +84,14 @@
       }
     }, { passive: true });
   }
+
+  /* ── Hero video: fade suave ao carregar ── */
+  var heroVideo = document.getElementById('hero-video');
+  if (heroVideo) {
+    function activateVideo() { heroVideo.classList.add('loaded'); }
+    heroVideo.addEventListener('canplaythrough', activateVideo, { once: true });
+    heroVideo.addEventListener('playing', activateVideo, { once: true });
+    // Fallback: mostra mesmo assim após 2s
+    setTimeout(activateVideo, 2000);
+  }
 })();
