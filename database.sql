@@ -93,9 +93,17 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   preco               INT          NOT NULL DEFAULT 6500, -- centavos (6500 = R$65)
   inicio              TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
   proximo_pagamento   TIMESTAMPTZ,
+  stripe_customer_id  TEXT UNIQUE,
+  stripe_subscription_id TEXT UNIQUE,
+  stripe_price_id     TEXT,
+  cancel_at_period_end BOOLEAN DEFAULT false,
+  current_period_end  TIMESTAMPTZ,
   criado_em           TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
   atualizado_em       TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
+
+CREATE INDEX IF NOT EXISTS idx_sub_stripe_customer ON subscriptions(stripe_customer_id);
+CREATE INDEX IF NOT EXISTS idx_sub_stripe_sub ON subscriptions(stripe_subscription_id);
 
 -- ─────────────────────────────────────────────
 -- TABELA: convites (convidar usuários para a empresa)

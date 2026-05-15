@@ -25,23 +25,23 @@ export default function AssinarPage() {
 
     if (!profile?.empresa_id) { setErro('Perfil não encontrado.'); setLoading(null); return }
 
-    // Criar assinatura
-    const preco = plano === 'start' ? 6500 : 9500
-    const { error } = await supabase
-      .from('subscriptions')
-      .upsert({
-        empresa_id: profile.empresa_id,
-        plano,
-        status: 'active',
-        preco,
-        inicio: new Date().toISOString(),
-        proximo_pagamento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-      }, { onConflict: 'empresa_id' })
-
-    if (error) { setErro(error.message); setLoading(null); return }
-
-    router.push('/dashboard')
-    router.refresh()
+    try {
+      const res = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plano, empresaId: profile.empresa_id })
+      })
+      const data = await res.json()
+      if (data.url) {
+        window.location.href = data.url
+      } else {
+        setErro(data.error || 'Erro ao processar pagamento.')
+        setLoading(null)
+      }
+    } catch (err: any) {
+      setErro('Erro de rede ao conectar com Stripe.')
+      setLoading(null)
+    }
   }
 
   const features = {

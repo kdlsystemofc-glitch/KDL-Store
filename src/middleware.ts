@@ -56,13 +56,29 @@ export async function middleware(request: NextRequest) {
   if (profile?.empresa_id) {
     const { data: sub } = await supabase
       .from('subscriptions')
-      .select('status, plano')
+      .select('status, plano, current_period_end')
       .eq('empresa_id', profile.empresa_id)
-      .eq('status', 'active')
       .single()
+      
     if (sub) {
-      hasActiveSubscription = true
       userPlan = sub.plano || 'start'
+      const agora = new Date()
+      
+      let podeAcessar = false
+      if (sub.status === 'active') {
+        podeAcessar = true
+      } else if (sub.status === 'past_due' && sub.current_period_end) {
+        const fimPeriodo = new Date(sub.current_period_end)
+        const gracePeriod = new Date(fimPeriodo)
+        gracePeriod.setDate(gracePeriod.getDate() + 3) // 3 dias de graça
+        if (agora < gracePeriod) {
+          podeAcessar = true
+        }
+      }
+
+      if (podeAcessar) {
+        hasActiveSubscription = true
+      }
     }
   }
 
