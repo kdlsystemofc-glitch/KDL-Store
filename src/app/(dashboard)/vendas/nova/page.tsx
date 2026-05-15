@@ -31,6 +31,7 @@ export default function NovaPdvPage() {
   const [pagamento,   setPagamento]   = useState('')
   const [desconto,    setDesconto]    = useState(0)
   const [troco,       setTroco]       = useState('')
+  const [prazoDias,   setPrazoDias]   = useState<number|null>(null)
   const [fase,        setFase]        = useState<'pdv'|'ok'>('pdv')
   const [vendaId,     setVendaId]     = useState('')
   const [vendaNum,    setVendaNum]    = useState(0)
@@ -165,9 +166,17 @@ export default function NovaPdvPage() {
 
     // 4. Fiado
     if (pagamento === 'Fiado') {
+      let data_vencimento = null
+      if (prazoDias !== null) {
+        const d = new Date()
+        d.setDate(d.getDate() + prazoDias)
+        data_vencimento = d.toISOString().slice(0,10)
+      }
+
       await supabase.from('fiados').insert({
         empresa_id: empresaId, venda_id: venda.id,
         cliente_nome: cliente, valor_aberto: total, status: 'aberto',
+        data_vencimento
       })
     }
 
@@ -208,7 +217,7 @@ export default function NovaPdvPage() {
       {pagamento==='Fiado' && <p style={{color:'var(--amarelo)',fontWeight:700}}>📒 Registrado no fiado de {cliente}</p>}
       <div style={{display:'flex',gap:'0.625rem',flexWrap:'wrap',justifyContent:'center',marginTop:'0.5rem'}}>
         <Link href={`/vendas/${vendaId}`} className="btn btn-secondary">🧾 Ver Recibo</Link>
-        <button className="btn btn-primary" onClick={()=>{setItens([]);setFase('pdv');setPagamento('');setDesconto(0);setTroco('');setCliente('')}}>
+        <button className="btn btn-primary" onClick={()=>{setItens([]);setFase('pdv');setPagamento('');setDesconto(0);setTroco('');setCliente('');setPrazoDias(null)}}>
           + Nova Venda
         </button>
       </div>
@@ -419,6 +428,25 @@ export default function NovaPdvPage() {
                 <label className="campo-label">DINHEIRO RECEBIDO</label>
                 <input className="campo" type="number" style={{marginTop:'0.25rem'}} placeholder="0,00" value={troco} onChange={e=>setTroco(e.target.value)}/>
                 {troco&&parseFloat(troco)>0&&<p style={{fontSize:'0.78rem',fontWeight:700,color:'var(--verde)',marginTop:'4px',fontVariantNumeric:'tabular-nums'}}>TROCO: {formatCurrency(Math.max(0,parseFloat(troco)-total))}</p>}
+              </div>
+            )}
+            {pagamento==='Fiado'&&(
+              <div style={{marginTop:'0.625rem',paddingTop:'0.625rem',borderTop:'1px solid var(--borda-leve)'}}>
+                <label className="campo-label">PRAZO PARA PAGAMENTO</label>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:'0.375rem',marginTop:'0.375rem'}}>
+                  {[
+                    { l:'7 D', v:7 },
+                    { l:'15 D', v:15 },
+                    { l:'30 D', v:30 },
+                    { l:'S/ PRAZO', v:null }
+                  ].map(p=>(
+                    <button key={p.l} onClick={()=>setPrazoDias(p.v)}
+                      className={prazoDias===p.v ? 'btn btn-primary' : 'btn btn-secondary'}
+                      style={{fontSize:'0.6rem',padding:'0.4rem 0.2rem',textTransform:'uppercase',letterSpacing:'0.04em'}}>
+                      {p.l}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>

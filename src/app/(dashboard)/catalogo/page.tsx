@@ -6,13 +6,14 @@ import { formatCurrency } from '@/lib/utils'
 import { Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { PageTabs } from '@/components/PageTabs'
+import { QRCodeSVG } from 'qrcode.react'
 
 type Produto = { id:string; nome:string; categoria:string|null; preco_varejo:number; preco_atacado:number|null; preco_vip:number|null; ativo_catalogo:boolean|null; destaque:boolean|null; preco_catalogo:string|null }
 
 export default function CatalogoPage() {
   const { empresaId } = useEmpresaId()
   const [produtos,  setProdutos]  = useState<Produto[]>([])
-  const [empresa,   setEmpresa]   = useState<{nome:string;telefone:string|null;cidade:string|null}>({nome:'',telefone:null,cidade:null})
+  const [empresa,   setEmpresa]   = useState<{nome:string;telefone:string|null;cidade:string|null;slug:string|null}>({nome:'',telefone:null,cidade:null,slug:null})
   const [loading,   setLoading]   = useState(true)
   const [salvando,  setSalvando]  = useState<string|null>(null)
 
@@ -23,7 +24,7 @@ export default function CatalogoPage() {
     const supabase = createClient()
     const [{ data: prods }, { data: emp }] = await Promise.all([
       supabase.from('produtos').select('id,nome,categoria,preco_varejo,preco_atacado,preco_vip,ativo_catalogo,destaque,preco_catalogo').eq('empresa_id', eid).eq('ativo', true).order('nome'),
-      supabase.from('empresas').select('nome,telefone,cidade').eq('id', eid).single(),
+      supabase.from('empresas').select('nome,telefone,cidade,slug').eq('id', eid).single(),
     ])
     setProdutos(prods||[])
     if (emp) setEmpresa(emp)
@@ -58,8 +59,9 @@ export default function CatalogoPage() {
   }
 
   const ativos = produtos.filter(p=>p.ativo_catalogo).length
-  const urlCatalogo = empresa.nome ? `nexocommerce.app/catalogo/${empresa.nome.toLowerCase().replace(/\s+/g,'-')}` : 'nexocommerce.app/catalogo/sua-loja'
-  const msgWa = encodeURIComponent(`Olá! Veja nossos produtos: https://${urlCatalogo}`)
+  const host = typeof window !== 'undefined' ? window.location.host : 'nexocommerce.app'
+  const urlCatalogo = empresa.slug ? `${host}/loja/${empresa.slug}` : null
+  const msgWa = encodeURIComponent(`Olá! Veja nossos produtos no catálogo online: https://${urlCatalogo}`)
 
   return (
     <div className="anim-fade" style={{display:'flex',flexDirection:'column',gap:'0.75rem',maxWidth:'900px'}}>
@@ -75,21 +77,36 @@ export default function CatalogoPage() {
         { label: 'Catálogo Online', href: '/catalogo' }
       ]} />
 
-      {/* Link do catálogo — estilo terminal */}
+      {/* Link do catálogo */}
       <div className="card" style={{padding:0,overflow:'hidden'}}>
         <div className="sec-header"><span>LINK DO SEU CATÁLOGO PÚBLICO</span></div>
-        <div style={{padding:'0.75rem',display:'flex',flexDirection:'column',gap:'0.5rem'}}>
-          <div style={{display:'flex',gap:'0.5rem',flexWrap:'wrap',alignItems:'center'}}>
-            <code style={{flex:1,padding:'0.4rem 0.6rem',background:'var(--fundo-painel)',border:'1px solid var(--borda-forte)',fontSize:'0.78rem',color:'var(--verde)',wordBreak:'break-all',letterSpacing:'0.03em'}}>
-              https://{urlCatalogo}
-            </code>
-            <button className="btn btn-secondary" style={{fontSize:'0.65rem',padding:'0.25rem 0.5rem'}} onClick={()=>navigator.clipboard.writeText(`https://${urlCatalogo}`)}>COPIAR</button>
-          </div>
-          <div style={{display:'flex',gap:'0.375rem',flexWrap:'wrap'}}>
-            <a href={`https://wa.me/?text=${msgWa}`} target="_blank" rel="noopener noreferrer"
-              className="btn btn-secondary" style={{fontSize:'0.65rem',padding:'0.25rem 0.5rem'}}>WA COMPARTILHAR</a>
-            <button className="btn btn-secondary" style={{fontSize:'0.65rem',padding:'0.25rem 0.5rem'}} onClick={()=>window.print()}>IMP. QR</button>
-          </div>
+        <div style={{padding:'1rem',display:'flex',flexDirection:'column',gap:'1rem'}}>
+          {urlCatalogo ? (
+            <div style={{display:'flex',gap:'1.5rem',alignItems:'flex-start',flexWrap:'wrap'}}>
+              <div style={{background:'#fff',padding:'0.5rem',borderRadius:'8px',border:'1px solid var(--borda)',display:'inline-block'}}>
+                <QRCodeSVG value={`https://${urlCatalogo}`} size={100} />
+              </div>
+              <div style={{display:'flex',flexDirection:'column',gap:'0.5rem',flex:1}}>
+                <div style={{display:'flex',gap:'0.5rem',flexWrap:'wrap',alignItems:'center'}}>
+                  <code style={{flex:1,padding:'0.4rem 0.6rem',background:'var(--fundo-painel)',border:'1px solid var(--borda-forte)',fontSize:'0.78rem',color:'var(--verde)',wordBreak:'break-all',letterSpacing:'0.03em'}}>
+                    https://{urlCatalogo}
+                  </code>
+                  <button className="btn btn-secondary" style={{fontSize:'0.65rem',padding:'0.25rem 0.5rem'}} onClick={()=>navigator.clipboard.writeText(`https://${urlCatalogo}`)}>📋 COPIAR</button>
+                  <a href={`https://${urlCatalogo}`} target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{fontSize:'0.65rem',padding:'0.25rem 0.5rem'}}>↗ ABRIR</a>
+                </div>
+                <div style={{display:'flex',gap:'0.375rem',flexWrap:'wrap'}}>
+                  <a href={`https://wa.me/?text=${msgWa}`} target="_blank" rel="noopener noreferrer"
+                    className="btn btn-secondary" style={{fontSize:'0.65rem',padding:'0.25rem 0.5rem'}}>💬 COMPARTILHAR WA</a>
+                  <button className="btn btn-secondary" style={{fontSize:'0.65rem',padding:'0.25rem 0.5rem'}} onClick={()=>window.print()}>🖨 IMP. QR</button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div style={{textAlign:'center',padding:'1rem',background:'var(--fundo-painel)',borderRadius:'8px'}}>
+              <p style={{fontSize:'0.85rem',color:'var(--texto-sec)',marginBottom:'0.5rem'}}>Você precisa definir o Link do Catálogo (Slug) antes de compartilhar.</p>
+              <Link href="/configuracoes/empresa" className="btn btn-primary" style={{fontSize:'0.75rem'}}>Configurar Link</Link>
+            </div>
+          )}
         </div>
       </div>
 

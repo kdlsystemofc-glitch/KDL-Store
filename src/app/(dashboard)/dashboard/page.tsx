@@ -6,10 +6,11 @@ import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
 import { ComoFoiPainel } from '@/components/ComoFoiPainel'
 import { useSubscription } from '@/hooks/useSubscription'
+import { OperadorOnly } from '@/components/OperadorOnly'
 
 type KPIs = {
   vendasHoje: number; faturamentoHoje: number; ticketMedio: number
-  produtosCriticos: number; fiadoAberto: number; despesasMes: number
+  produtosCriticos: number; fiadoAberto: number; fiadosVencidos: number; despesasMes: number
   comissoesPagar: number; clientesSumidos: number
   vendasSemana: { dia: string; total: number }[]
   totalProdutos: number; totalVendas: number
@@ -17,7 +18,7 @@ type KPIs = {
 
 const EMPTY: KPIs = {
   vendasHoje:0, faturamentoHoje:0, ticketMedio:0, produtosCriticos:0,
-  fiadoAberto:0, despesasMes:0, comissoesPagar:0, clientesSumidos:0,
+  fiadoAberto:0, fiadosVencidos:0, despesasMes:0, comissoesPagar:0, clientesSumidos:0,
   vendasSemana:[], totalProdutos:0, totalVendas:0,
 }
 
@@ -39,7 +40,7 @@ export default function DashboardPage() {
     const results = await Promise.allSettled([
       supabase.from('vendas').select('total').eq('empresa_id', eid).gte('criado_em', hoje).eq('status','concluida'),
       supabase.from('produtos').select('id,qtd_atual,qtd_minima').eq('empresa_id', eid).gt('qtd_minima',0),
-      supabase.from('fiados').select('valor_aberto').eq('empresa_id', eid).eq('status','aberto'),
+      supabase.from('fiados').select('valor_aberto, data_vencimento').eq('empresa_id', eid).eq('status','aberto'),
       supabase.from('despesas').select('valor').eq('empresa_id', eid).gte('data', inicioMes.slice(0,10)),
       supabase.from('vendas').select('criado_em,total').eq('empresa_id', eid).eq('status','concluida')
         .gte('criado_em', new Date(Date.now()-6*86400000).toISOString()).order('criado_em'),
@@ -65,6 +66,7 @@ export default function DashboardPage() {
     const totalHoje  = (vendasHoje||[]).reduce((a: number, v: any) => a + (v.total||0), 0)
     const qtdHoje    = (vendasHoje||[]).length
     const fiadoTotal = (fiados||[]).reduce((a: number, f: any) => a + (f.valor_aberto||0), 0)
+    const fiadosVencidos = (fiados||[]).filter((f: any) => f.data_vencimento && f.data_vencimento < hoje).length
     const despTotal  = (despesas||[]).reduce((a: number, d: any) => a + (d.valor||0), 0)
     const prazo      = empresaData?.crm_prazo_inatividade_dias || 60
     const limiteData = new Date(Date.now() - prazo * 86400000).toISOString().slice(0,10)
@@ -81,7 +83,7 @@ export default function DashboardPage() {
       vendasHoje: qtdHoje, faturamentoHoje: totalHoje,
       ticketMedio: qtdHoje > 0 ? totalHoje/qtdHoje : 0,
       produtosCriticos: (criticos||[]).length,
-      fiadoAberto: fiadoTotal, despesasMes: despTotal, comissoesPagar: 0, clientesSumidos: sumidos,
+      fiadoAberto: fiadoTotal, fiadosVencidos, despesasMes: despTotal, comissoesPagar: 0, clientesSumidos: sumidos,
       vendasSemana: dias, totalProdutos: totalProdutos||0, totalVendas: totalVendas||0,
     })
     setLoading(false)
@@ -129,9 +131,11 @@ export default function DashboardPage() {
           <h1 className="pg-titulo">Dashboard</h1>
           <p className="pg-sub">{new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'})}</p>
         </div>
-        <Link href="/vendas/nova" className="btn btn-primary" style={{fontSize:'0.85rem',padding:'0.55rem 1.125rem',fontWeight:700}}>
-          + Nova Venda
-        </Link>
+        <OperadorOnly>
+          <Link href="/vendas/nova" className="btn btn-primary" style={{fontSize:'0.85rem',padding:'0.55rem 1.125rem',fontWeight:700}}>
+            + Nova Venda
+          </Link>
+        </OperadorOnly>
       </div>
 
       {/* ── PAINEL COMO FOI (apenas Pro) ── */}
@@ -143,17 +147,20 @@ export default function DashboardPage() {
         <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'0.75rem'}}>
           {[
             {label:'Estoque Crítico',  valor:String(kpis.produtosCriticos), suf:'produto(s)', cor:kpis.produtosCriticos>0?'#c0392b':'#1a7a3c', top:kpis.produtosCriticos>0?'#c0392b':'#1a7a3c', href:'/estoque'},
-            {label:'Fiado em Aberto',  valor:formatCurrency(kpis.fiadoAberto), suf:'pendente', cor:kpis.fiadoAberto>0?'#b7860b':'#1a7a3c', top:kpis.fiadoAberto>0?'#b7860b':'#cccccc', href:'/financeiro/fiado'},
+            {label:'Fiado em Aberto',  valor:formatCurrency(kpis.fiadoAberto), suf:'pendente', cor:kpis.fiadoAberto>0?'#b7860b':'#1a7a3c', top:kpis.fiadoAberto>0?'#b7860b':'#cccccc', href:'/financeiro/fiado', extra: kpis.fiadosVencidos > 0 ? `⚠ ${kpis.fiadosVencidos} vencido(s)` : null},
             {label:'Despesas do Mês',  valor:formatCurrency(kpis.despesasMes), suf:'lançados', cor:'#111111', top:'#1a5fa8', href:'/financeiro/despesas'},
             {label:'Clientes Sumidos', valor:String(kpis.clientesSumidos), suf:'inativos', cor:kpis.clientesSumidos>0?'#b7860b':'#1a7a3c', top:kpis.clientesSumidos>0?'#b7860b':'#cccccc', href:'/clientes'},
-          ].map(k => (
+          ].map((k: any) => (
             <Link key={k.label} href={k.href} style={{textDecoration:'none',display:'block',background:'#ffffff',border:'1px solid #cccccc',borderTop:`3px solid ${k.top}`,borderRadius:'4px',padding:'0.875rem',color:'inherit',transition:'box-shadow 0.12s',boxShadow:'0 1px 3px rgba(0,0,0,0.06)'}}
               onMouseEnter={e=>(e.currentTarget.style.boxShadow='0 3px 10px rgba(0,0,0,0.1)')}
               onMouseLeave={e=>(e.currentTarget.style.boxShadow='0 1px 3px rgba(0,0,0,0.06)')}
             >
               <p style={{fontSize:'0.72rem',color:'#555555',fontWeight:600,marginBottom:'0.375rem',textTransform:'uppercase',letterSpacing:'0.04em'}}>{k.label}</p>
               <p style={{fontWeight:800,fontSize:'1.25rem',color:k.cor,lineHeight:1,fontFamily:"'JetBrains Mono', monospace",fontVariantNumeric:'tabular-nums'}}>{k.valor}</p>
-              <p style={{fontSize:'0.68rem',color:'#999999',marginTop:'3px'}}>{k.suf}</p>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-end'}}>
+                <p style={{fontSize:'0.68rem',color:'#999999',marginTop:'3px'}}>{k.suf}</p>
+                {k.extra && <p style={{fontSize:'0.65rem',color:'#c0392b',fontWeight:700,marginTop:'3px'}}>{k.extra}</p>}
+              </div>
             </Link>
           ))}
         </div>

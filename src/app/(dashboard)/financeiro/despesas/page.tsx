@@ -6,6 +6,7 @@ import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
 import { ArrowLeft, Plus, Trash2, Loader2 } from 'lucide-react'
 import { PageTabs } from '@/components/PageTabs'
+import { AdminOnly } from '@/components/AdminOnly'
 
 type Despesa = { id:string; descricao:string; categoria:string; tipo:string; valor:number; data:string; recorrente:boolean }
 
@@ -164,9 +165,11 @@ export default function DespesasPage() {
                   <td style={{fontSize:'0.82rem',color:'var(--texto-desab)'}}>{new Date(d.data+'T12:00:00').toLocaleDateString('pt-BR')}</td>
                   <td style={{textAlign:'right',fontWeight:800,color:'var(--vermelho)',fontFamily:'monospace'}}>{formatCurrency(d.valor)}</td>
                   <td style={{textAlign:'center'}}>
-                    <button onClick={()=>excluir(d.id)} className="btn btn-secondary" style={{fontSize:'0.72rem',padding:'0.2rem 0.5rem',color:'var(--vermelho)'}}>
-                      <Trash2 size={13}/>
-                    </button>
+                    <AdminOnly>
+                      <button onClick={()=>excluir(d.id)} className="btn btn-secondary" style={{fontSize:'0.72rem',padding:'0.2rem 0.5rem',color:'var(--vermelho)'}}>
+                        <Trash2 size={13}/>
+                      </button>
+                    </AdminOnly>
                   </td>
                 </tr>
               ))}

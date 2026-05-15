@@ -6,7 +6,8 @@ import { formatCurrency } from '@/lib/utils'
 import { Loader2, Printer } from 'lucide-react'
 import Link from 'next/link'
 import { PageTabs } from '@/components/PageTabs'
-import { ProOnly } from '@/components/ProOnly'
+import { AdminOnly } from '@/components/AdminOnly'
+
 
 type Venda = { total:number; forma_pagamento:string; criado_em:string }
 type Despesa = { descricao:string; categoria:string|null; valor:number }
@@ -55,7 +56,8 @@ export default function FechamentoPage() {
     : `${new Date().toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}`
 
   return (
-    <div className="anim-fade" style={{display:'flex',flexDirection:'column',gap:'0.875rem',maxWidth:'680px'}}>
+    <AdminOnly fallbackRedirect="/financeiro">
+      <div className="anim-fade" style={{display:'flex',flexDirection:'column',gap:'0.875rem',maxWidth:'680px'}}>
       <div className="pg-header">
         <div><h1 className="pg-titulo">🔒 Fechamento de Caixa</h1>
           <p className="pg-sub">{labelPeriodo}</p></div>
@@ -73,7 +75,7 @@ export default function FechamentoPage() {
         { label: 'Fechamento de Caixa', href: '/financeiro/fechamento' }
       ]} />
 
-      <ProOnly>
+
         {/* Seletor de período */}
         <div style={{display:'flex',gap:'0.5rem'}}>
           {(['diario','mensal'] as const).map(t=>(
@@ -169,7 +171,8 @@ export default function FechamentoPage() {
             </div>
           </>
         )}
-      </ProOnly>
-    </div>
+
+      </div>
+    </AdminOnly>
   )
 }

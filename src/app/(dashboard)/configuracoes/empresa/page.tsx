@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
 import { Loader2, Save } from 'lucide-react'
 
-type Empresa = { id:string; nome:string; cnpj:string|null; telefone:string|null; email:string|null; cidade:string|null; estado:string|null; endereco:string|null; whatsapp:string|null; instagram:string|null; plano:string }
+type Empresa = { id:string; nome:string; slug:string|null; cnpj:string|null; telefone:string|null; email:string|null; cidade:string|null; estado:string|null; endereco:string|null; whatsapp:string|null; instagram:string|null; plano:string }
 
 const ESTADOS_BR = ['AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT','PA','PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO']
 
@@ -30,7 +30,7 @@ export default function ConfigEmpresaPage() {
     if (!empresa.nome.trim()) { setErro('O nome da loja é obrigatório.'); return }
     setSalvando(true); setErro(null)
     const { error } = await createClient().from('empresas').update({
-      nome: empresa.nome, cnpj: empresa.cnpj||null, telefone: empresa.telefone||null,
+      nome: empresa.nome, slug: empresa.slug?.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-') || null, cnpj: empresa.cnpj||null, telefone: empresa.telefone||null,
       email: empresa.email||null, cidade: empresa.cidade||null, estado: empresa.estado||null,
       endereco: empresa.endereco||null, whatsapp: empresa.whatsapp||null, instagram: empresa.instagram||null,
     }).eq('id', empresaId)
@@ -68,6 +68,14 @@ export default function ConfigEmpresaPage() {
               <div>
                 <label className="campo-label">Nome da loja *</label>
                 <input className="campo" style={inp} value={empresa.nome} onChange={e=>setEmpresa(em=>em?{...em,nome:e.target.value}:em)} placeholder="Nome da sua loja"/>
+              </div>
+              <div>
+                <label className="campo-label">Link do catálogo (URL única)</label>
+                <div style={{display:'flex', alignItems:'center', gap:'0.375rem', marginTop:'0.375rem'}}>
+                  <span style={{fontSize:'0.82rem', color:'var(--texto-desab)'}}>loja/</span>
+                  <input className="campo" style={{flex:1}} value={empresa.slug||''} onChange={e=>setEmpresa(em=>em?{...em,slug:e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')}:em)} placeholder="minha-loja"/>
+                </div>
+                <p style={{fontSize:'0.72rem', color:'var(--texto-sec)', marginTop:'0.25rem'}}>Apenas letras, números e hífens.</p>
               </div>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem'}}>
                 <div>

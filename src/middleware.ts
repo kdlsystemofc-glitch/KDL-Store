@@ -49,14 +49,28 @@ export async function middleware(request: NextRequest) {
     .single()
 
   let hasActiveSubscription = false
+  let userPlan = 'start'
   if (profile?.empresa_id) {
     const { data: sub } = await supabase
       .from('subscriptions')
-      .select('status')
+      .select('status, plano')
       .eq('empresa_id', profile.empresa_id)
       .eq('status', 'active')
       .single()
-    hasActiveSubscription = !!sub
+    if (sub) {
+      hasActiveSubscription = true
+      userPlan = sub.plano || 'start'
+    }
+  }
+
+  // ── Proteção de rotas Pro ──
+  const proRoutes = ['/financeiro', '/relatorios', '/clientes/inativos', '/comissoes']
+  const isProRoute = proRoutes.some(r => pathname === r || pathname.startsWith(r + '/'))
+
+  if (hasActiveSubscription && userPlan !== 'pro' && isProRoute) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/assinar'
+    return NextResponse.redirect(url)
   }
 
   // Logado SEM assinatura → só pode acessar /assinar

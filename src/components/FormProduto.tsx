@@ -60,6 +60,8 @@ export function FormProduto({ onSuccess, onCancel }: { onSuccess: () => void; on
   const [temGarantia,  setTemGarantia]  = useState(false)
   const [diasGarantia, setDiasGarantia] = useState('')
   const [textoGarantia,setTextoGarantia]= useState('')
+  const [imagemFile,   setImagemFile]   = useState<File|null>(null)
+  const [imagemPreview,setImagemPreview]= useState<string|null>(null)
 
   const custoN  = parseFloat(custo.replace(',','.'))  || 0
   const varejoN = parseFloat(varejo.replace(',','.')) || 0
@@ -118,6 +120,28 @@ export function FormProduto({ onSuccess, onCancel }: { onSuccess: () => void; on
       }
     }
 
+    }
+
+    let imagem_url = null
+    if (imagemFile) {
+      if (imagemFile.size > 2 * 1024 * 1024) {
+        setErro('A imagem não pode ter mais que 2MB.')
+        setSalvando(false)
+        return
+      }
+      const ext = imagemFile.name.split('.').pop()
+      const path = `${empresaId}/${Date.now()}-${Math.random().toString(36).substring(2)}.${ext}`
+      const supabase = createClient()
+      const { error: upErr } = await supabase.storage.from('produtos').upload(path, imagemFile, { upsert: true })
+      if (upErr) {
+        setErro('Erro no upload da imagem: ' + upErr.message)
+        setSalvando(false)
+        return
+      }
+      const { data: urlData } = supabase.storage.from('produtos').getPublicUrl(path)
+      imagem_url = urlData.publicUrl
+    }
+
     const { error } = await createClient().from('produtos').insert({
       empresa_id:   empresaId,
       nome:         nome.trim(),
@@ -143,6 +167,7 @@ export function FormProduto({ onSuccess, onCancel }: { onSuccess: () => void; on
       tem_garantia: temGarantia,
       dias_garantia:temGarantia ? parseInt(diasGarantia) || null : null,
       texto_garantia:temGarantia ? textoGarantia || null : null,
+      imagem_url:   imagem_url,
       ativo:        true,
     })
     setSalvando(false)
@@ -173,6 +198,37 @@ export function FormProduto({ onSuccess, onCancel }: { onSuccess: () => void; on
       )}
 
       {/* ── Identificação ── */}
+      <SECAO titulo="📸 Imagem do Produto">
+        <div style={{ display:'flex', gap:'1rem', alignItems:'flex-start' }}>
+          <div style={{ width:'100px', height:'100px', border:'1px dashed var(--borda-forte)', borderRadius:'8px', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', background:'var(--surface-alt)', position:'relative' }}>
+            {imagemPreview ? (
+              <>
+                <img src={imagemPreview} alt="Preview" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                <button type="button" onClick={()=>{setImagemFile(null);setImagemPreview(null)}} style={{ position:'absolute', top:'4px', right:'4px', background:'rgba(0,0,0,0.6)', color:'#fff', border:'none', borderRadius:'50%', padding:'4px', cursor:'pointer' }}><X size={12}/></button>
+              </>
+            ) : (
+              <span style={{ fontSize:'2rem', opacity:0.3 }}>📦</span>
+            )}
+          </div>
+          <div style={{ flex:1, display:'flex', flexDirection:'column', gap:'0.5rem' }}>
+            <label className="btn btn-secondary" style={{ alignSelf:'flex-start', cursor:'pointer', padding:'0.5rem 1rem', fontSize:'0.78rem' }}>
+              Selecionar Imagem
+              <input type="file" accept="image/jpeg,image/png,image/webp" style={{ display:'none' }} onChange={e=>{
+                const f = e.target.files?.[0]
+                if (!f) return
+                if (f.size > 2 * 1024 * 1024) { alert('A imagem deve ter no máximo 2MB.'); return }
+                setImagemFile(f)
+                const reader = new FileReader()
+                reader.onload = ev => setImagemPreview(ev.target?.result as string)
+                reader.readAsDataURL(f)
+                e.target.value = ''
+              }}/>
+            </label>
+            <p style={{ fontSize:'0.75rem', color:'var(--texto-desab)' }}>Formatos: JPG, PNG, WEBP. Máx 2MB.<br/>Aparece no catálogo público e pdv.</p>
+          </div>
+        </div>
+      </SECAO>
+
       <SECAO titulo="📦 Identificação">
         <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap:'0.75rem' }}>
           <Campo label="Nome do Produto" required>

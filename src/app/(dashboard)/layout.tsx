@@ -8,6 +8,7 @@ import {
   LayoutDashboard, ShoppingCart, Package, Users, BarChart3,
   Shield, FileBarChart2, Settings, Plus, LogOut, Menu, X
 } from 'lucide-react'
+import { OperadorOnly } from '@/components/OperadorOnly'
 
 /* ─ Itens de navegação por plano ─ */
 
@@ -35,6 +36,7 @@ function Sidebar({
   nomeLoja: string
   inicialUsuario: string
   planoAtivo: string
+  papel: string
 }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -64,6 +66,13 @@ function Sidebar({
     fontFamily: "'Nunito Sans', sans-serif",
     transition: 'background 0.12s, color 0.12s',
   }
+
+  const itensSidebar = (planoAtivo === 'pro'
+    ? [...startItems, ...proItems]
+    : startItems).filter(item => {
+       if (item.href === '/configuracoes' && papel !== 'admin') return false
+       return true
+    })
 
   return (
     <>
@@ -124,29 +133,31 @@ function Sidebar({
         </div>
 
         {/* ── Botão Nova Venda ── */}
-        <div style={{ padding: '0.75rem 0.625rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <Link
-            href="/vendas/nova"
-            onClick={onClose}
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-              width: '100%', padding: '0.6rem',
-              background: 'var(--verde)', color: '#fff',
-              fontWeight: 700, fontSize: '0.82rem', borderRadius: 'var(--r-lg)',
-              textDecoration: 'none', border: 'none',
-              boxShadow: 'var(--sombra-cta)',
-              fontFamily: "'Nunito Sans', sans-serif",
-              transition: 'transform 0.12s',
-            }}
-          >
-            <Plus size={15} />
-            Nova Venda
-          </Link>
-        </div>
+        <OperadorOnly>
+          <div style={{ padding: '0.75rem 0.625rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            <Link
+              href="/vendas/nova"
+              onClick={onClose}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                width: '100%', padding: '0.6rem',
+                background: 'var(--verde)', color: '#fff',
+                fontWeight: 700, fontSize: '0.82rem', borderRadius: 'var(--r-lg)',
+                textDecoration: 'none', border: 'none',
+                boxShadow: 'var(--sombra-cta)',
+                fontFamily: "'Nunito Sans', sans-serif",
+                transition: 'transform 0.12s',
+              }}
+            >
+              <Plus size={15} />
+              Nova Venda
+            </Link>
+          </div>
+        </OperadorOnly>
 
         {/* ── Nav Items ── */}
         <nav style={{ flex: 1, overflowY: 'auto', padding: '0.375rem 0' }}>
-          {[...startItems, ...(planoAtivo === 'pro' ? proItems : [])].map(item => {
+          {itensSidebar.map(item => {
             const active = isActive(item.href)
             const Icon = item.icon
             return (
@@ -209,7 +220,7 @@ function Sidebar({
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
-  const [headerInfo, setHeaderInfo] = useState({ inicial: 'U', nomeLoja: 'Carregando...', plano: 'start' })
+  const [headerInfo, setHeaderInfo] = useState({ inicial: 'U', nomeLoja: 'Carregando...', plano: 'start', papel: '' })
   const router = useRouter()
 
   useEffect(() => { setIsMounted(true) }, [])
@@ -222,13 +233,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       if (!user) return
       userId = user.id
 
-      const { data: profile } = await supabase.from('profiles').select('nome, empresa_id').eq('id', userId).single()
+      const { data: profile } = await supabase.from('profiles').select('nome, empresa_id, papel').eq('id', userId).single()
       if (profile?.empresa_id) {
         const { data: empresa } = await supabase.from('empresas').select('nome, plano').eq('id', profile.empresa_id).single()
         setHeaderInfo({
           inicial: (profile.nome || user.email || 'U').charAt(0).toUpperCase(),
           nomeLoja: empresa?.nome || 'Minha Loja',
           plano: empresa?.plano || 'start',
+          papel: profile.papel || '',
         })
       }
 
@@ -278,6 +290,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         nomeLoja={headerInfo.nomeLoja}
         inicialUsuario={headerInfo.inicial}
         planoAtivo={headerInfo.plano}
+        papel={headerInfo.papel}
       />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>

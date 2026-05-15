@@ -116,11 +116,11 @@ Se DELETE do profile:
 
 | Papel | Quem é | Permissões |
 |---|---|---|
-| `admin` | Dono da loja / gestor | Tudo: CRUD completo, convidar usuários, ver financeiro |
-| `operador` | Funcionário do caixa | PDV, estoque, clientes, garantias, OS |
-| `visualizador` | Contador / sócio passivo | Apenas visualização |
+| `admin` | Dono da loja / gestor | Tudo: CRUD completo, convidar usuários, ver financeiro, configurações |
+| `operador` | Funcionário do caixa | PDV, estoque, clientes, garantias, OS, acionar fornecedor |
+| `visualizador` | Contador / sócio passivo | Apenas visualização de dashboards e registros, sem botões de ação |
 
-> **Nota**: A diferenciação de papel (admin/operador/visualizador) está modelada no banco mas ainda não totalmente implementada nas permissões de UI. Atualmente o controle principal é pelo **plano** (Start/Pro).
+> **Nota**: O sistema possui Role-Based Access Control (RBAC) estruturado com componentes `<AdminOnly>` e `<OperadorOnly>`. A API, Sidebars e layouts verificam automaticamente a role do usuário no banco (`profiles.papel`).
 
 ### Controle de Acesso por Plano
 
@@ -334,6 +334,9 @@ rewrites: [
 - ✅ `database.sql` único e completo criado
 - ✅ Vídeo Hero restaurado (foi removido por engano)
 - ✅ Documentação viva criada (esta estrutura)
+- ✅ Role-Based Access Control (RBAC) implementado (`<AdminOnly>`, `<OperadorOnly>`, `usePapel`)
+- ✅ Relatórios avançados (DRE, Top Produtos, Formas de Pagamento, etc.)
+- ✅ Exportação de Relatórios para CSV e visualização para Impressão
 
 ---
 
@@ -352,8 +355,7 @@ rewrites: [
 - Segregação Start/Pro no sidebar e conteúdo
 
 ### 🚧 Em Andamento
-- Envio real de email de convite (atualmente apenas cria o token)
-- Página de relatórios completa
+- Envio real de email de convite (com integração ativa do Supabase Auth e resend, ou SMTP nativo)
 
 ### 📋 Planejado
 - Integração com gateway de pagamento (Stripe ou AbacatePay) para cobrar assinaturas automaticamente
@@ -366,7 +368,6 @@ rewrites: [
 - Dashboard do comissionado (link externo sem login)
 
 ### 🔒 Pendências Técnicas
-- Implementar controle de acesso por `papel` (admin/operador/visualizador) nas telas, além do plano
 - Rate limiting nas APIs (Supabase handles some, mas middleware pode reforçar)
 - Auditoria de ações críticas (cancelamentos, exclusões)
 - Testes automatizados (E2E com Playwright)

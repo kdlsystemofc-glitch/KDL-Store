@@ -333,17 +333,19 @@ A sidebar é renderizada no `(dashboard)/layout.tsx` e **filtrada por plano**:
 
 ## 3.10 MÓDULO: Relatórios (`/relatorios`) [PRO]
 
-**Objetivo**: Relatórios analíticos da loja.
+**Objetivo**: Relatórios analíticos profundos da loja.
 
 **Acesso**: Exclusivo Pro
 
-### Conteúdo
-- Vendas por período com gráfico
-- Produtos mais vendidos
-- Formas de pagamento
-- Desempenho por dia da semana
-- Relatório de despesas por categoria
-- Exportação (CSV/impressão)
+### Funcionalidades e Seções
+- **Seletor de Período**: Essa semana, Esse mês, Mês anterior, Esse ano, Personalizado.
+- **Resumo Financeiro (DRE Estimado)**: Faturamento bruto, Descontos, Total de Despesas, Lucro Estimado.
+- **Formas de Pagamento**: Tabela com Qtd, Valor e % do total.
+- **Produtos Mais Vendidos**: Top 10 com Qtd, Receita gerada e %.
+- **Desempenho por Dia da Semana**: Gráfico de barras indicando os dias com maior faturamento.
+- **Melhores Clientes**: Top 5 clientes por compras, com data da última compra.
+- **Comissões do Período**: Tabela agrupando o valor a pagar por comissionado, baseada nas vendas.
+- **Botões de Ação**: Exportação de dados em CSV e visualização para Impressão (com formatação limpa).
 
 ---
 
@@ -351,7 +353,7 @@ A sidebar é renderizada no `(dashboard)/layout.tsx` e **filtrada por plano**:
 
 **Objetivo**: Personalizar a loja e gerenciar usuários.
 
-**Acesso**: Start + Pro
+**Acesso**: Start + Pro (Protegido inteiramente via `<AdminOnly>`. Operadores e Visualizadores não acessam)
 
 ### Sub-páginas
 | Página | Rota | Conteúdo |

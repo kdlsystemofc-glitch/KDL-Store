@@ -14,7 +14,7 @@ type Produto = {
   preco_custo:number|null; preco_varejo:number; preco_atacado:number|null; preco_vip:number|null; preco_minimo:number|null
   qtd_atual:number; qtd_minima:number; qtd_maxima:number|null; qtd_min_atacado:number|null; localizacao:string|null
   pode_ser_brinde:boolean; tem_serie:boolean; ativo_catalogo:boolean; destaque:boolean
-  tem_garantia:boolean; dias_garantia:number|null; texto_garantia:string|null; ativo:boolean
+  tem_garantia:boolean; dias_garantia:number|null; texto_garantia:string|null; ativo:boolean; imagem_url:string|null
 }
 
 const SECAO = ({ titulo, children }: { titulo: string; children: React.ReactNode }) => (
@@ -44,6 +44,8 @@ export default function EditarProdutoPage() {
   const [loading,    setLoading]    = useState(true)
   const [salvando,   setSalvando]   = useState(false)
   const [erro,       setErro]       = useState<string|null>(null)
+  const [imagemFile, setImagemFile] = useState<File|null>(null)
+  const [imagemPreview, setImagemPreview] = useState<string|null>(null)
 
   useEffect(() => {
     if (id && empresaId) carregar(id, empresaId)
@@ -60,6 +62,7 @@ export default function EditarProdutoPage() {
     const { data: cats }        = getRes(1)
     if (error || !prod) { setErro('Produto não encontrado.'); setLoading(false); return }
     setProduto(prod)
+    if (prod.imagem_url) setImagemPreview(prod.imagem_url)
     setCategorias(cats || [])
     setLoading(false)
   }
@@ -70,6 +73,31 @@ export default function EditarProdutoPage() {
     if (!produto.nome.trim()) { setErro('O nome é obrigatório.'); return }
     if (produto.preco_varejo <= 0) { setErro('Informe o preço de venda (varejo).'); return }
     setSalvando(true)
+
+    let final_imagem_url = produto.imagem_url || null
+    if (imagemFile) {
+      if (imagemFile.size > 2 * 1024 * 1024) { setErro('A imagem não pode ter mais que 2MB.'); setSalvando(false); return }
+      const ext = imagemFile.name.split('.').pop()
+      const path = `${empresaId}/${Date.now()}-${Math.random().toString(36).substring(2)}.${ext}`
+      const supabase = createClient()
+      const { error: upErr } = await supabase.storage.from('produtos').upload(path, imagemFile, { upsert: true })
+      if (upErr) { setErro('Erro no upload: ' + upErr.message); setSalvando(false); return }
+      const { data: urlData } = supabase.storage.from('produtos').getPublicUrl(path)
+      final_imagem_url = urlData.publicUrl
+      
+      if (produto.imagem_url && produto.imagem_url.includes('produtos/')) {
+        const oldPath = produto.imagem_url.split('/produtos/')[1]
+        if (oldPath) await supabase.storage.from('produtos').remove([oldPath])
+      }
+    } else if (imagemPreview === null && produto.imagem_url) {
+      final_imagem_url = null
+      const supabase = createClient()
+      if (produto.imagem_url.includes('produtos/')) {
+        const oldPath = produto.imagem_url.split('/produtos/')[1]
+        if (oldPath) await supabase.storage.from('produtos').remove([oldPath])
+      }
+    }
+
     const { error } = await createClient().from('produtos').update({
       nome: produto.nome.trim(),
       sku: produto.sku || null,
@@ -92,6 +120,7 @@ export default function EditarProdutoPage() {
       tem_garantia: produto.tem_garantia,
       dias_garantia: produto.tem_garantia ? produto.dias_garantia || null : null,
       texto_garantia: produto.tem_garantia ? produto.texto_garantia || null : null,
+      imagem_url: final_imagem_url,
       ativo: produto.ativo,
     }).eq('id', id)
     setSalvando(false)
@@ -167,6 +196,37 @@ export default function EditarProdutoPage() {
       )}
 
       <div className="card" style={{ display:'flex', flexDirection:'column', gap:'1.25rem' }}>
+
+        <SECAO titulo="📸 Imagem do Produto">
+          <div style={{ display:'flex', gap:'1rem', alignItems:'flex-start' }}>
+            <div style={{ width:'100px', height:'100px', border:'1px dashed var(--borda-forte)', borderRadius:'8px', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', background:'var(--surface-alt)', position:'relative' }}>
+              {imagemPreview ? (
+                <>
+                  <img src={imagemPreview} alt="Preview" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                  <button type="button" onClick={()=>{setImagemFile(null);setImagemPreview(null)}} style={{ position:'absolute', top:'4px', right:'4px', background:'rgba(0,0,0,0.6)', color:'#fff', border:'none', borderRadius:'50%', padding:'4px', cursor:'pointer' }}><X size={12}/></button>
+                </>
+              ) : (
+                <span style={{ fontSize:'2rem', opacity:0.3 }}>📦</span>
+              )}
+            </div>
+            <div style={{ flex:1, display:'flex', flexDirection:'column', gap:'0.5rem' }}>
+              <label className="btn btn-secondary" style={{ alignSelf:'flex-start', cursor:'pointer', padding:'0.5rem 1rem', fontSize:'0.78rem' }}>
+                Selecionar Imagem
+                <input type="file" accept="image/jpeg,image/png,image/webp" style={{ display:'none' }} onChange={e=>{
+                  const f = e.target.files?.[0]
+                  if (!f) return
+                  if (f.size > 2 * 1024 * 1024) { alert('A imagem deve ter no máximo 2MB.'); return }
+                  setImagemFile(f)
+                  const reader = new FileReader()
+                  reader.onload = ev => setImagemPreview(ev.target?.result as string)
+                  reader.readAsDataURL(f)
+                  e.target.value = ''
+                }}/>
+              </label>
+              <p style={{ fontSize:'0.75rem', color:'var(--texto-desab)' }}>Formatos: JPG, PNG, WEBP. Máx 2MB.<br/>Aparece no catálogo público e pdv.</p>
+            </div>
+          </div>
+        </SECAO>
 
         {/* ── Identificação ── */}
         <SECAO titulo="📦 Identificação">

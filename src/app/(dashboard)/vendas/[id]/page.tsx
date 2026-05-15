@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
 import { ArrowLeft, Printer, X, Loader2, Package, Wrench } from 'lucide-react'
+import { AdminOnly } from '@/components/AdminOnly'
+import { OperadorOnly } from '@/components/OperadorOnly'
 
 type Venda    = { id:string; numero:number; cliente_nome:string|null; forma_pagamento:string; subtotal:number; desconto:number; total:number; status:string; criado_em:string; motivo_cancelamento?:string }
 type Item     = { id:string; produto_id:string; produto_nome:string; quantidade:number; preco_unitario:number; brinde:boolean; num_serie:string|null }
@@ -315,20 +317,24 @@ export default function VendaReciboPage() {
       )}
 
       {/* Botões de ação pós-venda */}
-      <div style={{display:'flex',gap:'0.5rem',flexWrap:'wrap'}}>
-        <button onClick={abrirModalForn} disabled={venda.status === 'cancelada'} className="btn btn-secondary" style={{display:'flex',alignItems:'center',gap:'0.375rem',fontSize:'0.82rem'}}>
-          <Package size={14}/> Acionar Fornecedor
-        </button>
-        <button onClick={()=>{setShowOS(true);setOsEquip(itens.filter(i=>!i.brinde)[0]?.produto_nome||'')}} disabled={venda.status === 'cancelada'} className="btn btn-secondary"
-          style={{display:'flex',alignItems:'center',gap:'0.375rem',fontSize:'0.82rem'}}>
-          <Wrench size={14}/> Abrir Ordem de Serviço
-        </button>
-        {venda.status === 'concluida' && (
-          <button onClick={() => setShowCanc(true)} className="btn btn-secondary" style={{display:'flex',alignItems:'center',gap:'0.375rem',fontSize:'0.82rem',color:'var(--vermelho)'}}>
-            <X size={14}/> Cancelar Venda
+      <OperadorOnly>
+        <div style={{display:'flex',gap:'0.5rem',flexWrap:'wrap'}}>
+          <button onClick={abrirModalForn} disabled={venda.status === 'cancelada'} className="btn btn-secondary" style={{display:'flex',alignItems:'center',gap:'0.375rem',fontSize:'0.82rem'}}>
+            <Package size={14}/> Acionar Fornecedor
           </button>
-        )}
-      </div>
+          <button onClick={()=>{setShowOS(true);setOsEquip(itens.filter(i=>!i.brinde)[0]?.produto_nome||'')}} disabled={venda.status === 'cancelada'} className="btn btn-secondary"
+            style={{display:'flex',alignItems:'center',gap:'0.375rem',fontSize:'0.82rem'}}>
+            <Wrench size={14}/> Abrir Ordem de Serviço
+          </button>
+          <AdminOnly>
+            {venda.status === 'concluida' && (
+              <button onClick={() => setShowCanc(true)} className="btn btn-secondary" style={{display:'flex',alignItems:'center',gap:'0.375rem',fontSize:'0.82rem',color:'var(--vermelho)'}}>
+                <X size={14}/> Cancelar Venda
+              </button>
+            )}
+          </AdminOnly>
+        </div>
+      </OperadorOnly>
 
       <div className="card" style={{padding:0,overflow:'hidden'}}>
         <div style={{padding:'1.25rem',textAlign:'center',borderBottom:'2px dashed var(--borda)'}}>

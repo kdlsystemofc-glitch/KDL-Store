@@ -6,6 +6,7 @@ import { useEmpresaId } from '@/lib/useEmpresaId'
 import { Plus, Search, Loader2, X } from 'lucide-react'
 import { PageTabs } from '@/components/PageTabs'
 import { FormCliente } from '@/components/FormCliente'
+import { useSubscription } from '@/hooks/useSubscription'
 
 type Cliente = {
   id: string; nome: string; telefone: string | null; tipo: string
@@ -14,6 +15,7 @@ type Cliente = {
 
 export default function ClientesPage() {
   const { empresaId } = useEmpresaId()
+  const { plano } = useSubscription()
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [busca,    setBusca]    = useState('')
   const [loading,  setLoading]  = useState(true)
@@ -77,7 +79,7 @@ export default function ClientesPage() {
 
       <PageTabs tabs={[
         { label: 'Todos os Clientes', href: '/clientes' },
-        { label: 'Sumidos ⚠', href: '/clientes/inativos' },
+        ...(plano === 'pro' ? [{ label: 'Sumidos ⚠', href: '/clientes/inativos' }] : []),
         { label: 'Fornecedores', href: '/fornecedores' }
       ]} />
 

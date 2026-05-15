@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
 import { Search, Loader2 } from 'lucide-react'
+import { OperadorOnly } from '@/components/OperadorOnly'
 
 type Venda = {
   id: string; numero: number; cliente_nome: string | null
@@ -55,7 +56,9 @@ export default function VendasPage() {
           <h1 className="pg-titulo">HISTÓRICO DE VENDAS</h1>
           <p className="pg-sub">HOJE: {vendasHoje.length} VENDAS · {formatCurrency(faturamentoHoje)}</p>
         </div>
-        <Link href="/vendas/nova" className="btn btn-primary">▶ NOVA VENDA</Link>
+        <OperadorOnly>
+          <Link href="/vendas/nova" className="btn btn-primary">▶ NOVA VENDA</Link>
+        </OperadorOnly>
       </div>
 
       {/* KPIs rápidos */}
@@ -100,7 +103,9 @@ export default function VendasPage() {
           ) : (
             <div>
               <p style={{fontSize:'0.7rem',color:'var(--borda-forte)',letterSpacing:'0.1em',fontWeight:700,marginBottom:'0.5rem'}}>[ NENHUMA VENDA REGISTRADA ]</p>
-              <Link href="/vendas/nova" className="btn btn-primary">▶ REGISTRAR VENDA</Link>
+              <OperadorOnly>
+                <Link href="/vendas/nova" className="btn btn-primary">▶ REGISTRAR VENDA</Link>
+              </OperadorOnly>
             </div>
           )}
         </div>

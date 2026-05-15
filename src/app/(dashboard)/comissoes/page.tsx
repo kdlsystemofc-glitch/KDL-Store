@@ -5,7 +5,7 @@ import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
 import { Plus, Loader2, Trash2, X, Save } from 'lucide-react'
 import { PageTabs } from '@/components/PageTabs'
-import { ProOnly } from '@/components/ProOnly'
+
 
 type Comissao = { id:string; nome:string; telefone:string|null; tipo:string; taxa:number; status:string; criado_em:string }
 type VendaComissao = {
@@ -172,7 +172,7 @@ export default function ComissoesPage() {
         { label: 'Comissões', href: '/comissoes' }
       ]} />
 
-      <ProOnly>
+
         {/* Sub-abas da página */}
         <div style={{display:'flex',gap:'0.25rem'}}>
           {([['cadastro','COMISSIONADOS'],['por-venda','POR VENDA']] as const).map(([v,l])=>(
@@ -316,7 +316,7 @@ export default function ComissoesPage() {
             )}
           </>
         )}
-      </ProOnly>
+
     </div>
   )
 }

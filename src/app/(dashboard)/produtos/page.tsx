@@ -10,7 +10,7 @@ import { FormProduto } from '@/components/FormProduto'
 
 type Produto = {
   id: string; nome: string; sku: string | null; categoria: string | null
-  preco_varejo: number; preco_custo: number; qtd_atual: number; qtd_minima: number; ativo: boolean
+  preco_varejo: number; preco_custo: number; qtd_atual: number; qtd_minima: number; ativo: boolean; imagem_url: string | null
 }
 
 export default function ProdutosPage() {
@@ -28,7 +28,7 @@ export default function ProdutosPage() {
     setErro(null)
     const { data, error } = await createClient()
       .from('produtos')
-      .select('id,nome,sku,categoria,preco_varejo,preco_custo,qtd_atual,qtd_minima,ativo')
+      .select('id,nome,sku,categoria,preco_varejo,preco_custo,qtd_atual,qtd_minima,ativo,imagem_url')
       .eq('empresa_id', eid)
       .order('nome')
     if (error) { setErro('Erro ao carregar produtos.'); setLoading(false); return }
@@ -151,7 +151,18 @@ export default function ProdutosPage() {
                 const critico = p.qtd_atual <= p.qtd_minima && p.qtd_minima > 0
                 return (
                   <tr key={p.id}>
-                    <td style={{ fontWeight:700, maxWidth:'200px' }}>{p.nome}</td>
+                    <td style={{ fontWeight:700, maxWidth:'240px' }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:'0.75rem' }}>
+                        <div style={{ width:'40px', height:'40px', flexShrink:0, background:'var(--surface-alt)', border:'1px solid var(--borda)', borderRadius:'4px', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                          {p.imagem_url ? (
+                            <img src={p.imagem_url} alt={p.nome} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                          ) : (
+                            <span style={{ fontSize:'1.25rem', opacity:0.3 }}>📦</span>
+                          )}
+                        </div>
+                        <span style={{ overflow:'hidden', textOverflow:'ellipsis', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' }}>{p.nome}</span>
+                      </div>
+                    </td>
                     <td style={{ color:'var(--texto-mono)', fontSize:'0.75rem', letterSpacing:'0.04em' }}>{p.sku || '—'}</td>
                     <td style={{ fontSize:'0.75rem', color:'var(--texto-sec)' }}>{p.categoria || '—'}</td>
                     <td style={{ textAlign:'right', fontSize:'0.78rem', color:'var(--texto-sec)', fontVariantNumeric:'tabular-nums' }}>{formatCurrency(p.preco_custo)}</td>

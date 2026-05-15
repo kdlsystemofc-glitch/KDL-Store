@@ -5,7 +5,7 @@ import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
 import { Loader2 } from 'lucide-react'
 import { PageTabs } from '@/components/PageTabs'
-import { ProOnly } from '@/components/ProOnly'
+
 
 type ClienteInativo = {
   id: string; nome: string; telefone: string|null; ultima_compra: string|null
@@ -100,7 +100,7 @@ export default function ClientesInativosPage() {
         { label: 'Fornecedores', href: '/fornecedores' }
       ]} />
 
-      <ProOnly>
+
         <div className="alerta alerta-info">
           <span>💡</span>
           <span>Recuperar um cliente antigo custa <strong>5x menos</strong> que conquistar um novo. Mande uma mensagem agora.</span>
@@ -200,7 +200,7 @@ export default function ClientesInativosPage() {
             </div>
           </>
         )}
-      </ProOnly>
+
     </div>
   )
 }

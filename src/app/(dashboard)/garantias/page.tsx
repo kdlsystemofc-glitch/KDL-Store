@@ -5,11 +5,13 @@ import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
 import { Search, Loader2, Printer, X } from 'lucide-react'
 import { PageTabs } from '@/components/PageTabs'
+import { useSubscription } from '@/hooks/useSubscription'
 
 type Garantia = { id:string; produto_nome:string; num_serie:string|null; cliente_nome:string|null; cliente_tel:string|null; data_compra:string; data_vencimento:string; status:string; texto_garantia:string|null }
 
 export default function GarantiasPage() {
   const { empresaId } = useEmpresaId()
+  const { plano } = useSubscription()
   const [garantias, setGarantias] = useState<Garantia[]>([])
   const [busca,     setBusca]     = useState('')
   const [filtro,    setFiltro]    = useState<'todas'|'ativas'|'vencidas'>('todas')
@@ -101,7 +103,7 @@ export default function GarantiasPage() {
       <PageTabs tabs={[
         { label: 'Garantias', href: '/garantias' },
         { label: 'Ordens de Serviço', href: '/ordens-de-servico' },
-        { label: 'Comissões', href: '/comissoes' }
+        ...(plano === 'pro' ? [{ label: 'Comissões', href: '/comissoes' }] : [])
       ]} />
 
       {/* Modal Devolução */}

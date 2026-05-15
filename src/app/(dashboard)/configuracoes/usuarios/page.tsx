@@ -52,15 +52,34 @@ export default function UsuariosPage() {
   async function criarConvite() {
     if (!cEmail.trim() || !empresaId) return
     setCriando(true)
-    const { data, error } = await createClient()
-      .from('convites')
-      .insert({ empresa_id: empresaId, email: cEmail.trim().toLowerCase(), nome: cNome.trim() || null, papel: cPapel })
-      .select('id,email,nome,papel,status,token,expira_em')
-      .single()
-    setCriando(false)
-    if (error || !data) return
-    setConvites(prev => [data, ...prev])
-    setModal(false); setCNome(''); setCEmail(''); setCPapel('vendedor')
+    
+    try {
+      const res = await fetch('/api/convite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: cEmail.trim(),
+          nome: cNome.trim(),
+          papel: cPapel,
+          empresaId
+        })
+      })
+      
+      const json = await res.json()
+      setCriando(false)
+      
+      if (!res.ok) {
+        alert(json.error || 'Erro ao enviar convite')
+        return
+      }
+      
+      setConvites(prev => [json.convite, ...prev])
+      setModal(false); setCNome(''); setCEmail(''); setCPapel('vendedor')
+      alert('Convite gerado e e-mail enviado com sucesso!')
+    } catch (err: any) {
+      setCriando(false)
+      alert('Erro de conexão ao convidar: ' + err.message)
+    }
   }
 
   async function alterarPapel(uid: string, papel: string) {
