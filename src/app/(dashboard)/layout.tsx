@@ -29,7 +29,7 @@ const proItems = [
 ]
 
 function Sidebar({
-  isOpen, onClose, nomeLoja, inicialUsuario, planoAtivo
+  isOpen, onClose, nomeLoja, inicialUsuario, planoAtivo, papel
 }: {
   isOpen: boolean
   onClose: () => void

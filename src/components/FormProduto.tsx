@@ -120,8 +120,6 @@ export function FormProduto({ onSuccess, onCancel }: { onSuccess: () => void; on
       }
     }
 
-    }
-
     let imagem_url = null
     if (imagemFile) {
       if (imagemFile.size > 2 * 1024 * 1024) {

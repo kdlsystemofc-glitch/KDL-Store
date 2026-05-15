@@ -7,12 +7,17 @@ import Image from 'next/image'
 // Forçamos a revalidação constante ou podemos deixar dinâmico
 export const revalidate = 60 // 1 min cache
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
+function getAdminClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) return null
+  return createClient(url, key)
+}
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const resolvedParams = await params
+  const supabaseAdmin = getAdminClient()
+  if (!supabaseAdmin) return { title: 'Loja não encontrada' }
   const { data: empresa } = await supabaseAdmin.from('empresas').select('nome').eq('slug', resolvedParams.slug).single()
   return {
     title: empresa ? `Catálogo - ${empresa.nome}` : 'Loja não encontrada',
@@ -25,6 +30,9 @@ export default async function LojaPublicaPage({ params }: { params: Promise<{ sl
   const { slug } = resolvedParams
 
   if (!slug) return notFound()
+
+  const supabaseAdmin = getAdminClient()
+  if (!supabaseAdmin) return notFound()
 
   // Busca a empresa
   const { data: empresa } = await supabaseAdmin

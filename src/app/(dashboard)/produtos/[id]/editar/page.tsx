@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/utils'
 import { useEmpresaId } from '@/lib/useEmpresaId'
-import { ArrowLeft, Save, Loader2, Trash2 } from 'lucide-react'
+import { ArrowLeft, Save, Loader2, Trash2, X } from 'lucide-react'
 
 type Categoria = { id: string; nome: string }
 
