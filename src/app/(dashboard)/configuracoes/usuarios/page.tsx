@@ -1,4 +1,5 @@
 'use client'
+import { toast } from 'react-hot-toast'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -69,16 +70,16 @@ export default function UsuariosPage() {
       setCriando(false)
       
       if (!res.ok) {
-        alert(json.error || 'Erro ao enviar convite')
+        toast.error(json.error || 'Erro ao enviar convite')
         return
       }
       
       setConvites(prev => [json.convite, ...prev])
       setModal(false); setCNome(''); setCEmail(''); setCPapel('vendedor')
-      alert('Convite gerado e e-mail enviado com sucesso!')
+      toast.success('Convite gerado e e-mail enviado com sucesso!')
     } catch (err: any) {
       setCriando(false)
-      alert('Erro de conexão ao convidar: ' + err.message)
+      toast.error('Erro de conexão ao convidar: ' + err.message)
     }
   }
 

@@ -11,7 +11,7 @@ export function useEmpresaId() {
       setEmpresaId(id)
       setLoading(false)
     }).catch((err) => {
-      console.error('Erro no garantirEmpresa:', err)
+      if (process.env.NODE_ENV !== 'production') console.error('Erro no garantirEmpresa:', err)
       setEmpresaId(null)
       setLoading(false)
     })

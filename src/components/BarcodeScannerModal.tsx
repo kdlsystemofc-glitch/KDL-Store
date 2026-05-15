@@ -33,7 +33,7 @@ export function BarcodeScannerModal({ onScan, onClose }: { onScan: (code: string
             reader.reset()
           }
           if (err && !(err instanceof NotFoundException)) {
-            console.error(err)
+            if (process.env.NODE_ENV !== 'production') console.error(err)
           }
         })
       } catch (err: any) {

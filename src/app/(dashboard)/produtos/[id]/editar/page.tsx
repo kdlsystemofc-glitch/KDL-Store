@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { toast } from 'react-hot-toast'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -215,7 +216,7 @@ export default function EditarProdutoPage() {
                 <input type="file" accept="image/jpeg,image/png,image/webp" style={{ display:'none' }} onChange={e=>{
                   const f = e.target.files?.[0]
                   if (!f) return
-                  if (f.size > 2 * 1024 * 1024) { alert('A imagem deve ter no máximo 2MB.'); return }
+                  if (f.size > 2 * 1024 * 1024) { toast.error('A imagem deve ter no máximo 2MB.'); return }
                   setImagemFile(f)
                   const reader = new FileReader()
                   reader.onload = ev => setImagemPreview(ev.target?.result as string)

@@ -140,7 +140,7 @@ export default function NovaPdvPage() {
       .single()
     if (eVenda || !venda) { setErro('Erro ao salvar venda: '+(eVenda?.message||'')); setSalvando(false); return }
 
-    // 2. Inserir itens + atualizar estoque
+    // 2. Inserir itens (o banco possui trigger para baixar estoque)
     const itensInsert = itens.map(i => ({
       venda_id:       venda.id,
       empresa_id:     empresaId,
@@ -151,17 +151,25 @@ export default function NovaPdvPage() {
       brinde:         i.brinde,
       num_serie:      i.serie || null,
     }))
-    await supabase.from('itens_venda').insert(itensInsert)
+    
+    const { error: eItens } = await supabase.from('itens_venda').insert(itensInsert)
+    if (eItens) {
+      // Rollback: exclui a venda já criada
+      await supabase.from('vendas').delete().eq('id', venda.id)
+      setErro('Erro ao salvar os itens da venda. Tente novamente.')
+      setSalvando(false)
+      return
+    }
 
-    // 3. Descontar estoque
+    // 3. Registrar movimentação de estoque no histórico
     for (const i of itens) {
-      const novaQtd = Math.max(0, i.produto.qtd_atual - i.qty)
-      await supabase.from('produtos').update({ qtd_atual: novaQtd }).eq('id', i.produto.id)
       await supabase.from('estoque_movimentacoes').insert({
         empresa_id: empresaId, produto_id: i.produto.id,
         tipo: i.brinde ? 'brinde' : 'venda', quantidade: -i.qty,
         obs: `Venda #${venda.numero}`,
       })
+      // NOTA: A tabela 'produtos' é atualizada automaticamente no servidor 
+      // pela trigger `trg_estoque_venda` (evitando race conditions).
     }
 
     // 4. Fiado

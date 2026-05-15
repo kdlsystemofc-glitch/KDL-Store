@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { toast } from 'react-hot-toast'
 import { Save, Loader2, Plus, X, Camera, RefreshCw } from 'lucide-react'
 import { BarcodeScannerModal, useHasCamera } from '@/components/BarcodeScannerModal'
 import { generateSKU } from '@/lib/utils'
@@ -95,7 +96,7 @@ export function FormProduto({ onSuccess, onCancel }: { onSuccess: () => void; on
       setShowNovaCat(false)
       setNovaCatNome('')
     } else {
-      alert('Erro ao criar categoria: ' + (error?.message || ''))
+      toast.error('Erro ao criar categoria: ' + (error?.message || ''))
     }
   }
 
@@ -214,7 +215,7 @@ export function FormProduto({ onSuccess, onCancel }: { onSuccess: () => void; on
               <input type="file" accept="image/jpeg,image/png,image/webp" style={{ display:'none' }} onChange={e=>{
                 const f = e.target.files?.[0]
                 if (!f) return
-                if (f.size > 2 * 1024 * 1024) { alert('A imagem deve ter no máximo 2MB.'); return }
+                if (f.size > 2 * 1024 * 1024) { toast.error('A imagem deve ter no máximo 2MB.'); return }
                 setImagemFile(f)
                 const reader = new FileReader()
                 reader.onload = ev => setImagemPreview(ev.target?.result as string)

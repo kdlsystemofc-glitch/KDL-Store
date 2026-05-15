@@ -1,4 +1,5 @@
 'use client'
+import { toast } from 'react-hot-toast'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -34,7 +35,7 @@ export default function ConfiguracoesPage() {
     await createClient().from('empresas').update({ crm_prazo_inatividade_dias: val }).eq('id', empresaId)
     setPrazoCrm(val)
     setSalvandoCrm(false)
-    alert('Configurações salvas!')
+    toast.success('Configurações salvas!')
   }
 
   function confirmarAcao(msg: string, cb: ()=>void) {
@@ -123,21 +124,7 @@ export default function ConfiguracoesPage() {
         </div>
       </div>
 
-      {/* Zona de perigo */}
-      <div className="card" style={{ border: '1px solid var(--vermelho)', padding:0, overflow:'hidden' }}>
-        <div style={{padding:'0.5rem 0.875rem',borderBottom:'1px solid var(--vermelho)',background:'rgba(220,38,38,0.06)'}}>
-          <p style={{ fontWeight: 800, color: 'var(--vermelho)', fontSize:'0.72rem', letterSpacing:'0.08em' }}>!! ZONA DE PERIGO !!</p>
-        </div>
-        <div style={{padding:'0.75rem'}}>
-          <p style={{ fontSize: '0.72rem', color: 'var(--texto-desab)', marginBottom: '0.75rem', letterSpacing:'0.03em' }}>AÇÕES IRREVERSÍVEIS. TOME CUIDADO.</p>
-          <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
-            <button className="btn btn-danger" style={{fontSize:'0.72rem'}}
-              onClick={()=>confirmarAcao('Limpar todos os dados de teste?', ()=>alert('Dados limpos!'))}>DEL DADOS DE TESTE</button>
-            <button className="btn btn-danger" style={{fontSize:'0.72rem'}}
-              onClick={()=>confirmarAcao('Encerrar sua conta permanentemente?', ()=>alert('Conta encerrada.'))}>ENCERRAR CONTA</button>
-          </div>
-        </div>
-      </div>
+    // Zona de perigo removida (recurso em desenvolvimento)
 
       <p style={{ fontSize: '0.65rem', color: 'var(--texto-desab)', textAlign: 'center', marginTop: '0.5rem', letterSpacing:'0.06em' }}>
         NEXOCOMMERCE v1.2.0 · FEITO PARA O PEQUENO COMÉRCIO BRASILEIRO

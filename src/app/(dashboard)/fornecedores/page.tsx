@@ -1,4 +1,5 @@
 'use client'
+import { toast } from 'react-hot-toast'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
@@ -108,7 +109,7 @@ export default function FornecedoresPage() {
               <button onClick={()=>setShowModal(false)} className="btn-icon"><X size={16}/></button>
             </div>
             <div style={{ padding:'1rem' }}>
-              <FormFornecedor onSuccess={() => { alert('Salvo com sucesso!'); setShowModal(false); if (empresaId) carregar(empresaId) }} onCancel={() => setShowModal(false)} />
+              <FormFornecedor onSuccess={() => { toast.success('Salvo com sucesso!'); setShowModal(false); if (empresaId) carregar(empresaId) }} onCancel={() => setShowModal(false)} />
             </div>
           </div>
         </div>
