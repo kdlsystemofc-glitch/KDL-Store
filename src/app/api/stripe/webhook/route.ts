@@ -124,6 +124,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ received: true })
   } catch (err: any) {
     console.error('Erro processando webhook:', err)
-    return NextResponse.json({ error: 'Erro interno no webhook' }, { status: 500 })
+    return NextResponse.json({ error: err.message || 'Erro interno no webhook' }, { status: 500 })
   }
 }
