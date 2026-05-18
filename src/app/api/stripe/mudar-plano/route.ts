@@ -65,19 +65,26 @@ export async function POST(request: Request) {
       quantity: i.quantity || 1
     }))
 
-    // Garante que o timestamp de término é um inteiro numérico válido
-    const periodEnd = parseInt(stripeSub.current_period_end as string, 10)
+    const periodEnd = stripeSub.current_period_end ? Number(stripeSub.current_period_end) : null
+
+    const phase0: any = {
+      start_date: currentPhase.start_date,
+      items: currentItems,
+    }
+
+    if (periodEnd && !isNaN(periodEnd)) {
+      phase0.end_date = periodEnd
+    } else {
+      // Fallback robusto se o Stripe não enviar o current_period_end
+      phase0.iterations = 1
+    }
 
     // Atualiza o schedule:
     // 1. A fase atual continua exatamente como está até o final do período (current_period_end)
     // 2. Cria uma nova fase após o período atual usando o novo preço
     await stripe.subscriptionSchedules.update(scheduleId, {
       phases: [
-        {
-          start_date: currentPhase.start_date,
-          end_date: periodEnd,
-          items: currentItems,
-        },
+        phase0,
         {
           items: [{ price: priceId, quantity: 1 }],
           proration_behavior: 'none'
