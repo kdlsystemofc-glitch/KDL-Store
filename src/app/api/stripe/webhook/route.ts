@@ -31,7 +31,7 @@ export async function POST(request: Request) {
         const plano = session.metadata?.plano || 'start'
 
         if (empresaId && subscriptionId) {
-          const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+          const subscription = await stripe.subscriptions.retrieve(subscriptionId) as Stripe.Subscription
           const priceId = subscription.items.data[0].price.id
 
           await supabaseAdmin.from('subscriptions').update({
@@ -52,7 +52,7 @@ export async function POST(request: Request) {
         const subscriptionId = invoice.subscription as string
 
         if (subscriptionId) {
-          const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+          const subscription = await stripe.subscriptions.retrieve(subscriptionId) as Stripe.Subscription
           await supabaseAdmin.from('subscriptions').update({
             status: 'active',
             current_period_end: new Date(subscription.current_period_end * 1000).toISOString()
