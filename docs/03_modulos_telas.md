@@ -358,12 +358,12 @@ A sidebar é renderizada no `(dashboard)/layout.tsx` e **filtrada por plano**:
 ### Sub-páginas
 | Página | Rota | Conteúdo |
 |---|---|---|
-| Geral | `/configuracoes` | Overview das configurações |
-| Empresa | `/configuracoes/empresa` | Nome, telefone, cidade, prazo CRM |
+| Geral | `/configuracoes` | Overview das configurações, Status da Assinatura, Preferências CRM, Zona de Perigo (Cancelar Assinatura) |
+| Empresa | `/configuracoes/empresa` | Nome, telefone, cidade, link do catálogo |
 | Usuários | `/configuracoes/usuarios` | Listar, convidar, mudar papel, congelar |
 | Pagamentos | `/configuracoes/pagamentos` | Formas de pagamento + taxas |
 | Categorias | `/configuracoes/categorias` | Categorias de produtos |
-| Planos | `/configuracoes/planos` | Ver plano atual + upgrade |
+| Planos | `/configuracoes/planos` | Ver plano atual, Upgrade e Portal de Faturamento |
 
 ### Gestão de Usuários
 - Listar usuários da empresa
@@ -371,6 +371,10 @@ A sidebar é renderizada no `(dashboard)/layout.tsx` e **filtrada por plano**:
 - Congelar / descongelar usuário
 - Excluir usuário (soft-delete via `status='excluido'`)
 - Convidar novo usuário por email (token com validade de 7 dias)
+
+### Zona de Perigo & Assinatura (Root Settings)
+- **Cancelar Assinatura**: O usuário nunca "deleta sua conta" e os dados não são apagados em cascata. Ele é redirecionado para o portal do Stripe.
+- Quando o Stripe envia o Webhook de cancelamento, a assinatura fica `cancelled` e o sistema bloqueia acessos dependentes do plano ativo.
 
 ---
 

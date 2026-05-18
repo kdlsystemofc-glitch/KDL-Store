@@ -269,6 +269,7 @@ auth.users (Supabase)
 | garantia_id | UUID | FK garantias |
 | venda_id | UUID | FK vendas |
 | motivo | TEXT | |
+| resolucao | TEXT | |
 | valor | NUMERIC(12,2) | |
 | criado_em | TIMESTAMPTZ | |
 
