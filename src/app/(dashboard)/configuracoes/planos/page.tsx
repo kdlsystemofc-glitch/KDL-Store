@@ -14,25 +14,10 @@ export default function PlanosPage() {
 
   useEffect(() => {
     if (empresaId) {
-      // 1. Otimisticamente carrega os dados locais
       createClient().from('subscriptions').select('*').eq('empresa_id', empresaId).single()
-        .then(({ data: localSub }) => {
-          setSub(localSub)
+        .then(({ data }) => {
+          setSub(data)
           setLoading(false)
-
-          // 2. Força um sync em background com o Stripe para corrigir eventuais falhas de webhook
-          fetch('/api/stripe/sync', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ empresaId })
-          })
-          .then(res => res.json())
-          .then(syncData => {
-            if (syncData.synced && syncData.updateData) {
-              setSub((prev: any) => ({ ...prev, ...syncData.updateData }))
-            }
-          })
-          .catch(err => console.error('Erro no auto-sync do Stripe:', err))
         })
     }
   }, [empresaId])
