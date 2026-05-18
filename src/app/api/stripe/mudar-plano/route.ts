@@ -60,6 +60,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Erro ao processar fases da assinatura.' }, { status: 500 })
     }
 
+    const currentItems = currentPhase.items.map((i: any) => ({
+      price: typeof i.price === 'string' ? i.price : i.price.id,
+      quantity: i.quantity || 1
+    }))
+
+    // Garante que o timestamp de término é um inteiro numérico válido
+    const periodEnd = parseInt(stripeSub.current_period_end as string, 10)
+
     // Atualiza o schedule:
     // 1. A fase atual continua exatamente como está até o final do período (current_period_end)
     // 2. Cria uma nova fase após o período atual usando o novo preço
@@ -67,12 +75,12 @@ export async function POST(request: Request) {
       phases: [
         {
           start_date: currentPhase.start_date,
-          end_date: stripeSub.current_period_end,
-          items: currentPhase.items.map(i => ({ price: i.price as string, quantity: i.quantity || 1 })),
+          end_date: periodEnd,
+          items: currentItems,
         },
         {
           items: [{ price: priceId, quantity: 1 }],
-          proration_behavior: 'none' // Evita qualquer cobrança de rateio no momento da transição
+          proration_behavior: 'none'
         }
       ]
     })
