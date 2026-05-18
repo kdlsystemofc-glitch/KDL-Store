@@ -43,13 +43,25 @@ export async function POST(request: Request) {
             console.error('ALERTA: current_period_end ausente no objeto subscription:', JSON.stringify(subscription))
           }
 
-          await supabaseAdmin.from('subscriptions').update({
+          const { data: existingSub } = await supabaseAdmin.from('subscriptions')
+            .select('id').eq('empresa_id', empresaId).maybeSingle()
+
+          const subData = {
             status: 'active',
             plano,
             stripe_subscription_id: subscriptionId,
             stripe_price_id: priceId,
             current_period_end: endDate.toISOString()
-          }).eq('empresa_id', empresaId)
+          }
+
+          if (existingSub) {
+            await supabaseAdmin.from('subscriptions').update(subData).eq('id', existingSub.id)
+          } else {
+            await supabaseAdmin.from('subscriptions').insert({
+              empresa_id: empresaId,
+              ...subData
+            })
+          }
 
           await supabaseAdmin.from('empresas').update({ plano }).eq('id', empresaId)
         }
