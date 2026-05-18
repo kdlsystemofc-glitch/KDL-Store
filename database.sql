@@ -508,6 +508,42 @@ CREATE TRIGGER trg_estoque_venda
   FOR EACH ROW EXECUTE FUNCTION decrementar_estoque_venda();
 
 -- =============================================================
+-- MIGRAÇÕES SEGURAS PARA BANCOS EXISTENTES
+-- Como CREATE TABLE IF NOT EXISTS ignora novas colunas, 
+-- executamos os ALTER TABLE de forma segura aqui ANTES do RLS.
+-- =============================================================
+
+-- 1. Tabela: empresas
+ALTER TABLE empresas ADD COLUMN IF NOT EXISTS whatsapp TEXT;
+ALTER TABLE empresas ADD COLUMN IF NOT EXISTS instagram TEXT;
+ALTER TABLE empresas ADD COLUMN IF NOT EXISTS slug TEXT UNIQUE;
+
+-- 2. Tabela: subscriptions
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT UNIQUE;
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT UNIQUE;
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS stripe_price_id TEXT;
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS cancel_at_period_end BOOLEAN DEFAULT FALSE;
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS current_period_end TIMESTAMPTZ;
+
+-- 3. Tabela: fiados
+ALTER TABLE fiados ADD COLUMN IF NOT EXISTS data_vencimento DATE;
+
+-- 4. Tabela: itens_venda (Migrando dados antigos sem quebrar)
+ALTER TABLE itens_venda ADD COLUMN IF NOT EXISTS empresa_id UUID REFERENCES empresas(id) ON DELETE CASCADE;
+
+-- Preenche empresa_id baseado na venda (para registros antigos)
+UPDATE itens_venda iv
+SET empresa_id = v.empresa_id
+FROM vendas v
+WHERE iv.venda_id = v.id AND iv.empresa_id IS NULL;
+
+-- Remove qualquer item órfão que não tenha empresa_id antes de forçar NOT NULL
+DELETE FROM itens_venda WHERE empresa_id IS NULL;
+
+-- Depois de preencher os antigos, obriga a ser NOT NULL nas próximas transações
+ALTER TABLE itens_venda ALTER COLUMN empresa_id SET NOT NULL;
+
+-- =============================================================
 -- ROW LEVEL SECURITY (RLS)
 -- =============================================================
 ALTER TABLE empresas           ENABLE ROW LEVEL SECURITY;
