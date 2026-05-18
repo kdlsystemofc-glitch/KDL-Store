@@ -39,7 +39,7 @@ export async function POST(request: Request) {
             plano,
             stripe_subscription_id: subscriptionId,
             stripe_price_id: priceId,
-            current_period_end: new Date(subscription.current_period_end * 1000).toISOString()
+            current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString()
           }).eq('empresa_id', empresaId)
 
           await supabaseAdmin.from('empresas').update({ plano }).eq('id', empresaId)
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
           const subscription = await stripe.subscriptions.retrieve(subscriptionId) as Stripe.Subscription
           await supabaseAdmin.from('subscriptions').update({
             status: 'active',
-            current_period_end: new Date(subscription.current_period_end * 1000).toISOString()
+            current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString()
           }).eq('stripe_subscription_id', subscriptionId)
         }
         break
@@ -87,7 +87,7 @@ export async function POST(request: Request) {
           stripe_price_id: priceId,
           status: subscription.status,
           cancel_at_period_end: subscription.cancel_at_period_end,
-          current_period_end: new Date(subscription.current_period_end * 1000).toISOString()
+          current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString()
         }).eq('stripe_subscription_id', subscription.id)
 
         // Atualizar empresa_id baseado na subscription
