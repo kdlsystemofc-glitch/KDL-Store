@@ -47,8 +47,8 @@
 1. Admin acessa /configuracoes/usuarios
 2. Clica "+ Convidar" → informa email, nome e papel
 3. Cria registro em convites (token único, expira em 7 dias)
-4. [TODO: envio de email com link /convite?token=...]
-5. Convidado acessa /convite?token=...
+4. [Aviso]: Se a confirmação de email estiver desativada mas o SMTP do Supabase estiver ON, o email chega normalmente. Caso todo o SMTP esteja OFF, será necessário implementar fallback (cópia de link manual).
+5. Convidado clica no link do email → /convite?token=...
 6. Sistema valida token (status='pendente' E expira_em > NOW())
 7. Convidado cria senha
 8. Trigger handle_new_user detecta invite_token nos metadados:
@@ -75,17 +75,15 @@ PROCESSO:
   7. [Opcional] Aplica desconto
   8. Clica FINALIZAR
 
-SAÍDA (transação sequencial):
-  ① INSERT vendas → retorna id e numero
-  ② INSERT itens_venda (todos os itens)
-  ③ Para cada item:
-     - UPDATE produtos SET qtd_atual = qtd_atual - quantidade
-     - INSERT estoque_movimentacoes (tipo: 'venda' ou 'brinde')
-  ④ Se pagamento = Fiado:
-     - INSERT fiados (cliente_nome, valor_aberto, status='aberto')
-  ⑤ Para cada item com tem_garantia=true e não-brinde:
-     - INSERT garantias (data_fim = hoje + dias_garantia)
-  ⑥ Trigger atualizar_ultima_compra: UPDATE clientes.ultima_compra
+SAÍDA (Transação Atômica no Banco via RPC):
+  - O frontend chama `supabase.rpc('checkout_venda_transaction')`
+  - O banco de dados (PostgreSQL) faz TUDO em uma única transação segura (ACID):
+    ① INSERT vendas
+    ② INSERT itens_venda e estoque_movimentacoes
+    ③ INSERT fiados (se pagamento = Fiado, incluindo vencimento opcional)
+    ④ INSERT garantias (se item tiver garantia e não for brinde)
+  - Trigger atualizar_ultima_compra: UPDATE clientes.ultima_compra
+  - Trigger decrementar_estoque_venda baixa o estoque
 
 RESULTADO:
   - Tela de sucesso com número do recibo
@@ -142,10 +140,9 @@ Implementado via componente `<ProOnly>` e filtro no sidebar:
 // src/components/ProOnly.tsx
 // 1. Lê plano via useSubscription()
 // 2. Se plano === 'pro': renderiza children normalmente
-// 3. Se plano !== 'pro': renderiza overlay de upsell
-//    - Conteúdo desfocado (blur) no fundo
-//    - Card central: "Funcionalidade exclusiva do Plano Pro"
-//    - Botão: "Fazer Upgrade" → /assinar
+// 3. Se plano !== 'pro': retorna `null` 
+//    - O conteúdo é completamente OMITIDO da tela.
+//    - Não há blur, não há upsell poluindo a visão (a pedido do usuário).
 ```
 
 ---
@@ -354,11 +351,17 @@ rewrites: [
 - Convite de usuários
 - Segregação Start/Pro no sidebar e conteúdo
 
+### ✅ Concluído (v1.1.0 e v1.2.0)
+- Checkout Atômico: todas as vendas são seguras contra quedas de internet via RPC (Stored Procedure)
+- Integração Total com Stripe (Assinatura, Upgrades, Downgrades com modal, Cancelamentos)
+- Webhooks do Stripe configurados com falhas silenciosas corrigidas
+- Catálogo online compartilhável (Link: /loja/[slug] e QR Code)
+- Zona de Perigo protegida, evita remoção acidental de empresa
+
 ### 🚧 Em Andamento
-- Envio real de email de convite (com integração ativa do Supabase Auth e resend, ou SMTP nativo)
+- Envio real de email de convite (dependente do SMTP do Supabase)
 
 ### 📋 Planejado
-- Integração com gateway de pagamento (Stripe ou AbacatePay) para cobrar assinaturas automaticamente
 - App mobile nativo (PWA ou React Native)
 - Notificações push (fiado vencendo, estoque crítico)
 - Integração WhatsApp API (além dos links `wa.me`)
@@ -369,5 +372,4 @@ rewrites: [
 
 ### 🔒 Pendências Técnicas
 - Rate limiting nas APIs (Supabase handles some, mas middleware pode reforçar)
-- Auditoria de ações críticas (cancelamentos, exclusões)
 - Testes automatizados (E2E com Playwright)

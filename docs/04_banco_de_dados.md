@@ -186,6 +186,7 @@ auth.users (Supabase)
 | Coluna | Tipo | Descrição |
 |---|---|---|
 | id | UUID | PK |
+| empresa_id | UUID | FK |
 | venda_id | UUID | FK vendas |
 | produto_id | UUID | FK produtos (nullable) |
 | produto_nome | TEXT | Desnormalizado |
@@ -204,6 +205,7 @@ auth.users (Supabase)
 | cliente_nome | TEXT | Desnormalizado |
 | cliente_tel | TEXT | Telefone para cobrança |
 | valor_aberto | NUMERIC(12,2) | Saldo devedor |
+| data_vencimento | DATE | Vencimento do fiado |
 | status | status_fiado | 'aberto' ou 'pago' |
 | pago_em | TIMESTAMPTZ | Data do pagamento |
 | criado_em | TIMESTAMPTZ | |

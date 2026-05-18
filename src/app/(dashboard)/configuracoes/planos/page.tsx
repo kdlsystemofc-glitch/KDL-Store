@@ -3,13 +3,14 @@ import { useEffect, useState } from 'react'
 import { useEmpresaId } from '@/lib/useEmpresaId'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'react-hot-toast'
-import { Loader2, Crown, ExternalLink } from 'lucide-react'
+import { Loader2, Crown, ExternalLink, AlertTriangle, X } from 'lucide-react'
 
 export default function PlanosPage() {
   const { empresaId } = useEmpresaId()
   const [sub, setSub] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [btnLoading, setBtnLoading] = useState(false)
+  const [showDowngradeModal, setShowDowngradeModal] = useState(false)
 
   useEffect(() => {
     if (empresaId) {
@@ -55,12 +56,6 @@ export default function PlanosPage() {
     setBtnLoading(false)
   }
 
-  async function fazerDowngrade() {
-    if (window.confirm('Tem certeza? O downgrade será processado através do portal do cliente. Você perderá acesso às funções Pro.')) {
-      openPortal()
-    }
-  }
-
   if (loading) return <div style={{ padding: '2rem', display: 'flex', justifyContent: 'center' }}><Loader2 className="animate-spin" /></div>
 
   const isPro = sub?.plano === 'pro'
@@ -71,6 +66,40 @@ export default function PlanosPage() {
 
   return (
     <div className="anim-fade" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '680px' }}>
+      
+      {showDowngradeModal && (
+        <div style={{position:'fixed',inset:0,zIndex:100,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',justifyContent:'center'}}
+          onClick={e=>{if(e.target===e.currentTarget)setShowDowngradeModal(false)}}>
+          <div className="card anim-pop" style={{width:'100%',maxWidth:'420px',padding:'1.25rem'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem'}}>
+              <p style={{fontWeight:900,fontSize:'1.1rem',color:'var(--vermelho)',display:'flex',alignItems:'center',gap:'0.5rem'}}>
+                <AlertTriangle size={18}/> Mudar para Start
+              </p>
+              <button onClick={()=>setShowDowngradeModal(false)} className="btn-icon"><X size={18}/></button>
+            </div>
+            <div style={{fontSize:'0.85rem',color:'var(--texto)'}}>
+              <p style={{marginBottom:'0.75rem'}}>Ao confirmar, você será redirecionado para o portal do Stripe para alterar sua assinatura.</p>
+              <p style={{fontWeight:700,marginBottom:'0.5rem'}}>Você PERDERÁ ACESSO IMEDIATO às seguintes ferramentas:</p>
+              <ul style={{paddingLeft:'1.25rem',marginBottom:'1rem',color:'var(--texto-sec)',display:'flex',flexDirection:'column',gap:'0.25rem'}}>
+                <li>Módulo Financeiro e DRE</li>
+                <li>Relatórios Avançados e Gráficos</li>
+                <li>CRM de Clientes Sumidos</li>
+                <li>Gestão de Comissões e Indicadores</li>
+                <li>Controle de Fiados</li>
+                <li>Fechamento de Caixa</li>
+                <li>Painel "Como foi?" (NPS)</li>
+              </ul>
+            </div>
+            <div style={{display:'flex',gap:'0.5rem',justifyContent:'flex-end'}}>
+              <button onClick={()=>setShowDowngradeModal(false)} className="btn btn-secondary">Cancelar</button>
+              <button onClick={openPortal} className="btn" style={{background:'var(--vermelho)',color:'#fff',fontWeight:700}}>
+                {btnLoading ? 'Redirecionando...' : 'Estou ciente, fazer Downgrade'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div>
         <h1 className="pg-titulo">ASSINATURA E PLANOS</h1>
         <p className="pg-sub">GERENCIE SUA ASSINATURA DA KDL STORE</p>
@@ -87,14 +116,22 @@ export default function PlanosPage() {
             {isPastDue ? 'Atrasado' : isCancelled ? 'Cancelado' : 'Ativo'}
           </span></p>
           
-          {sub?.current_period_end && (
+          {sub?.current_period_end && !isCancelScheduled && !isCancelled && (
              <p><strong>Próximo vencimento:</strong> {new Date(sub.current_period_end).toLocaleDateString('pt-BR')}</p>
           )}
 
           {isCancelScheduled && (
-            <p style={{ color: 'var(--amarelo)', marginTop: '0.5rem', fontWeight: 600 }}>
-              Sua assinatura será cancelada no final do período ({new Date(sub.current_period_end).toLocaleDateString('pt-BR')}). Você ainda tem acesso até lá.
-            </p>
+            <div style={{ padding:'0.75rem', background:'rgba(234,179,8,0.1)', borderLeft:'4px solid var(--amarelo)', marginTop:'0.5rem' }}>
+              <p style={{ color: 'var(--texto)', fontWeight: 700, fontSize:'0.9rem', marginBottom:'0.25rem' }}>
+                Sua assinatura foi cancelada.
+              </p>
+              <p style={{ color: 'var(--texto-sec)', fontSize:'0.82rem', marginBottom:'0.5rem' }}>
+                Você ainda tem acesso até <strong>{new Date(sub.current_period_end).toLocaleDateString('pt-BR')}</strong>. Após essa data, o sistema será bloqueado automaticamente.
+              </p>
+              <button onClick={openPortal} disabled={btnLoading} className="btn btn-primary" style={{fontSize:'0.72rem'}}>
+                REATIVAR ASSINATURA
+              </button>
+            </div>
           )}
         </div>
 
@@ -103,15 +140,15 @@ export default function PlanosPage() {
             Gerenciar Assinatura (Cartão/Faturas) <ExternalLink size={14} style={{ marginLeft: '4px' }} />
           </button>
           
-          {isStart && !isCancelled && (
+          {isStart && !isCancelled && !isCancelScheduled && (
             <button onClick={fazerUpgrade} disabled={btnLoading} className="btn btn-primary">
               Fazer Upgrade para Pro (R$95/mês)
             </button>
           )}
 
-          {isPro && !isCancelScheduled && (
-            <button onClick={fazerDowngrade} disabled={btnLoading} className="btn btn-danger" style={{ background: 'transparent', border: '1px solid var(--vermelho)' }}>
-              Fazer Downgrade para Start
+          {isPro && !isCancelScheduled && !isCancelled && (
+            <button onClick={() => setShowDowngradeModal(true)} disabled={btnLoading} className="btn btn-danger" style={{ background: 'transparent', border: '1px solid var(--vermelho)', color: 'var(--vermelho)' }}>
+              Mudar para Start — R$65/mês
             </button>
           )}
         </div>

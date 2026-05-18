@@ -131,85 +131,48 @@ export default function NovaPdvPage() {
     }
     setSalvando(true); setErro(null)
     const supabase = createClient()
-
-    // 1. Inserir venda
-    const { data: venda, error: eVenda } = await supabase
-      .from('vendas')
-      .insert({ empresa_id:empresaId, cliente_nome:cliente||'Anônimo', forma_pagamento:pagamento, subtotal, desconto, total, status:'concluida' })
-      .select('id,numero')
-      .single()
-    if (eVenda || !venda) { setErro('Erro ao salvar venda: '+(eVenda?.message||'')); setSalvando(false); return }
-
-    // 2. Inserir itens (o banco possui trigger para baixar estoque)
-    const itensInsert = itens.map(i => ({
-      venda_id:       venda.id,
-      empresa_id:     empresaId,
-      produto_id:     i.produto.id,
-      produto_nome:   i.produto.nome,
-      quantidade:     i.qty,
-      preco_unitario: i.precoUsado,
-      brinde:         i.brinde,
-      num_serie:      i.serie || null,
-    }))
     
-    const { error: eItens } = await supabase.from('itens_venda').insert(itensInsert)
-    if (eItens) {
-      // Rollback: exclui a venda já criada
-      await supabase.from('vendas').delete().eq('id', venda.id)
-      setErro('Erro ao salvar os itens da venda. Tente novamente.')
+    // Preparar payload para o RPC
+    const payloadItens = itens.map(i => ({
+      produto_id: i.produto.id,
+      produto_nome: i.produto.nome,
+      quantidade: i.qty,
+      preco_unitario: i.precoUsado,
+      brinde: i.brinde,
+      num_serie: i.serie || null,
+      tem_garantia: i.produto.tem_garantia,
+      dias_garantia: i.produto.dias_garantia,
+      texto_garantia: i.produto.texto_garantia
+    }))
+
+    const { data: vendaId, error } = await supabase.rpc('checkout_venda_transaction', {
+      p_empresa_id: empresaId,
+      p_cliente_id: null,
+      p_cliente_nome: cliente || 'Anônimo',
+      p_forma_pagamento: pagamento,
+      p_total: total,
+      p_desconto: desconto,
+      p_comissionado_id: null,
+      p_comissionado_nome: null,
+      p_registrado_nome: 'Anônimo',
+      p_obs: null,
+      p_itens: payloadItens,
+      p_prazo_dias: prazoDias
+    })
+
+    if (error) {
+      console.error('Erro na transação de venda:', error)
+      setErro('Erro crítico ao processar a venda. Nenhuma cobrança ou baixa foi feita. Detalhes: ' + error.message)
       setSalvando(false)
       return
     }
 
-    // 3. Registrar movimentação de estoque no histórico
-    for (const i of itens) {
-      await supabase.from('estoque_movimentacoes').insert({
-        empresa_id: empresaId, produto_id: i.produto.id,
-        tipo: i.brinde ? 'brinde' : 'venda', quantidade: -i.qty,
-        obs: `Venda #${venda.numero}`,
-      })
-      // NOTA: A tabela 'produtos' é atualizada automaticamente no servidor 
-      // pela trigger `trg_estoque_venda` (evitando race conditions).
-    }
-
-    // 4. Fiado
-    if (pagamento === 'Fiado') {
-      let data_vencimento = null
-      if (prazoDias !== null) {
-        const d = new Date()
-        d.setDate(d.getDate() + prazoDias)
-        data_vencimento = d.toISOString().slice(0,10)
-      }
-
-      await supabase.from('fiados').insert({
-        empresa_id: empresaId, venda_id: venda.id,
-        cliente_nome: cliente, valor_aberto: total, status: 'aberto',
-        data_vencimento
-      })
-    }
-
-    // 5. Garantias para produtos com garantia
-    const garantiaItems = itens.filter(i => i.produto.tem_garantia && i.produto.dias_garantia && !i.brinde)
-    for (const i of garantiaItems) {
-      const venc = new Date()
-      venc.setDate(venc.getDate() + (i.produto.dias_garantia!))
-      await supabase.from('garantias').insert({
-        empresa_id:      empresaId,
-        venda_id:        venda.id,
-        produto_id:      i.produto.id,
-        produto_nome:    i.produto.nome,
-        num_serie:       i.serie || null,
-        cliente_nome:    cliente || 'Anônimo',
-        data_compra:     new Date().toISOString().slice(0,10),
-        data_vencimento: venc.toISOString().slice(0,10),
-        texto_garantia:  i.produto.texto_garantia || null,
-        status:          'ativa',
-      })
-    }
-
     setSalvando(false)
-    setVendaId(venda.id)
-    setVendaNum(venda.numero)
+    setVendaId(vendaId)
+    // Para pegar o número sequencial gerado, faremos um fetch rápido
+    const { data: fetchVenda } = await supabase.from('vendas').select('numero').eq('id', vendaId).single()
+    if (fetchVenda) setVendaNum(fetchVenda.numero)
+    
     setFase('ok')
     // Recarrega estoque do catalogo
     carregar(empresaId)
