@@ -148,7 +148,21 @@ export async function POST(request: Request) {
         const subscription = event.data.object as any
         const priceId = subscription?.items?.data?.[0]?.price?.id
 
-        console.log(`[WEBHOOK] customer.subscription.updated | sub_id=${subscription.id} | status=${subscription.status} | cancel_at_period_end=${subscription.cancel_at_period_end}`)
+        // LOG DIAGNÓSTICO COMPLETO — ver todos os campos de cancelamento do Stripe
+        console.log(`[WEBHOOK] customer.subscription.updated | sub_id=${subscription.id}`)
+        console.log(`[WEBHOOK] status=${subscription.status}`)
+        console.log(`[WEBHOOK] cancel_at_period_end=${subscription.cancel_at_period_end}`)
+        console.log(`[WEBHOOK] cancel_at=${subscription.cancel_at}`)
+        console.log(`[WEBHOOK] ended_at=${subscription.ended_at}`)
+        console.log(`[WEBHOOK] current_period_end=${subscription.current_period_end}`)
+        console.log(`[WEBHOOK] OBJETO COMPLETO (cancelamento):`, JSON.stringify({
+          status: subscription.status,
+          cancel_at_period_end: subscription.cancel_at_period_end,
+          cancel_at: subscription.cancel_at,
+          ended_at: subscription.ended_at,
+          pause_collection: subscription.pause_collection,
+          cancellation_details: subscription.cancellation_details,
+        }))
 
         const endDate = subscription?.current_period_end
           ? new Date(subscription.current_period_end * 1000)
