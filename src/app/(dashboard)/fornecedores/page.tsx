@@ -6,6 +6,7 @@ import { useEmpresaId } from '@/lib/useEmpresaId'
 import { Plus, Search, Loader2, X, Save, Pencil } from 'lucide-react'
 import { PageTabs } from '@/components/PageTabs'
 import { FormFornecedor } from '@/components/FormFornecedor'
+import { useSubscription } from '@/hooks/useSubscription'
 
 type Fornecedor = {
   id: string; nome: string; contato: string | null; telefone: string | null
@@ -26,6 +27,7 @@ const campo = { marginTop:'0.375rem' } as React.CSSProperties
 
 export default function FornecedoresPage() {
   const { empresaId } = useEmpresaId()
+  const { plano } = useSubscription()
   const [aba,          setAba]          = useState<'lista'|'pedidos'>('lista')
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([])
   const [pedidos,      setPedidos]      = useState<Pedido[]>([])
@@ -215,7 +217,7 @@ export default function FornecedoresPage() {
 
       <PageTabs tabs={[
         { label: 'Todos os Clientes', href: '/clientes' },
-        { label: 'Sumidos ⚠', href: '/clientes/inativos' },
+        ...(plano === 'pro' ? [{ label: 'Sumidos ⚠', href: '/clientes/inativos' }] : []),
         { label: 'Fornecedores', href: '/fornecedores' }
       ]} />
 

@@ -2,9 +2,11 @@
 import { toast } from 'react-hot-toast'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
-import { ChevronRight, Crown, Check, Loader2, Save } from 'lucide-react'
+import { useSubscription } from '@/hooks/useSubscription'
+import { ChevronRight, Crown, Check, AlertTriangle, Loader2 } from 'lucide-react'
 
 const sections = [
   { href: '/configuracoes/empresa',    icon: '[EMP]', title: 'DADOS DA EMPRESA',       desc: 'Nome, logo, CNPJ, telefone e endereço' },
@@ -14,12 +16,18 @@ const sections = [
   { href: '/catalogo',                 icon: '[WWW]', title: 'CATÁLOGO ONLINE',          desc: 'Configurar e visualizar seu catálogo público' },
 ]
 
-const planFeatures = ['PDV ilimitado', 'Controle de estoque', 'Emissão de garantias', 'Ordens de serviço', 'Módulo Financeiro', 'CRM de Sumição', 'Comissões']
+const START_FEATURES = ['PDV ilimitado', 'Controle de estoque', 'Emissão de garantias', 'Ordens de serviço', 'Módulo Financeiro']
+const PRO_FEATURES   = ['PDV ilimitado', 'Controle de estoque', 'Emissão de garantias', 'Ordens de serviço', 'Módulo Financeiro', 'CRM de Sumição', 'Comissões', 'Relatórios avançados']
 
 export default function ConfiguracoesPage() {
+  const router = useRouter()
   const { empresaId } = useEmpresaId()
-  const [prazoCrm, setPrazoCrm] = useState<number>(60)
+  const { plano, ativo, loading: loadingSub } = useSubscription()
+  const [prazoCrm,    setPrazoCrm]    = useState<number>(60)
   const [salvandoCrm, setSalvandoCrm] = useState(false)
+  const [abrindoPortal, setAbrindoPortal] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deletando, setDeletando] = useState(false)
 
   useEffect(() => {
     if (empresaId) {
@@ -38,9 +46,34 @@ export default function ConfiguracoesPage() {
     toast.success('Configurações salvas!')
   }
 
-  function confirmarAcao(msg: string, cb: ()=>void) {
-    if (window.confirm(`${msg}\n\nTem certeza? Isso não pode ser desfeito.`)) cb()
+  async function abrirPortal() {
+    setAbrindoPortal(true)
+    try {
+      const res = await fetch('/api/stripe/portal', { method: 'POST' })
+      const json = await res.json()
+      if (json.url) window.location.href = json.url
+      else toast.error('Erro ao abrir portal: ' + (json.error || 'Tente novamente'))
+    } catch {
+      toast.error('Erro de rede ao abrir portal.')
+    } finally {
+      setAbrindoPortal(false)
+    }
   }
+
+  async function excluirConta() {
+    if (!empresaId) return
+    setDeletando(true)
+    const supabase = createClient()
+    // Apaga empresa (cascade apaga tudo)
+    await supabase.from('empresas').delete().eq('id', empresaId)
+    // Faz logout
+    await supabase.auth.signOut()
+    router.push('/')
+  }
+
+  const isPro = plano === 'pro'
+  const features = isPro ? PRO_FEATURES : START_FEATURES
+
   return (
     <div className="anim-fade" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxWidth: '680px' }}>
 
@@ -49,39 +82,64 @@ export default function ConfiguracoesPage() {
         <p className="pg-sub">CONTA · USUÁRIOS · PREFERÊNCIAS</p>
       </div>
 
-      {/* Plano — estilo terminal */}
+      {/* Plano atual — dinâmico */}
       <div style={{
         padding: '0.875rem 1rem', position: 'relative', overflow: 'hidden',
         background: 'var(--fundo-painel)',
-        border: '1px solid var(--verde)',
-        borderLeft: '4px solid var(--verde)'
+        border: `1px solid ${isPro ? 'var(--amarelo)' : 'var(--verde)'}`,
+        borderLeft: `4px solid ${isPro ? 'var(--amarelo)' : 'var(--verde)'}`
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.375rem' }}>
-              <span style={{ color: 'var(--amarelo)', fontWeight: 700, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>● PLANO ATUAL</span>
-            </div>
-            <p style={{ color: 'var(--verde)', fontWeight: 900, fontSize: '1.5rem', lineHeight: 1, letterSpacing: '0.06em' }}>ESSENCIAL</p>
-            <p style={{ color: 'var(--texto-sec)', fontSize: '0.72rem', marginTop: '0.25rem', letterSpacing: '0.04em' }}>
-              RENOVA EM 05/06/2026 · <span style={{ color: 'var(--verde)', fontWeight: 700 }}>R$ 39/MES</span>
-            </p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem 1rem', marginTop: '0.5rem' }}>
-              {planFeatures.map(f => (
-                <span key={f} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.65rem', fontWeight: 700, color: 'var(--texto-sec)', letterSpacing: '0.04em' }}>
-                  <Check size={10} style={{ color: 'var(--verde)' }} /> {f.toUpperCase()}
+        {loadingSub ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--texto-sec)', fontSize: '0.75rem' }}>
+            <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> CARREGANDO PLANO...
+          </div>
+        ) : (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.375rem' }}>
+                <span style={{ color: isPro ? 'var(--amarelo)' : 'var(--verde)', fontWeight: 700, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  ● PLANO ATUAL
                 </span>
-              ))}
+                {!ativo && <span style={{ fontSize: '0.62rem', color: 'var(--vermelho)', fontWeight: 700, letterSpacing: '0.06em' }}>⚠ INATIVO</span>}
+              </div>
+              <p style={{ color: isPro ? 'var(--amarelo)' : 'var(--verde)', fontWeight: 900, fontSize: '1.5rem', lineHeight: 1, letterSpacing: '0.06em' }}>
+                {isPro ? 'PRO' : 'START'}
+              </p>
+              <p style={{ color: 'var(--texto-sec)', fontSize: '0.72rem', marginTop: '0.25rem', letterSpacing: '0.04em' }}>
+                {isPro ? 'R$ 95/MÊS' : 'R$ 65/MÊS'} · {ativo ? 'ASSINATURA ATIVA' : 'SEM ASSINATURA ATIVA'}
+              </p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem 1rem', marginTop: '0.5rem' }}>
+                {features.map(f => (
+                  <span key={f} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.65rem', fontWeight: 700, color: 'var(--texto-sec)', letterSpacing: '0.04em' }}>
+                    <Check size={10} style={{ color: isPro ? 'var(--amarelo)' : 'var(--verde)' }} /> {f.toUpperCase()}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-end' }}>
+              {ativo ? (
+                <button onClick={abrirPortal} disabled={abrindoPortal} className="btn btn-secondary"
+                  style={{ fontWeight: 800, flexShrink: 0, fontSize: '0.72rem' }}>
+                  {abrindoPortal ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : '⚙'} GERENCIAR ASSINATURA
+                </button>
+              ) : (
+                <Link href="/assinar" className="btn btn-primary"
+                  style={{ fontWeight: 800, flexShrink: 0, fontSize: '0.72rem' }}>
+                  ▶ ASSINAR AGORA
+                </Link>
+              )}
+              {!isPro && ativo && (
+                <Link href="/assinar" className="btn btn-primary"
+                  style={{ fontWeight: 800, flexShrink: 0, fontSize: '0.72rem' }}>
+                  <Crown size={13} fill="currentColor" /> UPGRADE PARA PRO
+                </Link>
+              )}
             </div>
           </div>
-          <Link href="/configuracoes/planos"
-            className="btn btn-primary"
-            style={{ fontWeight: 800, flexShrink: 0, fontSize: '0.72rem' }}>
-            <Crown size={13} fill="currentColor" /> UPGRADE
-          </Link>
-        </div>
+        )}
       </div>
 
-      {/* Seções */}
+      {/* Menu de configurações */}
       <div className="card" style={{padding:0,overflow:'hidden'}}>
         <div className="sec-header"><span>MENU DE CONFIGURAÇÕES</span></div>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -124,10 +182,42 @@ export default function ConfiguracoesPage() {
         </div>
       </div>
 
-    // Zona de perigo removida (recurso em desenvolvimento)
+      {/* Zona de Perigo */}
+      <div className="card" style={{padding:0,overflow:'hidden',border:'1px solid var(--vermelho)'}}>
+        <div className="sec-header" style={{borderBottom:'1px solid var(--vermelho)'}}><span style={{color:'var(--vermelho)'}}>⚠ ZONA DE PERIGO</span></div>
+        <div style={{padding:'0.875rem 1rem'}}>
+          <p style={{ fontSize: '0.72rem', color: 'var(--texto-desab)', marginBottom: '0.75rem', letterSpacing:'0.03em' }}>
+            AÇÕES IRREVERSÍVEIS. PROCEDAM COM EXTREMO CUIDADO.
+          </p>
+
+          {!confirmDelete ? (
+            <button onClick={() => setConfirmDelete(true)}
+              className="btn"
+              style={{ fontSize:'0.72rem', fontWeight:700, color:'var(--vermelho)', border:'1px solid var(--vermelho)', background:'transparent', padding:'0.4rem 0.875rem' }}>
+              <AlertTriangle size={13} /> EXCLUIR MINHA CONTA E TODOS OS DADOS
+            </button>
+          ) : (
+            <div style={{display:'flex',flexDirection:'column',gap:'0.625rem'}}>
+              <div style={{padding:'0.625rem',background:'rgba(239,68,68,0.08)',border:'1px solid var(--vermelho)',fontSize:'0.72rem',color:'var(--vermelho)',letterSpacing:'0.03em'}}>
+                ⚠ ISSO EXCLUIRÁ PERMANENTEMENTE SUA EMPRESA, TODOS OS PRODUTOS, CLIENTES, VENDAS E DADOS. ESTA AÇÃO NÃO PODE SER DESFEITA.
+              </div>
+              <div style={{display:'flex',gap:'0.5rem'}}>
+                <button onClick={() => setConfirmDelete(false)} className="btn btn-secondary" style={{fontSize:'0.72rem'}}>
+                  CANCELAR
+                </button>
+                <button onClick={excluirConta} disabled={deletando}
+                  className="btn"
+                  style={{ fontSize:'0.72rem', fontWeight:700, color:'#fff', background:'var(--vermelho)', border:'none', padding:'0.4rem 0.875rem', cursor:'pointer' }}>
+                  {deletando ? <><Loader2 size={12} style={{animation:'spin 1s linear infinite'}}/> EXCLUINDO...</> : 'SIM, EXCLUIR TUDO'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
 
       <p style={{ fontSize: '0.65rem', color: 'var(--texto-desab)', textAlign: 'center', marginTop: '0.5rem', letterSpacing:'0.06em' }}>
-        NEXOCOMMERCE v1.2.0 · FEITO PARA O PEQUENO COMÉRCIO BRASILEIRO
+        KDL STORE v1.2.0 · FEITO PARA O PEQUENO COMÉRCIO BRASILEIRO
       </p>
     </div>
   )

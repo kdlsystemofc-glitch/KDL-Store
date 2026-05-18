@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS empresas (
   nome                        TEXT NOT NULL,
   telefone                    TEXT,
   cidade                      TEXT,
+  slug                        TEXT UNIQUE,
   plano                       tipo_plano NOT NULL DEFAULT 'start',
   crm_prazo_inatividade_dias  INT NOT NULL DEFAULT 60,
   criado_em                   TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -182,6 +183,7 @@ CREATE TABLE IF NOT EXISTS clientes (
   cpf             TEXT,
   endereco        TEXT,
   obs             TEXT,
+  tipo            TEXT NOT NULL DEFAULT 'varejo', -- 'varejo' | 'atacado' | 'vip'
   ultima_compra   DATE,
   ativo           BOOLEAN NOT NULL DEFAULT TRUE,
   criado_em       TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -229,9 +231,10 @@ CREATE TABLE IF NOT EXISTS vendas (
   motivo_cancelamento     TEXT,
   comissionado_id         UUID REFERENCES comissoes(id) ON DELETE SET NULL,
   comissionado_nome       TEXT,
+  registrado_nome         TEXT,
   obs                     TEXT,
   -- feedback "Como foi?"
-  como_foi_nota           INT,       -- 1 a 5
+  como_foi_nota           INT,
   como_foi_resposta       TEXT,
   como_foi_respondido_em  TIMESTAMPTZ,
   criado_em               TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -286,16 +289,23 @@ CREATE TABLE IF NOT EXISTS despesas (
 -- TABELA: fornecedores
 -- ─────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS fornecedores (
-  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  empresa_id  UUID NOT NULL REFERENCES empresas(id) ON DELETE CASCADE,
-  nome        TEXT NOT NULL,
-  telefone    TEXT,
-  email       TEXT,
-  cnpj        TEXT,
-  endereco    TEXT,
-  obs         TEXT,
-  ativo       BOOLEAN NOT NULL DEFAULT TRUE,
-  criado_em   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  empresa_id      UUID NOT NULL REFERENCES empresas(id) ON DELETE CASCADE,
+  nome            TEXT NOT NULL,
+  contato         TEXT,
+  telefone        TEXT,
+  email           TEXT,
+  cnpj            TEXT,
+  categoria       TEXT,
+  cidade          TEXT,
+  estado          TEXT,
+  prazo_entrega   TEXT,
+  pedido_minimo   NUMERIC(12,2),
+  anotacoes       TEXT,
+  endereco        TEXT,
+  obs             TEXT,
+  ativo           BOOLEAN NOT NULL DEFAULT TRUE,
+  criado_em       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ─────────────────────────────────────────────
@@ -306,7 +316,9 @@ CREATE TABLE IF NOT EXISTS pedidos_fornecedor (
   empresa_id      UUID NOT NULL REFERENCES empresas(id) ON DELETE CASCADE,
   fornecedor_id   UUID REFERENCES fornecedores(id) ON DELETE SET NULL,
   fornecedor_nome TEXT,
-  status          status_pedido NOT NULL DEFAULT 'rascunho',
+  produto         TEXT NOT NULL DEFAULT '',
+  quantidade      NUMERIC(12,3) NOT NULL DEFAULT 1,
+  status          TEXT NOT NULL DEFAULT 'aguardando', -- 'aguardando' | 'confirmado' | 'entregue'
   total           NUMERIC(12,2) NOT NULL DEFAULT 0,
   obs             TEXT,
   criado_em       TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -319,12 +331,17 @@ CREATE TABLE IF NOT EXISTS garantias (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   empresa_id      UUID NOT NULL REFERENCES empresas(id) ON DELETE CASCADE,
   venda_id        UUID REFERENCES vendas(id) ON DELETE SET NULL,
+  produto_id      UUID REFERENCES produtos(id) ON DELETE SET NULL,
   cliente_nome    TEXT,
+  cliente_tel     TEXT,
   produto_nome    TEXT NOT NULL,
   num_serie       TEXT,
-  status          status_garantia NOT NULL DEFAULT 'ativa',
+  status          TEXT NOT NULL DEFAULT 'ativa', -- 'ativa' | 'vencida' | 'em devolução'
+  data_compra     DATE NOT NULL DEFAULT CURRENT_DATE,
   data_inicio     DATE NOT NULL DEFAULT CURRENT_DATE,
-  data_fim        DATE NOT NULL,
+  data_vencimento DATE NOT NULL,
+  data_fim        DATE NOT NULL DEFAULT CURRENT_DATE,
+  texto_garantia  TEXT,
   obs             TEXT,
   criado_em       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -348,14 +365,20 @@ CREATE TABLE IF NOT EXISTS devolucoes (
 CREATE TABLE IF NOT EXISTS ordens_servico (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   empresa_id      UUID NOT NULL REFERENCES empresas(id) ON DELETE CASCADE,
+  numero          SERIAL,
   cliente_nome    TEXT NOT NULL,
   cliente_tel     TEXT,
-  produto_desc    TEXT NOT NULL,
+  equipamento     TEXT NOT NULL DEFAULT '',
+  produto_desc    TEXT,
+  defeito_relatado TEXT NOT NULL DEFAULT '',
   problema        TEXT,
   laudo           TEXT,
-  status          status_os NOT NULL DEFAULT 'aberto',
+  status          TEXT NOT NULL DEFAULT 'aguardando',
+  orcamento       NUMERIC(12,2),
   valor_servico   NUMERIC(12,2) NOT NULL DEFAULT 0,
   valor_pecas     NUMERIC(12,2) NOT NULL DEFAULT 0,
+  tecnico         TEXT,
+  previsao        DATE,
   criado_em       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   atualizado_em   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
 import { Plus, Search, Loader2, X } from 'lucide-react'
 import { PageTabs } from '@/components/PageTabs'
+import { useSubscription } from '@/hooks/useSubscription'
 
 type OS = {
   id: string; numero: number; cliente_nome: string; cliente_tel: string | null
@@ -30,6 +31,7 @@ const FLUXO: Record<string, string> = {
 
 export default function OrdensServicoPage() {
   const { empresaId } = useEmpresaId()
+  const { plano } = useSubscription()
   const [ordens,   setOrdens]   = useState<OS[]>([])
   const [busca,    setBusca]    = useState('')
   const [filtro,   setFiltro]   = useState('todos')
@@ -110,7 +112,7 @@ export default function OrdensServicoPage() {
       <PageTabs tabs={[
         { label: 'Garantias', href: '/garantias' },
         { label: 'Ordens de Serviço', href: '/ordens-de-servico' },
-        { label: 'Comissões', href: '/comissoes' }
+        ...(plano === 'pro' ? [{ label: 'Comissões', href: '/comissoes' }] : [])
       ]} />
 
       {/* Formulário Modal */}
