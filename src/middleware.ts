@@ -36,6 +36,10 @@ export async function middleware(request: NextRequest) {
 
   // Não logado → redireciona para /login (ou retorna 401 se for API)
   if (!user) {
+    if (pathname.startsWith('/api/stripe/webhook')) {
+      // O webhook não precisa de auth do Supabase, ele valida pela assinatura do Stripe
+      return supabaseResponse
+    }
     if (pathname.startsWith('/api/')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -93,14 +97,14 @@ export async function middleware(request: NextRequest) {
   }
 
   // Logado SEM assinatura → só pode acessar /assinar
-  if (!hasActiveSubscription && pathname !== '/assinar') {
+  if (!hasActiveSubscription && pathname !== '/assinar' && !pathname.startsWith('/api/')) {
     const url = request.nextUrl.clone()
     url.pathname = '/assinar'
     return NextResponse.redirect(url)
   }
 
   // Logado COM assinatura tentando acessar /assinar → vai pro dashboard
-  if (hasActiveSubscription && pathname === '/assinar') {
+  if (hasActiveSubscription && pathname === '/assinar' && !pathname.startsWith('/api/')) {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
     return NextResponse.redirect(url)
