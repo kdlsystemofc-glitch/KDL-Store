@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     }
 
     // Pega os dados atuais da assinatura no Stripe
-    const stripeSub = await stripe.subscriptions.retrieve(sub.stripe_subscription_id)
+    const stripeSub = await stripe.subscriptions.retrieve(sub.stripe_subscription_id) as any
     
     let scheduleId = stripeSub.schedule as string
 
