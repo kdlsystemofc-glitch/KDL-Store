@@ -39,21 +39,35 @@ export default function PlanosPage() {
     setBtnLoading(false)
   }
 
-  async function fazerUpgrade() {
+  async function agendarMudancaPlano(planoDestino: 'pro' | 'start') {
     setBtnLoading(true)
     try {
-      const res = await fetch('/api/stripe/checkout', {
+      const res = await fetch('/api/stripe/mudar-plano', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plano: 'pro', empresaId })
+        body: JSON.stringify({ plano_destino: planoDestino, empresaId })
       })
       const data = await res.json()
-      if (data.url) window.location.href = data.url
-      else toast.error('Erro ao iniciar checkout')
+      if (res.ok) {
+        toast.success(data.message || 'Mudança de plano agendada!')
+        setShowDowngradeModal(false)
+        // Recarrega a página para atualizar o status
+        window.location.reload()
+      } else {
+        toast.error(data.error || 'Erro ao agendar mudança de plano')
+      }
     } catch (err: any) {
-      toast.error('Erro de rede ao iniciar checkout')
+      toast.error('Erro de rede ao processar solicitação')
     }
     setBtnLoading(false)
+  }
+
+  async function fazerUpgrade() {
+    await agendarMudancaPlano('pro')
+  }
+
+  async function fazerDowngrade() {
+    await agendarMudancaPlano('start')
   }
 
   if (loading) return <div style={{ padding: '2rem', display: 'flex', justifyContent: 'center' }}><Loader2 className="animate-spin" /></div>
@@ -78,8 +92,12 @@ export default function PlanosPage() {
               <button onClick={()=>setShowDowngradeModal(false)} className="btn-icon"><X size={18}/></button>
             </div>
             <div style={{fontSize:'0.85rem',color:'var(--texto)'}}>
-              <p style={{marginBottom:'0.75rem'}}>Ao confirmar, você será redirecionado para o portal do Stripe para alterar sua assinatura.</p>
-              <p style={{fontWeight:700,marginBottom:'0.5rem'}}>Você PERDERÁ ACESSO IMEDIATO às seguintes ferramentas:</p>
+              <p style={{marginBottom:'0.75rem'}}>Você está prestes a agendar um downgrade para o plano Start.</p>
+              <div style={{ padding:'0.75rem', background:'rgba(0,191,165,0.1)', borderLeft:'4px solid var(--verde)', marginBottom:'1rem' }}>
+                <p style={{ color: 'var(--verde)', fontWeight: 700, marginBottom:'0.25rem' }}>Acesso mantido até o próximo pagamento</p>
+                <p style={{ color: 'var(--texto-sec)' }}>Você continuará com todos os benefícios do plano Pro até <strong>{sub?.current_period_end ? new Date(sub.current_period_end).toLocaleDateString('pt-BR') : 'o fim do ciclo'}</strong>. Apenas no próximo vencimento o valor será reduzido para R$65/mês e as ferramentas abaixo serão bloqueadas.</p>
+              </div>
+              <p style={{fontWeight:700,marginBottom:'0.5rem'}}>No próximo vencimento, você perderá acesso a:</p>
               <ul style={{paddingLeft:'1.25rem',marginBottom:'1rem',color:'var(--texto-sec)',display:'flex',flexDirection:'column',gap:'0.25rem'}}>
                 <li>Módulo Financeiro e DRE</li>
                 <li>Relatórios Avançados e Gráficos</li>
@@ -91,9 +109,9 @@ export default function PlanosPage() {
               </ul>
             </div>
             <div style={{display:'flex',gap:'0.5rem',justifyContent:'flex-end'}}>
-              <button onClick={()=>setShowDowngradeModal(false)} className="btn btn-secondary">Cancelar</button>
-              <button onClick={openPortal} className="btn" style={{background:'var(--vermelho)',color:'#fff',fontWeight:700}}>
-                {btnLoading ? 'Redirecionando...' : 'Estou ciente, fazer Downgrade'}
+              <button onClick={()=>setShowDowngradeModal(false)} className="btn btn-secondary" disabled={btnLoading}>Cancelar</button>
+              <button onClick={fazerDowngrade} disabled={btnLoading} className="btn" style={{background:'var(--vermelho)',color:'#fff',fontWeight:700}}>
+                {btnLoading ? <Loader2 size={16} className="animate-spin" /> : 'Confirmar Downgrade Agendado'}
               </button>
             </div>
           </div>
@@ -141,8 +159,8 @@ export default function PlanosPage() {
           </button>
           
           {isStart && !isCancelled && !isCancelScheduled && (
-            <button onClick={fazerUpgrade} disabled={btnLoading} className="btn btn-primary">
-              Fazer Upgrade para Pro (R$95/mês)
+            <button onClick={fazerUpgrade} disabled={btnLoading} className="btn btn-primary" style={{ background: 'var(--amarelo)', color: '#000' }}>
+              {btnLoading ? <Loader2 size={16} className="animate-spin" /> : 'Agendar Upgrade para Pro (R$95 no próximo mês)'}
             </button>
           )}
 
