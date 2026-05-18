@@ -148,30 +148,24 @@ export async function POST(request: Request) {
         const subscription = event.data.object as any
         const priceId = subscription?.items?.data?.[0]?.price?.id
 
-        // LOG DIAGNÓSTICO COMPLETO — ver todos os campos de cancelamento do Stripe
-        console.log(`[WEBHOOK] customer.subscription.updated | sub_id=${subscription.id}`)
-        console.log(`[WEBHOOK] status=${subscription.status}`)
-        console.log(`[WEBHOOK] cancel_at_period_end=${subscription.cancel_at_period_end}`)
-        console.log(`[WEBHOOK] cancel_at=${subscription.cancel_at}`)
-        console.log(`[WEBHOOK] ended_at=${subscription.ended_at}`)
-        console.log(`[WEBHOOK] current_period_end=${subscription.current_period_end}`)
-        console.log(`[WEBHOOK] OBJETO COMPLETO (cancelamento):`, JSON.stringify({
-          status: subscription.status,
-          cancel_at_period_end: subscription.cancel_at_period_end,
-          cancel_at: subscription.cancel_at,
-          ended_at: subscription.ended_at,
-          pause_collection: subscription.pause_collection,
-          cancellation_details: subscription.cancellation_details,
-        }))
+        // O portal do Stripe usa "cancel_at" (timestamp) em vez de "cancel_at_period_end"
+        // Tratamos ambos como "cancelamento agendado"
+        const isScheduledCancellation = subscription.cancel_at_period_end === true || subscription.cancel_at != null
 
-        const endDate = subscription?.current_period_end
-          ? new Date(subscription.current_period_end * 1000)
+        // Data de término do acesso: preferência para cancel_at (set pelo portal), depois current_period_end
+        const endTimestamp = subscription.cancel_at || subscription.current_period_end
+        const endDate = endTimestamp
+          ? new Date(endTimestamp * 1000)
           : (() => { const d = new Date(); d.setDate(d.getDate() + 30); return d })()
+
+        console.log(`[WEBHOOK] customer.subscription.updated | sub_id=${subscription.id}`)
+        console.log(`[WEBHOOK] cancel_at_period_end=${subscription.cancel_at_period_end} | cancel_at=${subscription.cancel_at} | computed isScheduled=${isScheduledCancellation}`)
+        console.log(`[WEBHOOK] endDate computado: ${endDate.toISOString()}`)
 
         const updateData: any = {
           stripe_price_id: priceId,
           status: mapStripeStatus(subscription.status),
-          cancel_at_period_end: subscription.cancel_at_period_end ?? false,
+          cancel_at_period_end: isScheduledCancellation,  // campo computado correto
           current_period_end: endDate.toISOString()
         }
 
@@ -180,7 +174,6 @@ export async function POST(request: Request) {
 
         console.log(`[WEBHOOK] Dados a gravar:`, JSON.stringify(updateData))
 
-        // Verifica se existe uma linha com esse stripe_subscription_id antes de atualizar
         const { data: checkRow, error: checkErr } = await supabaseAdmin
           .from('subscriptions')
           .select('id, empresa_id, stripe_subscription_id')
@@ -190,7 +183,7 @@ export async function POST(request: Request) {
         console.log(`[WEBHOOK] Linha encontrada: ${JSON.stringify(checkRow)} | erro: ${checkErr?.message ?? 'none'}`)
 
         if (!checkRow) {
-          console.error(`[WEBHOOK] CAUSA RAIZ: Nenhuma linha com stripe_subscription_id=${subscription.id}. O checkout.session.completed não salvou o stripe_subscription_id corretamente.`)
+          console.error(`[WEBHOOK] CAUSA RAIZ: Nenhuma linha com stripe_subscription_id=${subscription.id}`)
           break
         }
 
@@ -198,13 +191,12 @@ export async function POST(request: Request) {
           .from('subscriptions').update(updateData).eq('stripe_subscription_id', subscription.id)
 
         if (updErr) console.error('[WEBHOOK] Erro ao atualizar (subscription.updated):', updErr.message)
-        else console.log(`[WEBHOOK] cancel_at_period_end=${subscription.cancel_at_period_end} gravado com sucesso para empresa ${checkRow.empresa_id}`)
+        else console.log(`[WEBHOOK] isScheduledCancellation=${isScheduledCancellation} gravado com sucesso para empresa ${checkRow.empresa_id}`)
 
         if (checkRow.empresa_id && updateData.plano) {
           await supabaseAdmin.from('empresas').update({ plano: updateData.plano }).eq('id', checkRow.empresa_id)
         }
         break
-      }
 
       // ─── ASSINATURA DELETADA DEFINITIVAMENTE ─────────────────────────────
       case 'customer.subscription.deleted': {
