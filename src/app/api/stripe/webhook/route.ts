@@ -55,15 +55,15 @@ export async function POST(request: Request) {
           }
 
           if (existingSub) {
-            await supabaseAdmin.from('subscriptions').update(subData).eq('id', existingSub.id)
+            await supabaseAdmin.from('subscriptions').update(subData).eq('id', existingSub.id).throwOnError()
           } else {
             await supabaseAdmin.from('subscriptions').insert({
               empresa_id: empresaId,
               ...subData
-            })
+            }).throwOnError()
           }
 
-          await supabaseAdmin.from('empresas').update({ plano }).eq('id', empresaId)
+          await supabaseAdmin.from('empresas').update({ plano }).eq('id', empresaId).throwOnError()
         }
         break
       }
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
           await supabaseAdmin.from('subscriptions').update({
             status: 'active',
             current_period_end: endDate.toISOString()
-          }).eq('stripe_subscription_id', subscriptionId)
+          }).eq('stripe_subscription_id', subscriptionId).throwOnError()
         }
         break
       }
@@ -95,7 +95,7 @@ export async function POST(request: Request) {
         if (subscriptionId) {
           await supabaseAdmin.from('subscriptions').update({
             status: 'past_due'
-          }).eq('stripe_subscription_id', subscriptionId)
+          }).eq('stripe_subscription_id', subscriptionId).throwOnError()
         }
         break
       }
@@ -123,14 +123,14 @@ export async function POST(request: Request) {
           updateData.plano = 'start'
         }
 
-        await supabaseAdmin.from('subscriptions').update(updateData).eq('stripe_subscription_id', subscription.id)
+        await supabaseAdmin.from('subscriptions').update(updateData).eq('stripe_subscription_id', subscription.id).throwOnError()
 
         // Atualizar empresa_id baseado na subscription
         const { data: subData } = await supabaseAdmin.from('subscriptions')
           .select('empresa_id').eq('stripe_subscription_id', subscription.id).single()
         
         if (subData?.empresa_id && updateData.plano) {
-          await supabaseAdmin.from('empresas').update({ plano: updateData.plano }).eq('id', subData.empresa_id)
+          await supabaseAdmin.from('empresas').update({ plano: updateData.plano }).eq('id', subData.empresa_id).throwOnError()
         }
         break
       }
@@ -142,13 +142,13 @@ export async function POST(request: Request) {
           status: 'cancelled',
           plano: 'start',
           cancel_at_period_end: false
-        }).eq('stripe_subscription_id', subscription.id)
+        }).eq('stripe_subscription_id', subscription.id).throwOnError()
 
         const { data: subData } = await supabaseAdmin.from('subscriptions')
           .select('empresa_id').eq('stripe_subscription_id', subscription.id).single()
         
         if (subData?.empresa_id) {
-          await supabaseAdmin.from('empresas').update({ plano: 'start' }).eq('id', subData.empresa_id)
+          await supabaseAdmin.from('empresas').update({ plano: 'start' }).eq('id', subData.empresa_id).throwOnError()
         }
         break
       }
