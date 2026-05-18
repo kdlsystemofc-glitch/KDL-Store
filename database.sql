@@ -355,6 +355,7 @@ CREATE TABLE IF NOT EXISTS devolucoes (
   garantia_id  UUID REFERENCES garantias(id) ON DELETE SET NULL,
   venda_id     UUID REFERENCES vendas(id) ON DELETE SET NULL,
   motivo       TEXT,
+  resolucao    TEXT,
   valor        NUMERIC(12,2) NOT NULL DEFAULT 0,
   criado_em    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
