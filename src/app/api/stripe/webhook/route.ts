@@ -31,15 +31,24 @@ export async function POST(request: Request) {
         const plano = session.metadata?.plano || 'start'
 
         if (empresaId && subscriptionId) {
-          const subscription = await stripe.subscriptions.retrieve(subscriptionId) as Stripe.Subscription
-          const priceId = subscription.items.data[0].price.id
+          const subscription = await stripe.subscriptions.retrieve(subscriptionId) as any
+          const priceId = subscription?.items?.data?.[0]?.price?.id
+
+          let endDate = new Date()
+          endDate.setDate(endDate.getDate() + 30) // fallback de 30 dias
+
+          if (subscription && subscription.current_period_end) {
+            endDate = new Date(subscription.current_period_end * 1000)
+          } else {
+            console.error('ALERTA: current_period_end ausente no objeto subscription:', JSON.stringify(subscription))
+          }
 
           await supabaseAdmin.from('subscriptions').update({
             status: 'active',
             plano,
             stripe_subscription_id: subscriptionId,
             stripe_price_id: priceId,
-            current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString()
+            current_period_end: endDate.toISOString()
           }).eq('empresa_id', empresaId)
 
           await supabaseAdmin.from('empresas').update({ plano }).eq('id', empresaId)
@@ -52,10 +61,16 @@ export async function POST(request: Request) {
         const subscriptionId = (invoice as any).subscription as string
 
         if (subscriptionId) {
-          const subscription = await stripe.subscriptions.retrieve(subscriptionId) as Stripe.Subscription
+          const subscription = await stripe.subscriptions.retrieve(subscriptionId) as any
+          let endDate = new Date()
+          endDate.setDate(endDate.getDate() + 30)
+          if (subscription && subscription.current_period_end) {
+            endDate = new Date(subscription.current_period_end * 1000)
+          }
+
           await supabaseAdmin.from('subscriptions').update({
             status: 'active',
-            current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString()
+            current_period_end: endDate.toISOString()
           }).eq('stripe_subscription_id', subscriptionId)
         }
         break
@@ -74,14 +89,20 @@ export async function POST(request: Request) {
       }
 
       case 'customer.subscription.updated': {
-        const subscription = event.data.object as Stripe.Subscription
-        const priceId = subscription.items.data[0].price.id
+        const subscription = event.data.object as any
+        const priceId = subscription?.items?.data?.[0]?.price?.id
         
+        let endDate = new Date()
+        endDate.setDate(endDate.getDate() + 30)
+        if (subscription && subscription.current_period_end) {
+          endDate = new Date(subscription.current_period_end * 1000)
+        }
+
         const updateData: any = {
           stripe_price_id: priceId,
           status: subscription.status,
           cancel_at_period_end: subscription.cancel_at_period_end,
-          current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString()
+          current_period_end: endDate.toISOString()
         }
 
         if (priceId === process.env.STRIPE_PRICE_PRO) {
