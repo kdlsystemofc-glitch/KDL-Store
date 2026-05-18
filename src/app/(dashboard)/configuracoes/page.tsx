@@ -127,12 +127,17 @@ export default function ConfiguracoesPage() {
                 ))}
               </div>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-end' }}>
               {ativo ? (
-                <button onClick={abrirPortal} disabled={abrindoPortal} className="btn btn-secondary"
-                  style={{ fontWeight: 800, flexShrink: 0, fontSize: '0.72rem', background: cancel_at_period_end ? 'var(--verde)' : undefined, color: cancel_at_period_end ? '#fff' : undefined }}>
-                  {abrindoPortal ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : (cancel_at_period_end ? '♻' : '⚙')} {cancel_at_period_end ? 'REATIVAR ASSINATURA' : 'GERENCIAR ASSINATURA'}
-                </button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', alignItems: 'flex-end', width: '100%' }}>
+                  <Link href="/configuracoes/planos" className="btn btn-secondary"
+                    style={{ fontWeight: 800, width: '100%', fontSize: '0.72rem', background: cancel_at_period_end ? 'var(--verde)' : undefined, color: cancel_at_period_end ? '#fff' : undefined, justifyContent: 'center' }}>
+                    {cancel_at_period_end ? '♻ REATIVAR ASSINATURA' : '⚙ DETALHES E CANCELAMENTO'}
+                  </Link>
+                  <button onClick={abrirPortal} disabled={abrindoPortal} className="btn"
+                    style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--texto-sec)', fontSize: '0.65rem', padding: '0.4rem 0.75rem', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
+                    {abrindoPortal ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : '💳'} ABRIR PORTAL STRIPE (CARTÕES E FATURAS)
+                  </button>
+                </div>
               ) : (
                 <Link href="/assinar" className="btn btn-primary"
                   style={{ fontWeight: 800, flexShrink: 0, fontSize: '0.72rem' }}>
@@ -141,7 +146,7 @@ export default function ConfiguracoesPage() {
               )}
               {!isPro && ativo && (
                 <Link href="/assinar" className="btn btn-primary"
-                  style={{ fontWeight: 800, flexShrink: 0, fontSize: '0.72rem' }}>
+                  style={{ fontWeight: 800, flexShrink: 0, fontSize: '0.72rem', width: '100%', justifyContent: 'center', marginTop: '0.25rem' }}>
                   <Crown size={13} fill="currentColor" /> UPGRADE PARA PRO
                 </Link>
               )}
