@@ -41,6 +41,27 @@ export function useSubscription(): SubscriptionData {
         current_period_end: sub?.current_period_end || null,
         loading: false,
       })
+
+      // Background Sync directly from Stripe
+      try {
+        const syncRes = await fetch('/api/stripe/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ empresaId: profile.empresa_id })
+        })
+        const syncData = await syncRes.json()
+        if (syncData.synced && syncData.updateData) {
+          setData(prev => ({
+            ...prev,
+            plano: syncData.updateData.plano,
+            ativo: syncData.updateData.status === 'active',
+            cancel_at_period_end: syncData.updateData.cancel_at_period_end,
+            current_period_end: syncData.updateData.current_period_end
+          }))
+        }
+      } catch (err) {
+        console.error('Erro no sync de background da assinatura', err)
+      }
     }
     fetch()
   }, [])
