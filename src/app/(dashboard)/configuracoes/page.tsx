@@ -20,7 +20,7 @@ const PRO_FEATURES   = ['PDV ilimitado', 'Controle de estoque', 'Emissão de gar
 
 export default function ConfiguracoesPage() {
   const { empresaId } = useEmpresaId()
-  const { plano, ativo, loading: loadingSub } = useSubscription()
+  const { plano, ativo, cancel_at_period_end, current_period_end, loading: loadingSub } = useSubscription()
   const [prazoCrm,    setPrazoCrm]    = useState<number>(60)
   const [salvandoCrm, setSalvandoCrm] = useState(false)
   const [abrindoPortal, setAbrindoPortal] = useState(false)
@@ -117,7 +117,7 @@ export default function ConfiguracoesPage() {
                 {isPro ? 'PRO' : 'START'}
               </p>
               <p style={{ color: 'var(--texto-sec)', fontSize: '0.72rem', marginTop: '0.25rem', letterSpacing: '0.04em' }}>
-                {isPro ? 'R$ 95/MÊS' : 'R$ 65/MÊS'} · {ativo ? 'ASSINATURA ATIVA' : 'SEM ASSINATURA ATIVA'}
+                {isPro ? 'R$ 95/MÊS' : 'R$ 65/MÊS'} · {ativo ? (cancel_at_period_end ? `CANCELADA (ACESSO ATÉ ${current_period_end ? new Date(current_period_end).toLocaleDateString('pt-BR') : ''})` : 'ASSINATURA ATIVA') : 'SEM ASSINATURA ATIVA'}
               </p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem 1rem', marginTop: '0.5rem' }}>
                 {features.map(f => (
@@ -130,8 +130,8 @@ export default function ConfiguracoesPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-end' }}>
               {ativo ? (
                 <button onClick={abrirPortal} disabled={abrindoPortal} className="btn btn-secondary"
-                  style={{ fontWeight: 800, flexShrink: 0, fontSize: '0.72rem' }}>
-                  {abrindoPortal ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : '⚙'} GERENCIAR ASSINATURA
+                  style={{ fontWeight: 800, flexShrink: 0, fontSize: '0.72rem', background: cancel_at_period_end ? 'var(--verde)' : undefined, color: cancel_at_period_end ? '#fff' : undefined }}>
+                  {abrindoPortal ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : (cancel_at_period_end ? '♻' : '⚙')} {cancel_at_period_end ? 'REATIVAR ASSINATURA' : 'GERENCIAR ASSINATURA'}
                 </button>
               ) : (
                 <Link href="/assinar" className="btn btn-primary"
@@ -193,39 +193,41 @@ export default function ConfiguracoesPage() {
         </div>
       </div>
 
-      {/* Zona de Perigo */}
-      <div className="card" style={{padding:0,overflow:'hidden',border:'1px solid var(--vermelho)'}}>
-        <div className="sec-header" style={{borderBottom:'1px solid var(--vermelho)'}}><span style={{color:'var(--vermelho)'}}>⚠ ZONA DE PERIGO</span></div>
-        <div style={{padding:'0.875rem 1rem'}}>
-          <p style={{ fontSize: '0.72rem', color: 'var(--texto-desab)', marginBottom: '0.75rem', letterSpacing:'0.03em' }}>
-            AÇÕES IRREVERSÍVEIS. PROCEDAM COM EXTREMO CUIDADO.
-          </p>
+      {/* Zona de Perigo (oculta se já estiver cancelado) */}
+      {(!cancel_at_period_end) && (
+        <div className="card" style={{padding:0,overflow:'hidden',border:'1px solid var(--vermelho)'}}>
+          <div className="sec-header" style={{borderBottom:'1px solid var(--vermelho)'}}><span style={{color:'var(--vermelho)'}}>⚠ ZONA DE PERIGO</span></div>
+          <div style={{padding:'0.875rem 1rem'}}>
+            <p style={{ fontSize: '0.72rem', color: 'var(--texto-desab)', marginBottom: '0.75rem', letterSpacing:'0.03em' }}>
+              AÇÕES IRREVERSÍVEIS. PROCEDAM COM EXTREMO CUIDADO.
+            </p>
 
-          {!confirmDelete ? (
-            <button onClick={() => setConfirmDelete(true)}
-              className="btn"
-              style={{ fontSize:'0.72rem', fontWeight:700, color:'var(--vermelho)', border:'1px solid var(--vermelho)', background:'transparent', padding:'0.4rem 0.875rem' }}>
-              <AlertTriangle size={13} /> CANCELAR MINHA ASSINATURA
-            </button>
-          ) : (
-            <div style={{display:'flex',flexDirection:'column',gap:'0.625rem'}}>
-              <div style={{padding:'0.625rem',background:'rgba(239,68,68,0.08)',border:'1px solid var(--vermelho)',fontSize:'0.72rem',color:'var(--vermelho)',letterSpacing:'0.03em'}}>
-                ⚠ VOCÊ SERÁ REDIRECIONADO PARA O PORTAL DO STRIPE PARA CANCELAR SUA ASSINATURA. SEUS DADOS SERÃO MANTIDOS MAS O ACESSO SERÁ RESTRITO.
+            {!confirmDelete ? (
+              <button onClick={() => setConfirmDelete(true)}
+                className="btn"
+                style={{ fontSize:'0.72rem', fontWeight:700, color:'var(--vermelho)', border:'1px solid var(--vermelho)', background:'transparent', padding:'0.4rem 0.875rem' }}>
+                <AlertTriangle size={13} /> CANCELAR MINHA ASSINATURA
+              </button>
+            ) : (
+              <div style={{display:'flex',flexDirection:'column',gap:'0.625rem'}}>
+                <div style={{padding:'0.625rem',background:'rgba(239,68,68,0.08)',border:'1px solid var(--vermelho)',fontSize:'0.72rem',color:'var(--vermelho)',letterSpacing:'0.03em'}}>
+                  ⚠ VOCÊ SERÁ REDIRECIONADO PARA O PORTAL DO STRIPE PARA CANCELAR SUA ASSINATURA. SEUS DADOS SERÃO MANTIDOS MAS O ACESSO SERÁ RESTRITO.
+                </div>
+                <div style={{display:'flex',gap:'0.5rem'}}>
+                  <button onClick={() => setConfirmDelete(false)} className="btn btn-secondary" style={{fontSize:'0.72rem'}}>
+                    VOLTAR
+                  </button>
+                  <button onClick={cancelarAssinatura} disabled={deletando}
+                    className="btn"
+                    style={{ fontSize:'0.72rem', fontWeight:700, color:'#fff', background:'var(--vermelho)', border:'none', padding:'0.4rem 0.875rem', cursor:'pointer' }}>
+                    {deletando ? <><Loader2 size={12} style={{animation:'spin 1s linear infinite'}}/> REDIRECIONANDO...</> : 'SIM, QUERO CANCELAR'}
+                  </button>
+                </div>
               </div>
-              <div style={{display:'flex',gap:'0.5rem'}}>
-                <button onClick={() => setConfirmDelete(false)} className="btn btn-secondary" style={{fontSize:'0.72rem'}}>
-                  VOLTAR
-                </button>
-                <button onClick={cancelarAssinatura} disabled={deletando}
-                  className="btn"
-                  style={{ fontSize:'0.72rem', fontWeight:700, color:'#fff', background:'var(--vermelho)', border:'none', padding:'0.4rem 0.875rem', cursor:'pointer' }}>
-                  {deletando ? <><Loader2 size={12} style={{animation:'spin 1s linear infinite'}}/> REDIRECIONANDO...</> : 'SIM, QUERO CANCELAR'}
-                </button>
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       <p style={{ fontSize: '0.65rem', color: 'var(--texto-desab)', textAlign: 'center', marginTop: '0.5rem', letterSpacing:'0.06em' }}>
         KDL STORE v1.2.0 · FEITO PARA O PEQUENO COMÉRCIO BRASILEIRO
