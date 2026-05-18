@@ -1,8 +1,6 @@
-'use client'
 import { toast } from 'react-hot-toast'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
 import { useSubscription } from '@/hooks/useSubscription'
@@ -20,7 +18,6 @@ const START_FEATURES = ['PDV ilimitado', 'Controle de estoque', 'Emissão de gar
 const PRO_FEATURES   = ['PDV ilimitado', 'Controle de estoque', 'Emissão de garantias', 'Ordens de serviço', 'Módulo Financeiro', 'CRM de Sumição', 'Comissões', 'Relatórios avançados']
 
 export default function ConfiguracoesPage() {
-  const router = useRouter()
   const { empresaId } = useEmpresaId()
   const { plano, ativo, loading: loadingSub } = useSubscription()
   const [prazoCrm,    setPrazoCrm]    = useState<number>(60)
@@ -47,9 +44,14 @@ export default function ConfiguracoesPage() {
   }
 
   async function abrirPortal() {
+    if (!empresaId) return
     setAbrindoPortal(true)
     try {
-      const res = await fetch('/api/stripe/portal', { method: 'POST' })
+      const res = await fetch('/api/stripe/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ empresaId })
+      })
       const json = await res.json()
       if (json.url) window.location.href = json.url
       else toast.error('Erro ao abrir portal: ' + (json.error || 'Tente novamente'))
@@ -60,15 +62,23 @@ export default function ConfiguracoesPage() {
     }
   }
 
-  async function excluirConta() {
+  async function cancelarAssinatura() {
     if (!empresaId) return
     setDeletando(true)
-    const supabase = createClient()
-    // Apaga empresa (cascade apaga tudo)
-    await supabase.from('empresas').delete().eq('id', empresaId)
-    // Faz logout
-    await supabase.auth.signOut()
-    router.push('/')
+    try {
+      const res = await fetch('/api/stripe/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ empresaId })
+      })
+      const json = await res.json()
+      if (json.url) window.location.href = json.url
+      else toast.error('Erro ao abrir portal de cancelamento.')
+    } catch {
+      toast.error('Erro de rede.')
+    } finally {
+      setDeletando(false)
+    }
   }
 
   const isPro = plano === 'pro'
@@ -194,21 +204,21 @@ export default function ConfiguracoesPage() {
             <button onClick={() => setConfirmDelete(true)}
               className="btn"
               style={{ fontSize:'0.72rem', fontWeight:700, color:'var(--vermelho)', border:'1px solid var(--vermelho)', background:'transparent', padding:'0.4rem 0.875rem' }}>
-              <AlertTriangle size={13} /> EXCLUIR MINHA CONTA E TODOS OS DADOS
+              <AlertTriangle size={13} /> CANCELAR MINHA ASSINATURA
             </button>
           ) : (
             <div style={{display:'flex',flexDirection:'column',gap:'0.625rem'}}>
               <div style={{padding:'0.625rem',background:'rgba(239,68,68,0.08)',border:'1px solid var(--vermelho)',fontSize:'0.72rem',color:'var(--vermelho)',letterSpacing:'0.03em'}}>
-                ⚠ ISSO EXCLUIRÁ PERMANENTEMENTE SUA EMPRESA, TODOS OS PRODUTOS, CLIENTES, VENDAS E DADOS. ESTA AÇÃO NÃO PODE SER DESFEITA.
+                ⚠ VOCÊ SERÁ REDIRECIONADO PARA O PORTAL DO STRIPE PARA CANCELAR SUA ASSINATURA. SEUS DADOS SERÃO MANTIDOS MAS O ACESSO SERÁ RESTRITO.
               </div>
               <div style={{display:'flex',gap:'0.5rem'}}>
                 <button onClick={() => setConfirmDelete(false)} className="btn btn-secondary" style={{fontSize:'0.72rem'}}>
-                  CANCELAR
+                  VOLTAR
                 </button>
-                <button onClick={excluirConta} disabled={deletando}
+                <button onClick={cancelarAssinatura} disabled={deletando}
                   className="btn"
                   style={{ fontSize:'0.72rem', fontWeight:700, color:'#fff', background:'var(--vermelho)', border:'none', padding:'0.4rem 0.875rem', cursor:'pointer' }}>
-                  {deletando ? <><Loader2 size={12} style={{animation:'spin 1s linear infinite'}}/> EXCLUINDO...</> : 'SIM, EXCLUIR TUDO'}
+                  {deletando ? <><Loader2 size={12} style={{animation:'spin 1s linear infinite'}}/> REDIRECIONANDO...</> : 'SIM, QUERO CANCELAR'}
                 </button>
               </div>
             </div>
