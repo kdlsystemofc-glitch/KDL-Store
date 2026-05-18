@@ -385,8 +385,11 @@ CREATE INDEX IF NOT EXISTS idx_convites_token        ON convites(token);
 -- =============================================================
 -- TRIGGER: criar profile ao registrar novo usuário no auth
 -- =============================================================
-CREATE OR REPLACE FUNCTION handle_new_user()
-RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE
   v_empresa_id  UUID;
   v_nome        TEXT;
@@ -400,7 +403,7 @@ BEGIN
   IF v_invite_tok IS NOT NULL THEN
     -- Fluxo: usuário convidado — associa à empresa do convite
     SELECT * INTO v_convite
-    FROM convites
+    FROM public.convites
     WHERE token = v_invite_tok
       AND status = 'pendente'
       AND expira_em > NOW();
@@ -408,23 +411,23 @@ BEGIN
     IF FOUND THEN
       v_empresa_id := v_convite.empresa_id;
 
-      INSERT INTO profiles (id, empresa_id, nome, papel, status)
+      INSERT INTO public.profiles (id, empresa_id, nome, papel, status)
       VALUES (NEW.id, v_empresa_id, v_nome, v_convite.papel, 'ativo');
 
-      UPDATE convites SET status = 'aceito' WHERE id = v_convite.id;
+      UPDATE public.convites SET status = 'aceito' WHERE id = v_convite.id;
       RETURN NEW;
     END IF;
   END IF;
 
   -- Fluxo: novo lojista — cria empresa + subscription
-  INSERT INTO empresas (nome)
+  INSERT INTO public.empresas (nome)
   VALUES (COALESCE(NEW.raw_user_meta_data->>'nome_loja', 'Minha Loja'))
   RETURNING id INTO v_empresa_id;
 
-  INSERT INTO subscriptions (empresa_id, plano, status, preco)
+  INSERT INTO public.subscriptions (empresa_id, plano, status, preco)
   VALUES (v_empresa_id, 'start', 'active', 6500);
 
-  INSERT INTO profiles (id, empresa_id, nome, papel, status)
+  INSERT INTO public.profiles (id, empresa_id, nome, papel, status)
   VALUES (NEW.id, v_empresa_id, v_nome, 'admin', 'ativo');
 
   RETURN NEW;
@@ -434,7 +437,7 @@ $$;
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 -- =============================================================
 -- TRIGGER: atualizar ultima_compra do cliente ao fechar venda
