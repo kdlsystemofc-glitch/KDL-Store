@@ -3,22 +3,34 @@ import { createClient } from '@supabase/supabase-js'
 import { stripe } from '@/lib/stripe'
 import Stripe from 'stripe'
 
-// ─── helper: mapeia status do Stripe para o enum status_plano do banco ───────
-// O enum aceita: 'active' | 'inactive' | 'cancelled' | 'trialing'
-// O Stripe pode enviar: 'active' | 'past_due' | 'canceled' | 'incomplete' | etc.
-function mapStripeStatus(stripeStatus: string): 'active' | 'inactive' | 'cancelled' | 'trialing' {
-  switch (stripeStatus) {
+// ─── Mapeia status do Stripe → enum status_plano do banco ────────────────────
+// Stripe:  'active' | 'past_due' | 'canceled' | 'incomplete' | 'trialing' | ...
+// Nosso enum: 'active' | 'inactive' | 'cancelled' | 'trialing'
+function mapStripeStatus(s: string): 'active' | 'inactive' | 'cancelled' | 'trialing' {
+  switch (s) {
     case 'active':    return 'active'
     case 'trialing':  return 'trialing'
     case 'canceled':  return 'cancelled'   // Stripe usa 1 'l', nosso enum usa 2
     case 'cancelled': return 'cancelled'
-    case 'past_due':
-    case 'unpaid':
-    case 'incomplete':
-    case 'incomplete_expired':
-    case 'paused':
-    default:          return 'inactive'    // fallback seguro
+    default:          return 'inactive'    // past_due, unpaid, incomplete, paused, etc.
   }
+}
+
+// ─── Determina se a assinatura está agendada para cancelar ───────────────────
+// O portal do Stripe usa "cancel_at" (timestamp absoluto) em vez de "cancel_at_period_end"
+// Precisamos checar AMBOS para detectar corretamente o cancelamento agendado
+function isScheduled(sub: any): boolean {
+  return sub.cancel_at_period_end === true || sub.cancel_at != null
+}
+
+// ─── Data de fim de acesso efetiva ───────────────────────────────────────────
+// Quando cancel_at está definido, ele É a data de corte. Senão usa current_period_end.
+function accessEndDate(sub: any): Date {
+  const ts = sub.cancel_at || sub.current_period_end
+  if (ts) return new Date(ts * 1000)
+  const fallback = new Date()
+  fallback.setDate(fallback.getDate() + 30)
+  return fallback
 }
 
 export async function POST(request: Request) {
@@ -30,13 +42,12 @@ export async function POST(request: Request) {
   try {
     event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET!)
   } catch (err: any) {
-    console.error('[WEBHOOK] Signature verification failed:', err.message)
+    console.error('[WEBHOOK] Signature failed:', err.message)
     return NextResponse.json({ error: `Webhook Error: ${err.message}` }, { status: 400 })
   }
 
-  console.log(`[WEBHOOK] Received event: ${event.type} | id: ${event.id}`)
+  console.log(`[WEBHOOK] ${event.type} | ${event.id}`)
 
-  // Admin client para bypassar o RLS
   const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -45,185 +56,154 @@ export async function POST(request: Request) {
   try {
     switch (event.type) {
 
-      // ─── CHECKOUT CONCLUÍDO ──────────────────────────────────────────────
+      // ── 1. CHECKOUT CONCLUÍDO ─────────────────────────────────────────────
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session
         const subscriptionId = session.subscription as string
         const empresaId = session.metadata?.empresa_id
         const plano = session.metadata?.plano || 'start'
 
-        console.log(`[WEBHOOK] checkout.session.completed | empresa_id=${empresaId} | sub_id=${subscriptionId} | plano=${plano}`)
+        if (!empresaId) { console.error('[WEBHOOK] empresa_id ausente nos metadados'); break }
+        if (!subscriptionId) { console.error('[WEBHOOK] subscription_id ausente na sessão'); break }
 
-        if (!empresaId) { console.error('[WEBHOOK] ERRO: empresa_id ausente nos metadados'); break }
-        if (!subscriptionId) { console.error('[WEBHOOK] ERRO: subscription_id ausente na sessão'); break }
+        const stripeSub = await stripe.subscriptions.retrieve(subscriptionId) as any
+        const priceId = stripeSub?.items?.data?.[0]?.price?.id
+        const endDate = accessEndDate(stripeSub)
 
-        const subscription = await stripe.subscriptions.retrieve(subscriptionId) as any
-        const priceId = subscription?.items?.data?.[0]?.price?.id
-        const endDate = subscription?.current_period_end
-          ? new Date(subscription.current_period_end * 1000)
-          : (() => { const d = new Date(); d.setDate(d.getDate() + 30); return d })()
+        console.log(`[WEBHOOK] checkout | empresa=${empresaId} | sub=${subscriptionId} | end=${endDate.toISOString()}`)
 
-        console.log(`[WEBHOOK] checkout → stripe_subscription_id=${subscriptionId} | current_period_end=${endDate.toISOString()}`)
-
-        const { data: existingSub, error: findErr } = await supabaseAdmin
-          .from('subscriptions')
-          .select('id')
-          .eq('empresa_id', empresaId)
-          .maybeSingle()
-
-        console.log(`[WEBHOOK] existingSub encontrado: ${existingSub?.id ?? 'NENHUM'} | findErr: ${findErr?.message ?? 'none'}`)
+        const { data: existing } = await supabaseAdmin
+          .from('subscriptions').select('id').eq('empresa_id', empresaId).maybeSingle()
 
         const subData = {
           status: 'active' as const,
           plano,
           stripe_subscription_id: subscriptionId,
           stripe_price_id: priceId,
-          cancel_at_period_end: false,
+          cancel_at_period_end: isScheduled(stripeSub),
           current_period_end: endDate.toISOString()
         }
 
-        if (existingSub) {
-          const { error: updErr } = await supabaseAdmin
-            .from('subscriptions').update(subData).eq('id', existingSub.id)
-          if (updErr) console.error('[WEBHOOK] Erro ao atualizar subscription (checkout):', updErr.message)
-          else console.log('[WEBHOOK] subscription atualizada com sucesso (checkout)')
+        if (existing) {
+          const { error } = await supabaseAdmin.from('subscriptions').update(subData).eq('id', existing.id)
+          if (error) console.error('[WEBHOOK] Erro update (checkout):', error.message)
+          else console.log('[WEBHOOK] subscription atualizada (checkout)')
         } else {
-          const { error: insErr } = await supabaseAdmin
-            .from('subscriptions').insert({ empresa_id: empresaId, ...subData })
-          if (insErr) console.error('[WEBHOOK] Erro ao inserir subscription (checkout):', insErr.message)
-          else console.log('[WEBHOOK] subscription inserida com sucesso (checkout)')
+          const { error } = await supabaseAdmin.from('subscriptions').insert({ empresa_id: empresaId, ...subData })
+          if (error) console.error('[WEBHOOK] Erro insert (checkout):', error.message)
+          else console.log('[WEBHOOK] subscription inserida (checkout)')
         }
 
-        const { error: empErr } = await supabaseAdmin
-          .from('empresas').update({ plano }).eq('id', empresaId)
-        if (empErr) console.error('[WEBHOOK] Erro ao atualizar empresa (checkout):', empErr.message)
+        const { error: empErr } = await supabaseAdmin.from('empresas').update({ plano }).eq('id', empresaId)
+        if (empErr) console.error('[WEBHOOK] Erro update empresa (checkout):', empErr.message)
         break
       }
 
-      // ─── PAGAMENTO BEM-SUCEDIDO (RENOVAÇÃO) ─────────────────────────────
+      // ── 2. PAGAMENTO BEM-SUCEDIDO (RENOVAÇÃO) ────────────────────────────
       case 'invoice.payment_succeeded': {
-        const invoice = event.data.object as Stripe.Invoice
-        const subscriptionId = (invoice as any).subscription as string
+        const invoice = event.data.object as any
+        // Stripe v2023+: invoice.parent.subscription_details.subscription ou invoice.subscription
+        const subscriptionId = invoice.subscription
+          || invoice.parent?.subscription_details?.subscription as string
 
-        console.log(`[WEBHOOK] invoice.payment_succeeded | sub_id=${subscriptionId}`)
+        if (!subscriptionId) { console.error('[WEBHOOK] payment_succeeded sem subscription_id'); break }
 
-        if (!subscriptionId) break
+        const stripeSub = await stripe.subscriptions.retrieve(subscriptionId) as any
+        const endDate = accessEndDate(stripeSub)
+        const scheduled = isScheduled(stripeSub)
 
-        const subscription = await stripe.subscriptions.retrieve(subscriptionId) as any
-        const endDate = subscription?.current_period_end
-          ? new Date(subscription.current_period_end * 1000)
-          : (() => { const d = new Date(); d.setDate(d.getDate() + 30); return d })()
+        console.log(`[WEBHOOK] payment_succeeded | sub=${subscriptionId} | end=${endDate.toISOString()} | scheduled=${scheduled}`)
 
         const { error } = await supabaseAdmin.from('subscriptions').update({
           status: 'active',
-          cancel_at_period_end: subscription.cancel_at_period_end ?? false,
+          cancel_at_period_end: scheduled,
           current_period_end: endDate.toISOString()
         }).eq('stripe_subscription_id', subscriptionId)
 
-        if (error) console.error('[WEBHOOK] Erro ao atualizar (payment_succeeded):', error.message)
+        if (error) console.error('[WEBHOOK] Erro update (payment_succeeded):', error.message)
         else console.log('[WEBHOOK] Renovação registrada com sucesso')
         break
       }
 
-      // ─── PAGAMENTO FALHOU ────────────────────────────────────────────────
+      // ── 3. PAGAMENTO FALHOU ───────────────────────────────────────────────
       case 'invoice.payment_failed': {
-        const invoice = event.data.object as Stripe.Invoice
-        const subscriptionId = (invoice as any).subscription as string
-
-        console.log(`[WEBHOOK] invoice.payment_failed | sub_id=${subscriptionId}`)
+        const invoice = event.data.object as any
+        const subscriptionId = invoice.subscription
+          || invoice.parent?.subscription_details?.subscription as string
 
         if (!subscriptionId) break
 
-        // IMPORTANTE: 'past_due' NÃO está no enum status_plano → usamos 'inactive'
+        console.log(`[WEBHOOK] payment_failed | sub=${subscriptionId}`)
+
+        // 'past_due' NÃO existe no enum → usamos 'inactive'
         const { error } = await supabaseAdmin.from('subscriptions').update({
           status: 'inactive'
         }).eq('stripe_subscription_id', subscriptionId)
 
-        if (error) console.error('[WEBHOOK] Erro ao atualizar (payment_failed):', error.message)
+        if (error) console.error('[WEBHOOK] Erro update (payment_failed):', error.message)
         break
       }
 
-      // ─── ASSINATURA ATUALIZADA (inclui cancelamento agendado) ────────────
+      // ── 4. ASSINATURA ATUALIZADA (cancelamento agendado, upgrade, etc.) ──
       case 'customer.subscription.updated': {
-        const subscription = event.data.object as any
-        const priceId = subscription?.items?.data?.[0]?.price?.id
+        const sub = event.data.object as any
+        const priceId = sub?.items?.data?.[0]?.price?.id
+        const scheduled = isScheduled(sub)
+        const endDate = accessEndDate(sub)
 
-        // O portal do Stripe usa "cancel_at" (timestamp) em vez de "cancel_at_period_end"
-        // Tratamos ambos como "cancelamento agendado"
-        const isScheduledCancellation = subscription.cancel_at_period_end === true || subscription.cancel_at != null
-
-        // Data de término do acesso: preferência para cancel_at (set pelo portal), depois current_period_end
-        const endTimestamp = subscription.cancel_at || subscription.current_period_end
-        const endDate = endTimestamp
-          ? new Date(endTimestamp * 1000)
-          : (() => { const d = new Date(); d.setDate(d.getDate() + 30); return d })()
-
-        console.log(`[WEBHOOK] customer.subscription.updated | sub_id=${subscription.id}`)
-        console.log(`[WEBHOOK] cancel_at_period_end=${subscription.cancel_at_period_end} | cancel_at=${subscription.cancel_at} | computed isScheduled=${isScheduledCancellation}`)
-        console.log(`[WEBHOOK] endDate computado: ${endDate.toISOString()}`)
+        console.log(`[WEBHOOK] subscription.updated | sub=${sub.id} | status=${sub.status}`)
+        console.log(`[WEBHOOK] cancel_at_period_end=${sub.cancel_at_period_end} | cancel_at=${sub.cancel_at} | → scheduled=${scheduled}`)
+        console.log(`[WEBHOOK] endDate=${endDate.toISOString()}`)
 
         const updateData: any = {
           stripe_price_id: priceId,
-          status: mapStripeStatus(subscription.status),
-          cancel_at_period_end: isScheduledCancellation,  // campo computado correto
+          status: mapStripeStatus(sub.status),
+          cancel_at_period_end: scheduled,
           current_period_end: endDate.toISOString()
         }
-
         if (priceId === process.env.STRIPE_PRICE_PRO) updateData.plano = 'pro'
         else if (priceId === process.env.STRIPE_PRICE_START) updateData.plano = 'start'
 
-        console.log(`[WEBHOOK] Dados a gravar:`, JSON.stringify(updateData))
+        const { data: row, error: findErr } = await supabaseAdmin
+          .from('subscriptions').select('id, empresa_id')
+          .eq('stripe_subscription_id', sub.id).maybeSingle()
 
-        const { data: checkRow, error: checkErr } = await supabaseAdmin
-          .from('subscriptions')
-          .select('id, empresa_id, stripe_subscription_id')
-          .eq('stripe_subscription_id', subscription.id)
-          .maybeSingle()
+        if (findErr) { console.error('[WEBHOOK] Erro ao buscar linha:', findErr.message); break }
+        if (!row) { console.error(`[WEBHOOK] Nenhuma linha com stripe_subscription_id=${sub.id}`); break }
 
-        console.log(`[WEBHOOK] Linha encontrada: ${JSON.stringify(checkRow)} | erro: ${checkErr?.message ?? 'none'}`)
+        const { error: updErr } = await supabaseAdmin.from('subscriptions').update(updateData).eq('id', row.id)
+        if (updErr) console.error('[WEBHOOK] Erro ao gravar (subscription.updated):', updErr.message)
+        else console.log(`[WEBHOOK] Gravado com sucesso → scheduled=${scheduled} para empresa ${row.empresa_id}`)
 
-        if (!checkRow) {
-          console.error(`[WEBHOOK] CAUSA RAIZ: Nenhuma linha com stripe_subscription_id=${subscription.id}`)
-          break
-        }
-
-        const { error: updErr } = await supabaseAdmin
-          .from('subscriptions').update(updateData).eq('stripe_subscription_id', subscription.id)
-
-        if (updErr) console.error('[WEBHOOK] Erro ao atualizar (subscription.updated):', updErr.message)
-        else console.log(`[WEBHOOK] isScheduledCancellation=${isScheduledCancellation} gravado com sucesso para empresa ${checkRow.empresa_id}`)
-
-        if (checkRow.empresa_id && updateData.plano) {
-          await supabaseAdmin.from('empresas').update({ plano: updateData.plano }).eq('id', checkRow.empresa_id)
+        if (row.empresa_id && updateData.plano) {
+          await supabaseAdmin.from('empresas').update({ plano: updateData.plano }).eq('id', row.empresa_id)
         }
         break
+      }
 
-      // ─── ASSINATURA DELETADA DEFINITIVAMENTE ─────────────────────────────
+      // ── 5. ASSINATURA DELETADA (acesso expirou de fato) ──────────────────
       case 'customer.subscription.deleted': {
-        const subscription = event.data.object as Stripe.Subscription
+        const sub = event.data.object as Stripe.Subscription
 
-        console.log(`[WEBHOOK] customer.subscription.deleted | sub_id=${subscription.id}`)
+        console.log(`[WEBHOOK] subscription.deleted | sub=${sub.id}`)
 
-        const { data: checkRow } = await supabaseAdmin
-          .from('subscriptions')
-          .select('empresa_id')
-          .eq('stripe_subscription_id', subscription.id)
-          .maybeSingle()
+        const { data: row } = await supabaseAdmin
+          .from('subscriptions').select('empresa_id')
+          .eq('stripe_subscription_id', sub.id).maybeSingle()
 
-        if (!checkRow) {
-          console.error(`[WEBHOOK] CAUSA RAIZ: Nenhuma linha com stripe_subscription_id=${subscription.id} para deletar`)
-          break
-        }
+        if (!row) { console.error(`[WEBHOOK] Nenhuma linha com stripe_subscription_id=${sub.id}`); break }
 
         await supabaseAdmin.from('subscriptions').update({
           status: 'cancelled',
           plano: 'start',
           cancel_at_period_end: false
-        }).eq('stripe_subscription_id', subscription.id)
+        }).eq('stripe_subscription_id', sub.id)
 
-        if (checkRow.empresa_id) {
-          await supabaseAdmin.from('empresas').update({ plano: 'start' }).eq('id', checkRow.empresa_id)
+        if (row.empresa_id) {
+          await supabaseAdmin.from('empresas').update({ plano: 'start' }).eq('id', row.empresa_id)
         }
+
+        console.log(`[WEBHOOK] Assinatura encerrada definitivamente para empresa ${row.empresa_id}`)
         break
       }
 
@@ -233,7 +213,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ received: true })
   } catch (err: any) {
-    console.error('[WEBHOOK] Erro inesperado processando evento:', event.type, err)
+    console.error('[WEBHOOK] Erro inesperado:', event.type, err)
     return NextResponse.json({ error: err.message || 'Erro interno no webhook' }, { status: 500 })
   }
 }
