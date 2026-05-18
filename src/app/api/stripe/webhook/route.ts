@@ -77,25 +77,27 @@ export async function POST(request: Request) {
         const subscription = event.data.object as Stripe.Subscription
         const priceId = subscription.items.data[0].price.id
         
-        let novoPlano = 'start'
-        if (priceId === process.env.STRIPE_PRICE_PRO) {
-          novoPlano = 'pro'
-        }
-
-        await supabaseAdmin.from('subscriptions').update({
-          plano: novoPlano,
+        const updateData: any = {
           stripe_price_id: priceId,
           status: subscription.status,
           cancel_at_period_end: subscription.cancel_at_period_end,
           current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString()
-        }).eq('stripe_subscription_id', subscription.id)
+        }
+
+        if (priceId === process.env.STRIPE_PRICE_PRO) {
+          updateData.plano = 'pro'
+        } else if (priceId === process.env.STRIPE_PRICE_START) {
+          updateData.plano = 'start'
+        }
+
+        await supabaseAdmin.from('subscriptions').update(updateData).eq('stripe_subscription_id', subscription.id)
 
         // Atualizar empresa_id baseado na subscription
         const { data: subData } = await supabaseAdmin.from('subscriptions')
           .select('empresa_id').eq('stripe_subscription_id', subscription.id).single()
         
-        if (subData?.empresa_id) {
-          await supabaseAdmin.from('empresas').update({ plano: novoPlano }).eq('id', subData.empresa_id)
+        if (subData?.empresa_id && updateData.plano) {
+          await supabaseAdmin.from('empresas').update({ plano: updateData.plano }).eq('id', subData.empresa_id)
         }
         break
       }
