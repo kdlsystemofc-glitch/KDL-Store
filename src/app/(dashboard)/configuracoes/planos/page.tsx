@@ -12,14 +12,22 @@ export default function PlanosPage() {
   const [btnLoading, setBtnLoading] = useState(false)
   const [showDowngradeModal, setShowDowngradeModal] = useState(false)
 
-  useEffect(() => {
-    if (empresaId) {
-      createClient().from('subscriptions').select('*').eq('empresa_id', empresaId).single()
-        .then(({ data }) => {
-          setSub(data)
-          setLoading(false)
-        })
+  const loadData = async () => {
+    if (!empresaId) return
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/stripe/status?empresaId=${empresaId}`)
+      const { sub: subData } = await res.json()
+      setSub(subData)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoading(false)
     }
+  }
+
+  useEffect(() => {
+    loadData()
   }, [empresaId])
 
   async function openPortal() {
@@ -51,8 +59,8 @@ export default function PlanosPage() {
       if (res.ok) {
         toast.success(data.message || 'Mudança de plano agendada!')
         setShowDowngradeModal(false)
-        // Recarrega a página para atualizar o status
-        window.location.reload()
+        // Recarrega apenas os dados para mostrar o agendamento
+        await loadData()
       } else {
         toast.error(data.error || 'Erro ao agendar mudança de plano')
       }
@@ -77,6 +85,7 @@ export default function PlanosPage() {
   const isCancelled = sub?.status === 'cancelled'
   const isPastDue = sub?.status === 'past_due'
   const isCancelScheduled = sub?.cancel_at_period_end
+  const isPlanChangeScheduled = !!sub?.scheduled_plan
 
   return (
     <div className="anim-fade" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '680px' }}>
@@ -138,7 +147,7 @@ export default function PlanosPage() {
              <p><strong>Próximo vencimento:</strong> {new Date(sub.current_period_end).toLocaleDateString('pt-BR')}</p>
           )}
 
-          {isCancelScheduled && (
+          {isCancelScheduled && !isPlanChangeScheduled && (
             <div style={{ padding:'0.75rem', background:'rgba(234,179,8,0.1)', borderLeft:'4px solid var(--amarelo)', marginTop:'0.5rem' }}>
               <p style={{ color: 'var(--texto)', fontWeight: 700, fontSize:'0.9rem', marginBottom:'0.25rem' }}>
                 Sua assinatura foi cancelada.
@@ -151,6 +160,21 @@ export default function PlanosPage() {
               </button>
             </div>
           )}
+
+          {isPlanChangeScheduled && (
+            <div style={{ padding:'0.75rem', background:'rgba(0,191,165,0.1)', borderLeft:'4px solid var(--verde)', marginTop:'0.5rem' }}>
+              <p style={{ color: 'var(--verde)', fontWeight: 700, fontSize:'0.9rem', marginBottom:'0.25rem' }}>
+                Mudança de plano agendada
+              </p>
+              <p style={{ color: 'var(--texto-sec)', fontSize:'0.82rem', marginBottom:'0.5rem' }}>
+                Você agendou uma alteração para o plano <strong>{sub.scheduled_plan === 'pro' ? 'Pro' : 'Start'}</strong>.
+                Esta mudança entrará em vigor e será cobrada apenas no próximo vencimento ({new Date(sub.current_period_end).toLocaleDateString('pt-BR')}).
+              </p>
+              <button onClick={openPortal} disabled={btnLoading} className="btn" style={{fontSize:'0.72rem', background: 'var(--surface-alt)', color: 'var(--texto)'}}>
+                Cancelar Agendamento (Stripe) <ExternalLink size={12} style={{marginLeft:'4px'}}/>
+              </button>
+            </div>
+          )}
         </div>
 
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: '1rem' }}>
@@ -158,15 +182,15 @@ export default function PlanosPage() {
             Gerenciar Assinatura (Cartão/Faturas) <ExternalLink size={14} style={{ marginLeft: '4px' }} />
           </button>
           
-          {isStart && !isCancelled && !isCancelScheduled && (
+          {isStart && !isCancelled && !isCancelScheduled && !isPlanChangeScheduled && (
             <button onClick={fazerUpgrade} disabled={btnLoading} className="btn btn-primary" style={{ background: 'var(--amarelo)', color: '#000' }}>
               {btnLoading ? <Loader2 size={16} className="animate-spin" /> : 'Agendar Upgrade para Pro (R$95 no próximo mês)'}
             </button>
           )}
 
-          {isPro && !isCancelScheduled && !isCancelled && (
+          {isPro && !isCancelScheduled && !isCancelled && !isPlanChangeScheduled && (
             <button onClick={() => setShowDowngradeModal(true)} disabled={btnLoading} className="btn btn-danger" style={{ background: 'transparent', border: '1px solid var(--vermelho)', color: 'var(--vermelho)' }}>
-              Mudar para Start — R$65/mês
+              Mudar para Start (R$65 no próximo mês)
             </button>
           )}
         </div>
