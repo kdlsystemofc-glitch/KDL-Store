@@ -262,6 +262,7 @@ CREATE TABLE IF NOT EXISTS fiados (
   cliente_nome  TEXT NOT NULL,
   cliente_tel   TEXT,
   valor_aberto  NUMERIC(12,2) NOT NULL DEFAULT 0,
+  data_vencimento DATE,
   status        status_fiado NOT NULL DEFAULT 'aberto',
   pago_em       TIMESTAMPTZ,
   criado_em     TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -425,7 +426,7 @@ BEGIN
   RETURNING id INTO v_empresa_id;
 
   INSERT INTO public.subscriptions (empresa_id, plano, status, preco)
-  VALUES (v_empresa_id, 'start', 'active', 6500);
+  VALUES (v_empresa_id, 'start', 'inactive', 0);
 
   INSERT INTO public.profiles (id, empresa_id, nome, papel, status)
   VALUES (NEW.id, v_empresa_id, v_nome, 'admin', 'ativo');
