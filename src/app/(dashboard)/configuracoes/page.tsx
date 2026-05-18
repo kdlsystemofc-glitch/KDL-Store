@@ -127,6 +127,7 @@ export default function ConfiguracoesPage() {
                 ))}
               </div>
             </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-end', width: '100%', maxWidth: '200px' }}>
               {ativo ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', alignItems: 'flex-end', width: '100%' }}>
                   <Link href="/configuracoes/planos" className="btn btn-secondary"
