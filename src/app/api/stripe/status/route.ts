@@ -16,7 +16,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const stripeSub = await stripe.subscriptions.retrieve(sub.stripe_subscription_id)
+    const stripeSub = await stripe.subscriptions.retrieve(sub.stripe_subscription_id) as any
     
     let scheduledPlan = null
     
