@@ -65,26 +65,23 @@ export async function POST(request: Request) {
       quantity: i.quantity || 1
     }))
 
-    const periodEnd = stripeSub.current_period_end ? Number(stripeSub.current_period_end) : null
-
-    const phase0: any = {
-      start_date: currentPhase.start_date,
-      items: currentItems,
-    }
-
-    if (periodEnd && !isNaN(periodEnd)) {
-      phase0.end_date = periodEnd
-    } else {
-      // Fallback robusto se o Stripe não enviar o current_period_end
-      phase0.iterations = 1
+    const periodEnd = currentPhase.end_date || stripeSub.current_period_end
+    
+    if (!periodEnd) {
+      return NextResponse.json({ error: 'Erro ao identificar o fim do ciclo atual.' }, { status: 500 })
     }
 
     // Atualiza o schedule:
-    // 1. A fase atual continua exatamente como está até o final do período (current_period_end)
+    // 1. A fase atual continua exatamente como está até o final do período
     // 2. Cria uma nova fase após o período atual usando o novo preço
     await stripe.subscriptionSchedules.update(scheduleId, {
+      end_behavior: 'release',
       phases: [
-        phase0,
+        {
+          start_date: currentPhase.start_date,
+          end_date: Number(periodEnd),
+          items: currentItems,
+        },
         {
           items: [{ price: priceId, quantity: 1 }],
           proration_behavior: 'none'
