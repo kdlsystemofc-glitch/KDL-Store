@@ -8,6 +8,7 @@ type SubscriptionData = {
   ativo: boolean
   cancel_at_period_end: boolean
   current_period_end: string | null
+  scheduled_plan?: 'start' | 'pro' | null
   loading: boolean
 }
 
@@ -28,19 +29,21 @@ export function useSubscription(): SubscriptionData {
 
       if (!profile?.empresa_id) { setData({ plano: null, ativo: false, cancel_at_period_end: false, current_period_end: null, loading: false }); return }
 
-      const { data: sub } = await supabase
-        .from('subscriptions')
-        .select('plano, status, cancel_at_period_end, current_period_end')
-        .eq('empresa_id', profile.empresa_id)
-        .single()
-
-      setData({
-        plano: sub?.plano as 'start' | 'pro' || null,
-        ativo: sub?.status === 'active',
-        cancel_at_period_end: sub?.cancel_at_period_end || false,
-        current_period_end: sub?.current_period_end || null,
-        loading: false,
-      })
+      try {
+        const res = await fetch(`/api/stripe/status?empresaId=${profile.empresa_id}`)
+        const { sub } = await res.json()
+        
+        setData({
+          plano: sub?.plano as 'start' | 'pro' || null,
+          ativo: sub?.status === 'active',
+          cancel_at_period_end: sub?.cancel_at_period_end || false,
+          current_period_end: sub?.current_period_end || null,
+          scheduled_plan: sub?.scheduled_plan || null,
+          loading: false,
+        })
+      } catch (e) {
+        setData(prev => ({ ...prev, loading: false }))
+      }
     }
     fetch()
   }, [])

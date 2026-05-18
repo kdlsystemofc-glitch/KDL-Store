@@ -21,7 +21,7 @@ const PRO_FEATURES   = ['PDV ilimitado', 'Controle de estoque', 'Emissão de gar
 
 export default function ConfiguracoesPage() {
   const { empresaId } = useEmpresaId()
-  const { plano, ativo, cancel_at_period_end, current_period_end, loading: loadingSub } = useSubscription()
+  const { plano, ativo, cancel_at_period_end, current_period_end, scheduled_plan, loading: loadingSub } = useSubscription()
   const [prazoCrm,    setPrazoCrm]    = useState<number>(60)
   const [salvandoCrm, setSalvandoCrm] = useState(false)
   const [abrindoPortal, setAbrindoPortal] = useState(false)
@@ -118,7 +118,7 @@ export default function ConfiguracoesPage() {
                 {isPro ? 'PRO' : 'START'}
               </p>
               <p style={{ color: 'var(--texto-sec)', fontSize: '0.72rem', marginTop: '0.25rem', letterSpacing: '0.04em' }}>
-                {isPro ? 'R$ 95/MÊS' : 'R$ 65/MÊS'} · {ativo ? (cancel_at_period_end ? `CANCELADA (ACESSO ATÉ ${current_period_end ? new Date(current_period_end).toLocaleDateString('pt-BR') : ''})` : 'ASSINATURA ATIVA') : 'SEM ASSINATURA ATIVA'}
+                {isPro ? 'R$ 95/MÊS' : 'R$ 65/MÊS'} · {ativo ? (cancel_at_period_end ? `CANCELADA (ACESSO ATÉ ${current_period_end ? new Date(current_period_end).toLocaleDateString('pt-BR') : ''})` : (scheduled_plan ? `MUDANÇA PARA ${scheduled_plan.toUpperCase()} AGENDADA` : 'ASSINATURA ATIVA')) : 'SEM ASSINATURA ATIVA'}
               </p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem 1rem', marginTop: '0.5rem' }}>
                 {features.map(f => (
@@ -146,8 +146,8 @@ export default function ConfiguracoesPage() {
                   ▶ ASSINAR AGORA
                 </Link>
               )}
-              {!isPro && ativo && (
-                <Link href="/assinar" className="btn btn-primary"
+              {!isPro && ativo && !scheduled_plan && (
+                <Link href="/configuracoes/planos" className="btn btn-primary"
                   style={{ fontWeight: 800, flexShrink: 0, fontSize: '0.72rem', width: '100%', justifyContent: 'center', marginTop: '0.25rem' }}>
                   <Crown size={13} fill="currentColor" /> UPGRADE PARA PRO
                 </Link>
