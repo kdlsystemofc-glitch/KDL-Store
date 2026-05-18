@@ -13,6 +13,7 @@ const sections = [
   { href: '/configuracoes/pagamentos', icon: '[PAG]', title: 'FORMAS DE PAGAMENTO',     desc: 'PIX, Dinheiro, Crédito, Débito, Fiado' },
   { href: '/configuracoes/categorias', icon: '[CAT]', title: 'CATEGORIAS DE PRODUTOS',  desc: 'Criar e organizar categorias' },
   { href: '/catalogo',                 icon: '[WWW]', title: 'CATÁLOGO ONLINE',          desc: 'Configurar e visualizar seu catálogo público' },
+  { href: '/configuracoes/planos',     icon: '[PLN]', title: 'ASSINATURA E PLANOS',      desc: 'Gerencie sua assinatura e histórico de faturas' },
 ]
 
 const START_FEATURES = ['PDV ilimitado', 'Controle de estoque', 'Emissão de garantias', 'Ordens de serviço', 'Módulo Financeiro']
@@ -131,12 +132,12 @@ export default function ConfiguracoesPage() {
               {ativo ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', alignItems: 'flex-end', width: '100%' }}>
                   <Link href="/configuracoes/planos" className="btn btn-secondary"
-                    style={{ fontWeight: 800, width: '100%', fontSize: '0.72rem', background: cancel_at_period_end ? 'var(--verde)' : undefined, color: cancel_at_period_end ? '#fff' : undefined, justifyContent: 'center' }}>
-                    {cancel_at_period_end ? '♻ REATIVAR ASSINATURA' : '⚙ DETALHES E CANCELAMENTO'}
+                    style={{ fontWeight: 800, width: '100%', fontSize: '0.72rem', background: cancel_at_period_end ? 'var(--verde)' : 'var(--fundo-destaque)', color: '#fff', justifyContent: 'center' }}>
+                    {cancel_at_period_end ? '♻ REATIVAR ASSINATURA' : '⚙ GERENCIAR ASSINATURA'}
                   </Link>
                   <button onClick={abrirPortal} disabled={abrindoPortal} className="btn"
                     style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--texto-sec)', fontSize: '0.65rem', padding: '0.4rem 0.75rem', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
-                    {abrindoPortal ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : '💳'} ABRIR PORTAL STRIPE (CARTÕES E FATURAS)
+                    {abrindoPortal ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : '💳'} CARTÕES E FATURAS (STRIPE)
                   </button>
                 </div>
               ) : (
