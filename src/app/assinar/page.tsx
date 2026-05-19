@@ -1,11 +1,21 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
-export default function AssinarPage() {
+export default function AssinarPageWrapper() {
+  return (
+    <Suspense fallback={<div>Carregando...</div>}>
+      <AssinarPage />
+    </Suspense>
+  )
+}
+
+function AssinarPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const motivo = searchParams.get('motivo')
   const [loading, setLoading] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
 
@@ -78,10 +88,28 @@ export default function AssinarPage() {
         Sem contrato. Cancele quando quiser.
       </p>
 
+      {motivo === 'inadimplente' && (
+        <div style={{
+          background: '#FF4C4C', color: '#fff', padding: '0.75rem', marginBottom: '1.5rem',
+          fontSize: '0.9rem', fontWeight: 700, borderRadius: 'var(--r-sm)', maxWidth: '720px', margin: '0 auto 1.5rem'
+        }}>
+          🚨 Seu pagamento falhou. Atualize seu cartão ou assine novamente para continuar.
+        </div>
+      )}
+
+      {motivo === 'cancelado' && (
+        <div style={{
+          background: '#FFB800', color: '#111', padding: '0.75rem', marginBottom: '1.5rem',
+          fontSize: '0.9rem', fontWeight: 700, borderRadius: 'var(--r-sm)', maxWidth: '720px', margin: '0 auto 1.5rem'
+        }}>
+          ⚠️ Sua assinatura foi cancelada. Assine novamente para recuperar seu acesso.
+        </div>
+      )}
+
       {erro && (
         <div style={{
           background: '#fdf2f1', border: '1px solid #f1a99e', borderLeft: '3px solid var(--laranja)',
-          padding: '0.625rem 0.875rem', marginBottom: '1.5rem', color: 'var(--laranja)',
+          padding: '0.625rem 0.875rem', marginBottom: '1.5rem', color: 'var(--laranja)', maxWidth: '720px', margin: '0 auto 1.5rem',
           fontSize: '0.82rem', fontWeight: 600, borderRadius: 'var(--r-sm)', textAlign: 'left',
         }}>
           {erro}

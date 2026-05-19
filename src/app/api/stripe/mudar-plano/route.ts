@@ -42,6 +42,26 @@ export async function POST(request: Request) {
     // Pega os dados atuais da assinatura no Stripe
     const stripeSub = await stripe.subscriptions.retrieve(sub.stripe_subscription_id) as any
     
+    // Se for Upgrade (Start -> Pro), fazemos imediatamente com rateio (proration)
+    if (plano_destino === 'pro') {
+      // Se houver um schedule ativo, ele pode atrapalhar a atualização direta. Removemos se existir.
+      if (stripeSub.schedule) {
+        await stripe.subscriptionSchedules.release(stripeSub.schedule as string)
+      }
+      
+      const subscriptionItem = stripeSub.items.data[0]
+      await stripe.subscriptions.update(stripeSub.id, {
+        items: [{
+          id: subscriptionItem.id,
+          price: priceId,
+        }],
+        proration_behavior: 'create_prorations'
+      })
+
+      return NextResponse.json({ success: true, message: 'Upgrade realizado com sucesso!' })
+    }
+
+    // Se for Downgrade (Pro -> Start), agendamos para o próximo ciclo
     let scheduleId = stripeSub.schedule as string
 
     // Se já não tiver um schedule, criamos um a partir da assinatura atual
@@ -72,8 +92,6 @@ export async function POST(request: Request) {
     }
 
     // Atualiza o schedule:
-    // 1. A fase atual continua exatamente como está até o final do período
-    // 2. Cria uma nova fase após o período atual usando o novo preço
     await stripe.subscriptionSchedules.update(scheduleId, {
       end_behavior: 'release',
       phases: [
@@ -89,7 +107,7 @@ export async function POST(request: Request) {
       ]
     })
 
-    return NextResponse.json({ success: true, message: 'Plano agendado com sucesso para o próximo ciclo.' })
+    return NextResponse.json({ success: true, message: 'Downgrade agendado para o próximo ciclo.' })
 
   } catch (err: any) {
     console.error('Erro ao agendar mudança de plano:', err)

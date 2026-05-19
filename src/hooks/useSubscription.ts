@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 
 type SubscriptionData = {
   plano: 'start' | 'pro' | null
+  status?: string
   ativo: boolean
   cancel_at_period_end: boolean
   current_period_end: string | null
@@ -35,7 +36,8 @@ export function useSubscription(): SubscriptionData {
         
         setData({
           plano: sub?.plano as 'start' | 'pro' || null,
-          ativo: sub?.status === 'active',
+          status: sub?.status || 'inactive',
+          ativo: sub?.status === 'active' || sub?.status === 'trialing',
           cancel_at_period_end: sub?.cancel_at_period_end || false,
           current_period_end: sub?.current_period_end || null,
           scheduled_plan: sub?.scheduled_plan || null,

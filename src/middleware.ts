@@ -57,30 +57,34 @@ export async function middleware(request: NextRequest) {
 
   let hasActiveSubscription = false
   let userPlan = 'start'
+  let motivoRedirecionamento = ''
+
   if (profile?.empresa_id) {
     const { data: sub } = await supabase
       .from('subscriptions')
-      .select('status, plano, current_period_end')
+      .select('status, plano, cancel_at_period_end, current_period_end')
       .eq('empresa_id', profile.empresa_id)
       .single()
       
     if (sub) {
       userPlan = sub.plano || 'start'
       const agora = new Date()
+      const end = sub.current_period_end ? new Date(sub.current_period_end) : null
       
       let podeAcessar = false
-      if (sub.status === 'active') {
+
+      if (sub.status === 'active' || sub.status === 'trialing') {
         podeAcessar = true
-      } else if (sub.status === 'past_due' && sub.current_period_end) {
-        const fimPeriodo = new Date(sub.current_period_end)
-        const gracePeriod = new Date(fimPeriodo)
-        gracePeriod.setDate(gracePeriod.getDate() + 3) // 3 dias de graça
-        if (agora < gracePeriod) {
-          podeAcessar = true
-        }
+      }
+      
+      if (sub.cancel_at_period_end === true && end && end > agora) {
+        podeAcessar = true
       }
 
-      if (podeAcessar) {
+      if (!podeAcessar) {
+        if (sub.status === 'past_due') motivoRedirecionamento = '?motivo=inadimplente'
+        else if (sub.status === 'cancelled' || (sub.cancel_at_period_end && end && end <= agora)) motivoRedirecionamento = '?motivo=cancelado'
+      } else {
         hasActiveSubscription = true
       }
     }
@@ -90,21 +94,28 @@ export async function middleware(request: NextRequest) {
   const proRoutes = ['/financeiro', '/relatorios', '/clientes/inativos', '/comissoes']
   const isProRoute = proRoutes.some(r => pathname === r || pathname.startsWith(r + '/'))
 
+  // Se logado e tem rota Pro mas não tem plano Pro -> Bloqueia
   if (hasActiveSubscription && userPlan !== 'pro' && isProRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/assinar'
     return NextResponse.redirect(url)
   }
 
-  // Logado SEM assinatura → só pode acessar /assinar
-  if (!hasActiveSubscription && pathname !== '/assinar' && !pathname.startsWith('/api/')) {
+  // Permite acesso livre a /configuracoes/planos mesmo inadimplente para ele poder mudar cartão
+  if (!hasActiveSubscription && pathname === '/configuracoes/planos') {
+    return supabaseResponse
+  }
+
+  // Logado SEM assinatura → vai para /assinar com o motivo específico
+  if (!hasActiveSubscription && pathname !== '/assinar' && !pathname.startsWith('/api/') && !pathname.startsWith('/_next')) {
     const url = request.nextUrl.clone()
     url.pathname = '/assinar'
+    url.search = motivoRedirecionamento
     return NextResponse.redirect(url)
   }
 
-  // Logado COM assinatura tentando acessar /assinar → vai pro dashboard
-  if (hasActiveSubscription && pathname === '/assinar' && !pathname.startsWith('/api/')) {
+  // Logado COM assinatura tentando acessar /assinar sem querer mudar de plano
+  if (hasActiveSubscription && pathname === '/assinar' && !request.nextUrl.searchParams.get('mudar_plano')) {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
     return NextResponse.redirect(url)

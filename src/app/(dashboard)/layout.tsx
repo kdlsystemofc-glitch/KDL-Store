@@ -315,11 +315,62 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </span>
           </div>
         </header>
-
+        <SubscriptionBanner />
         <main style={{ flex: 1, overflowY: 'auto', padding: '1.25rem 1.5rem' }}>
           {children}
         </main>
       </div>
     </div>
   )
+}
+
+function SubscriptionBanner() {
+  const { status, cancel_at_period_end, current_period_end } = require('@/hooks/useSubscription').useSubscription()
+  const router = useRouter()
+  const [loading, setLoading] = useState(false)
+
+  const openPortal = async () => {
+    setLoading(true)
+    try {
+      const supabase = createClient()
+      const { data: profile } = await supabase.from('profiles').select('empresa_id').single()
+      if (!profile?.empresa_id) return
+      const res = await fetch('/api/stripe/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ empresaId: profile.empresa_id })
+      })
+      const { url } = await res.json()
+      if (url) window.location.href = url
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (status === 'past_due') {
+    return (
+      <div style={{ background: '#FF4C4C', color: '#fff', padding: '0.75rem', textAlign: 'center', fontSize: '0.82rem', fontWeight: 700 }}>
+        🚨 Pagamento recusado. Atualize seu cartão para não perder o acesso.
+        <button onClick={openPortal} disabled={loading} style={{ marginLeft: '1rem', padding: '0.25rem 0.75rem', background: 'rgba(0,0,0,0.2)', border: 'none', color: '#fff', borderRadius: '4px', cursor: 'pointer', fontWeight: 800 }}>
+          {loading ? 'Aguarde...' : 'Atualizar Cartão (Stripe)'}
+        </button>
+      </div>
+    )
+  }
+
+  if (cancel_at_period_end && current_period_end) {
+    const data = new Date(current_period_end).toLocaleDateString('pt-BR')
+    return (
+      <div style={{ background: '#FFB800', color: '#111', padding: '0.75rem', textAlign: 'center', fontSize: '0.82rem', fontWeight: 700 }}>
+        ⚠️ Sua assinatura será encerrada em {data}. Clique aqui para reativar.
+        <button onClick={openPortal} disabled={loading} style={{ marginLeft: '1rem', padding: '0.25rem 0.75rem', background: 'rgba(0,0,0,0.1)', border: 'none', color: '#111', borderRadius: '4px', cursor: 'pointer', fontWeight: 800 }}>
+          {loading ? 'Aguarde...' : 'Reativar Assinatura (Stripe)'}
+        </button>
+      </div>
+    )
+  }
+
+  return null
 }

@@ -6,13 +6,14 @@ import Stripe from 'stripe'
 // ─── Mapeia status do Stripe → enum status_plano do banco ────────────────────
 // Stripe:  'active' | 'past_due' | 'canceled' | 'incomplete' | 'trialing' | ...
 // Nosso enum: 'active' | 'inactive' | 'cancelled' | 'trialing'
-function mapStripeStatus(s: string): 'active' | 'inactive' | 'cancelled' | 'trialing' {
+function mapStripeStatus(s: string): 'active' | 'inactive' | 'cancelled' | 'trialing' | 'past_due' {
   switch (s) {
     case 'active':    return 'active'
     case 'trialing':  return 'trialing'
-    case 'canceled':  return 'cancelled'   // Stripe usa 1 'l', nosso enum usa 2
+    case 'past_due':  return 'past_due'
+    case 'canceled':  
     case 'cancelled': return 'cancelled'
-    default:          return 'inactive'    // past_due, unpaid, incomplete, paused, etc.
+    default:          return 'inactive'
   }
 }
 
@@ -60,8 +61,11 @@ export async function POST(request: Request) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session
         const subscriptionId = session.subscription as string
+        const customerId = session.customer as string
         const empresaId = session.metadata?.empresa_id
         const plano = session.metadata?.plano || 'start'
+        const preco = session.amount_total || 6500
+        const now = new Date().toISOString()
 
         if (!empresaId) { console.error('[WEBHOOK] empresa_id ausente nos metadados'); break }
         if (!subscriptionId) { console.error('[WEBHOOK] subscription_id ausente na sessão'); break }
@@ -78,10 +82,15 @@ export async function POST(request: Request) {
         const subData = {
           status: 'active' as const,
           plano,
+          preco,
+          inicio: now,
+          proximo_pagamento: endDate.toISOString(),
+          stripe_customer_id: customerId,
           stripe_subscription_id: subscriptionId,
           stripe_price_id: priceId,
           cancel_at_period_end: isScheduled(stripeSub),
-          current_period_end: endDate.toISOString()
+          current_period_end: endDate.toISOString(),
+          atualizado_em: now
         }
 
         if (existing) {
@@ -94,7 +103,10 @@ export async function POST(request: Request) {
           else console.log('[WEBHOOK] subscription inserida (checkout)')
         }
 
-        const { error: empErr } = await supabaseAdmin.from('empresas').update({ plano }).eq('id', empresaId)
+        let dbPlano = 'start'
+        if (priceId === process.env.STRIPE_PRICE_PRO) dbPlano = 'pro'
+
+        const { error: empErr } = await supabaseAdmin.from('empresas').update({ plano: dbPlano }).eq('id', empresaId)
         if (empErr) console.error('[WEBHOOK] Erro update empresa (checkout):', empErr.message)
         break
       }
@@ -102,7 +114,6 @@ export async function POST(request: Request) {
       // ── 2. PAGAMENTO BEM-SUCEDIDO (RENOVAÇÃO) ────────────────────────────
       case 'invoice.payment_succeeded': {
         const invoice = event.data.object as any
-        // Stripe v2023+: invoice.parent.subscription_details.subscription ou invoice.subscription
         const subscriptionId = invoice.subscription
           || invoice.parent?.subscription_details?.subscription as string
 
@@ -111,13 +122,16 @@ export async function POST(request: Request) {
         const stripeSub = await stripe.subscriptions.retrieve(subscriptionId) as any
         const endDate = accessEndDate(stripeSub)
         const scheduled = isScheduled(stripeSub)
+        const now = new Date().toISOString()
 
         console.log(`[WEBHOOK] payment_succeeded | sub=${subscriptionId} | end=${endDate.toISOString()} | scheduled=${scheduled}`)
 
         const { error } = await supabaseAdmin.from('subscriptions').update({
           status: 'active',
           cancel_at_period_end: scheduled,
-          current_period_end: endDate.toISOString()
+          current_period_end: endDate.toISOString(),
+          proximo_pagamento: endDate.toISOString(),
+          atualizado_em: now
         }).eq('stripe_subscription_id', subscriptionId)
 
         if (error) console.error('[WEBHOOK] Erro update (payment_succeeded):', error.message)
@@ -135,9 +149,9 @@ export async function POST(request: Request) {
 
         console.log(`[WEBHOOK] payment_failed | sub=${subscriptionId}`)
 
-        // 'past_due' NÃO existe no enum → usamos 'inactive'
         const { error } = await supabaseAdmin.from('subscriptions').update({
-          status: 'inactive'
+          status: 'past_due',
+          atualizado_em: new Date().toISOString()
         }).eq('stripe_subscription_id', subscriptionId)
 
         if (error) console.error('[WEBHOOK] Erro update (payment_failed):', error.message)
@@ -150,19 +164,24 @@ export async function POST(request: Request) {
         const priceId = sub?.items?.data?.[0]?.price?.id
         const scheduled = isScheduled(sub)
         const endDate = accessEndDate(sub)
+        const now = new Date().toISOString()
+
+        let plano = 'start'
+        if (priceId === process.env.STRIPE_PRICE_PRO) plano = 'pro'
 
         console.log(`[WEBHOOK] subscription.updated | sub=${sub.id} | status=${sub.status}`)
         console.log(`[WEBHOOK] cancel_at_period_end=${sub.cancel_at_period_end} | cancel_at=${sub.cancel_at} | → scheduled=${scheduled}`)
         console.log(`[WEBHOOK] endDate=${endDate.toISOString()}`)
 
         const updateData: any = {
+          plano,
           stripe_price_id: priceId,
           status: mapStripeStatus(sub.status),
           cancel_at_period_end: scheduled,
-          current_period_end: endDate.toISOString()
+          current_period_end: endDate.toISOString(),
+          proximo_pagamento: endDate.toISOString(),
+          atualizado_em: now
         }
-        if (priceId === process.env.STRIPE_PRICE_PRO) updateData.plano = 'pro'
-        else if (priceId === process.env.STRIPE_PRICE_START) updateData.plano = 'start'
 
         const { data: row, error: findErr } = await supabaseAdmin
           .from('subscriptions').select('id, empresa_id')
@@ -196,7 +215,8 @@ export async function POST(request: Request) {
         await supabaseAdmin.from('subscriptions').update({
           status: 'cancelled',
           plano: 'start',
-          cancel_at_period_end: false
+          cancel_at_period_end: false,
+          atualizado_em: new Date().toISOString()
         }).eq('stripe_subscription_id', sub.id)
 
         if (row.empresa_id) {
