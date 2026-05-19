@@ -30,7 +30,7 @@ export function useSubscription(): SubscriptionData {
       if (!profile?.empresa_id) { setData({ plano: null, ativo: false, cancel_at_period_end: false, current_period_end: null, loading: false }); return }
 
       try {
-        const res = await fetch(`/api/stripe/status?empresaId=${profile.empresa_id}`)
+        const res = await fetch(`/api/stripe/status?empresaId=${profile.empresa_id}`, { cache: 'no-store' })
         const { sub } = await res.json()
         
         setData({

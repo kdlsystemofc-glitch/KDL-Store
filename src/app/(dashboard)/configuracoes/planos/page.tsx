@@ -16,7 +16,7 @@ export default function PlanosPage() {
     if (!empresaId) return
     setLoading(true)
     try {
-      const res = await fetch(`/api/stripe/status?empresaId=${empresaId}`)
+      const res = await fetch(`/api/stripe/status?empresaId=${empresaId}`, { cache: 'no-store' })
       const { sub: subData } = await res.json()
       setSub(subData)
     } catch (e) {
