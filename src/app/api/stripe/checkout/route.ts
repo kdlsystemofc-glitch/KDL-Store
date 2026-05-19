@@ -15,12 +15,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
     }
 
-    // Buscar customer id no banco
+    // Buscar customer id e estado atual da assinatura no banco
     const { data: sub } = await supabase
       .from('subscriptions')
-      .select('stripe_customer_id')
+      .select('stripe_customer_id, stripe_subscription_id, status, plano')
       .eq('empresa_id', empresaId)
       .single()
+
+    // Bloqueia criação de nova sessão se já existe assinatura ativa no mesmo plano
+    if (sub?.stripe_subscription_id && (sub.status === 'active' || sub.status === 'trialing')) {
+      if (sub.plano === plano) {
+        return NextResponse.json({ error: 'Você já possui uma assinatura ativa neste plano.' }, { status: 400 })
+      }
+      // Se quer mudar de plano com assinatura ativa, deve usar /api/stripe/mudar-plano
+      return NextResponse.json({ error: 'Para mudar de plano use a rota de mudança de plano.' }, { status: 400 })
+    }
 
     let customerId = sub?.stripe_customer_id
 

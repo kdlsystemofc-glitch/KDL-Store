@@ -22,8 +22,13 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN
-  CREATE TYPE status_plano    AS ENUM ('active', 'inactive', 'cancelled', 'trialing');
+  CREATE TYPE status_plano    AS ENUM ('active', 'inactive', 'cancelled', 'trialing', 'past_due');
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- Garante que bancos existentes também tenham o valor 'past_due'
+DO $$ BEGIN
+  ALTER TYPE status_plano ADD VALUE IF NOT EXISTS 'past_due';
+EXCEPTION WHEN others THEN NULL; END $$;
 
 DO $$ BEGIN
   CREATE TYPE tipo_plano      AS ENUM ('start', 'pro');
@@ -148,7 +153,7 @@ CREATE TABLE IF NOT EXISTS produtos (
   preco_varejo    NUMERIC(12,2) NOT NULL DEFAULT 0,
   preco_atacado   NUMERIC(12,2),
   preco_vip       NUMERIC(12,2),
-  preco_catalogo  NUMERIC(12,2),
+  preco_catalogo  TEXT,                        -- 'varejo' | 'atacado' | 'vip' | 'ocultar'
   qtd_atual       NUMERIC(12,3) NOT NULL DEFAULT 0,
   qtd_minima      NUMERIC(12,3) NOT NULL DEFAULT 0,
   qtd_maxima      NUMERIC(12,3),
@@ -534,6 +539,10 @@ ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT U
 ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS stripe_price_id TEXT;
 ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS cancel_at_period_end BOOLEAN DEFAULT FALSE;
 ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS current_period_end TIMESTAMPTZ;
+-- Corrige ENUM para bancos existentes (past_due ausente causava falha silenciosa no webhook)
+DO $$ BEGIN
+  ALTER TYPE status_plano ADD VALUE IF NOT EXISTS 'past_due';
+EXCEPTION WHEN others THEN NULL; END $$;
 
 -- 3. Tabela: fiados
 ALTER TABLE fiados ADD COLUMN IF NOT EXISTS data_vencimento DATE;
@@ -552,6 +561,11 @@ DELETE FROM itens_venda WHERE empresa_id IS NULL;
 
 -- Depois de preencher os antigos, obriga a ser NOT NULL nas próximas transações
 ALTER TABLE itens_venda ALTER COLUMN empresa_id SET NOT NULL;
+
+-- 5. BUG CRÍTICO: preco_catalogo era NUMERIC mas o sistema armazena texto
+-- ('varejo' | 'atacado' | 'vip' | 'ocultar') — corrigi para TEXT
+ALTER TABLE produtos
+  ALTER COLUMN preco_catalogo TYPE TEXT USING preco_catalogo::TEXT;
 
 -- =============================================================
 -- ROW LEVEL SECURITY (RLS)

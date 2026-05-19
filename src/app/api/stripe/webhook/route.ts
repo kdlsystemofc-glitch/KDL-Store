@@ -123,21 +123,36 @@ export async function POST(request: Request) {
         const endDate = accessEndDate(stripeSub)
         const scheduled = isScheduled(stripeSub)
         const now = new Date().toISOString()
+        const priceId = stripeSub?.items?.data?.[0]?.price?.id
 
-        console.log(`[WEBHOOK] payment_succeeded | sub=${subscriptionId} | end=${endDate.toISOString()} | scheduled=${scheduled}`)
+        // Determina plano pelo price_id para garantir sincronia
+        let plano = 'start'
+        if (priceId === process.env.STRIPE_PRICE_PRO) plano = 'pro'
 
-        const { error } = await supabaseAdmin.from('subscriptions').update({
+        console.log(`[WEBHOOK] payment_succeeded | sub=${subscriptionId} | end=${endDate.toISOString()} | scheduled=${scheduled} | plano=${plano}`)
+
+        const { data: row, error } = await supabaseAdmin.from('subscriptions').update({
           status: 'active',
+          plano,
+          stripe_price_id: priceId,
           cancel_at_period_end: scheduled,
           current_period_end: endDate.toISOString(),
           proximo_pagamento: endDate.toISOString(),
           atualizado_em: now
-        }).eq('stripe_subscription_id', subscriptionId)
+        }).eq('stripe_subscription_id', subscriptionId).select('empresa_id').single()
 
         if (error) console.error('[WEBHOOK] Erro update (payment_succeeded):', error.message)
-        else console.log('[WEBHOOK] Renovação registrada com sucesso')
+        else {
+          console.log('[WEBHOOK] Renovação registrada com sucesso')
+          // Sincroniza empresas.plano (crítico após recuperação de inadimplência)
+          if (row?.empresa_id) {
+            await supabaseAdmin.from('empresas').update({ plano }).eq('id', row.empresa_id)
+            console.log(`[WEBHOOK] empresas.plano sincronizado → ${plano} para empresa ${row.empresa_id}`)
+          }
+        }
         break
       }
+
 
       // ── 3. PAGAMENTO FALHOU ───────────────────────────────────────────────
       case 'invoice.payment_failed': {
