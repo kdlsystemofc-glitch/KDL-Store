@@ -20,19 +20,34 @@ export async function GET(request: Request) {
   try {
     const stripeSub = await stripe.subscriptions.retrieve(sub.stripe_subscription_id) as any
     
-    let scheduledPlan = null
-    
-    if (stripeSub.schedule) {
-      const schedule = await stripe.subscriptionSchedules.retrieve(stripeSub.schedule as string)
-      if (schedule.phases.length > 1) {
-        const nextPhase = schedule.phases[1]
-        // Extract price correctly if it's an object or string
-        const priceObj: any = nextPhase.items[0]?.price
-        const priceId = typeof priceObj === 'string' ? priceObj : priceObj?.id
+    let scheduledPlan = stripeSub.metadata?.scheduled_plan || null
 
-        if (priceId === process.env.STRIPE_PRICE_PRO) scheduledPlan = 'pro'
-        else if (priceId === process.env.STRIPE_PRICE_START) scheduledPlan = 'start'
+    // Fallback apenas se metadata não estiver lá por algum motivo
+    if (!scheduledPlan) {
+      let scheduleId = stripeSub.schedule as string | undefined
+
+      if (!scheduleId && sub.stripe_customer_id) {
+        const schedules = await stripe.subscriptionSchedules.list({ customer: sub.stripe_customer_id })
+        const activeSchedule = schedules.data.find(s => s.subscription === stripeSub.id && s.status === 'active')
+        if (activeSchedule) scheduleId = activeSchedule.id
       }
+
+      if (scheduleId) {
+        const schedule = await stripe.subscriptionSchedules.retrieve(scheduleId)
+        if (schedule.phases.length > 1) {
+          const nextPhase = schedule.phases[1]
+          const priceObj: any = nextPhase.items[0]?.price
+          const priceId = typeof priceObj === 'string' ? priceObj : priceObj?.id
+
+          if (priceId === process.env.STRIPE_PRICE_PRO) scheduledPlan = 'pro'
+          else if (priceId === process.env.STRIPE_PRICE_START) scheduledPlan = 'start'
+        }
+      }
+    }
+
+    // Se a mudança já entrou em vigor, limpa a exibição
+    if (scheduledPlan === sub.plano) {
+      scheduledPlan = null
     }
 
     return NextResponse.json({

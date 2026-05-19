@@ -107,6 +107,11 @@ export async function POST(request: Request) {
       ]
     })
 
+    // Grava a intenção de agendamento na metadata da subscription para leitura super rápida no front
+    await stripe.subscriptions.update(stripeSub.id, {
+      metadata: { ...stripeSub.metadata, scheduled_plan: plano_destino }
+    })
+
     return NextResponse.json({ success: true, message: 'Downgrade agendado para o próximo ciclo.' })
 
   } catch (err: any) {
