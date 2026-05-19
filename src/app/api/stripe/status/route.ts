@@ -24,24 +24,28 @@ export async function GET(request: Request) {
 
     // Fallback apenas se metadata não estiver lá por algum motivo
     if (!scheduledPlan) {
-      let scheduleId = stripeSub.schedule as string | undefined
+      try {
+        let scheduleId = stripeSub.schedule as string | undefined
 
-      if (!scheduleId && sub.stripe_customer_id) {
-        const schedules = await stripe.subscriptionSchedules.list({ customer: sub.stripe_customer_id })
-        const activeSchedule = schedules.data.find(s => s.subscription === stripeSub.id && s.status === 'active')
-        if (activeSchedule) scheduleId = activeSchedule.id
-      }
-
-      if (scheduleId) {
-        const schedule = await stripe.subscriptionSchedules.retrieve(scheduleId)
-        if (schedule.phases.length > 1) {
-          const nextPhase = schedule.phases[1]
-          const priceObj: any = nextPhase.items[0]?.price
-          const priceId = typeof priceObj === 'string' ? priceObj : priceObj?.id
-
-          if (priceId === process.env.STRIPE_PRICE_PRO) scheduledPlan = 'pro'
-          else if (priceId === process.env.STRIPE_PRICE_START) scheduledPlan = 'start'
+        if (!scheduleId && sub.stripe_customer_id) {
+          const schedules = await stripe.subscriptionSchedules.list({ customer: sub.stripe_customer_id })
+          const activeSchedule = schedules.data.find(s => s.subscription === stripeSub.id && s.status === 'active')
+          if (activeSchedule) scheduleId = activeSchedule.id
         }
+
+        if (scheduleId) {
+          const schedule = await stripe.subscriptionSchedules.retrieve(scheduleId)
+          if (schedule.phases && schedule.phases.length > 1) {
+            const nextPhase = schedule.phases[1]
+            const priceObj: any = nextPhase.items?.[0]?.price
+            const priceId = typeof priceObj === 'string' ? priceObj : priceObj?.id
+
+            if (priceId && priceId === process.env.STRIPE_PRICE_PRO) scheduledPlan = 'pro'
+            else if (priceId && priceId === process.env.STRIPE_PRICE_START) scheduledPlan = 'start'
+          }
+        }
+      } catch (scheduleErr) {
+        console.error('Erro ao processar schedule fallback:', scheduleErr)
       }
     }
 
