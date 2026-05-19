@@ -80,7 +80,7 @@ export default function ClientesPage() {
 
       <PageTabs tabs={[
         { label: 'Todos os Clientes', href: '/clientes' },
-        ...(plano === 'pro' ? [{ label: 'Sumidos ⚠', href: '/clientes/inativos' }] : []),
+        { label: 'Sumidos ⚠', href: '/clientes/inativos' },
         { label: 'Fornecedores', href: '/fornecedores' }
       ]} />
 

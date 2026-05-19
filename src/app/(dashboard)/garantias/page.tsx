@@ -103,7 +103,7 @@ export default function GarantiasPage() {
       <PageTabs tabs={[
         { label: 'Garantias', href: '/garantias' },
         { label: 'Ordens de Serviço', href: '/ordens-de-servico' },
-        ...(plano === 'pro' ? [{ label: 'Comissões', href: '/comissoes' }] : [])
+        { label: 'Comissões', href: '/comissoes' }
       ]} />
 
       {/* Modal Devolução */}

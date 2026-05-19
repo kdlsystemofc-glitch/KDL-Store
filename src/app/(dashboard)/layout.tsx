@@ -68,9 +68,7 @@ function Sidebar({
 
   const configItem = { href: '/configuracoes', label: 'Configurações', icon: Settings }
 
-  const itensSidebar = (planoAtivo === 'pro'
-    ? [...baseItems, ...proItems, configItem]
-    : [...baseItems, configItem]).filter(item => {
+  const itensSidebar = [...baseItems, ...proItems, configItem].filter(item => {
        if (item.href === '/configuracoes' && papel !== 'admin') return false
        return true
     })
