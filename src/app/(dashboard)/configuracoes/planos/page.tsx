@@ -58,6 +58,17 @@ export default function PlanosPage() {
       const data = await res.json()
       if (res.ok) {
         toast.success(data.message || 'Mudança de plano agendada!')
+        setModalType(null)
+        // Recarrega apenas os dados para mostrar o agendamento
+        await loadData()
+      } else {
+        toast.error(data.error || 'Erro ao agendar mudança de plano')
+      }
+    } catch (err: any) {
+      toast.error('Erro de rede ao processar solicitação')
+    }
+    setBtnLoading(false)
+  }
   async function fazerUpgrade() {
     await agendarMudancaPlano('pro')
   }
