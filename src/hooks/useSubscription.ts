@@ -16,7 +16,7 @@ export function useSubscription(): SubscriptionData {
   const [data, setData] = useState<SubscriptionData>({ plano: null, ativo: false, cancel_at_period_end: false, current_period_end: null, loading: true })
 
   useEffect(() => {
-    const fetch = async () => {
+    const loadData = async () => {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { setData({ plano: null, ativo: false, cancel_at_period_end: false, current_period_end: null, loading: false }); return }
@@ -45,7 +45,7 @@ export function useSubscription(): SubscriptionData {
         setData(prev => ({ ...prev, loading: false }))
       }
     }
-    fetch()
+    loadData()
   }, [])
 
   return data
