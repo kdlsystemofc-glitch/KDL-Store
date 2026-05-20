@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
 import { Loader2, Save } from 'lucide-react'
+import { toast } from 'react-hot-toast'
 
 type Empresa = { id:string; nome:string; slug:string|null; cnpj:string|null; telefone:string|null; email:string|null; cidade:string|null; estado:string|null; endereco:string|null; whatsapp:string|null; instagram:string|null; plano:string }
 
@@ -13,8 +14,6 @@ export default function ConfigEmpresaPage() {
   const [empresa,  setEmpresa]  = useState<Empresa|null>(null)
   const [loading,  setLoading]  = useState(true)
   const [salvando, setSalvando] = useState(false)
-  const [sucesso,  setSucesso]  = useState(false)
-  const [erro,     setErro]     = useState<string|null>(null)
 
   useEffect(() => { if (empresaId) carregar(empresaId) }, [empresaId])
 
@@ -27,17 +26,16 @@ export default function ConfigEmpresaPage() {
 
   async function salvar() {
     if (!empresa || !empresaId) return
-    if (!empresa.nome.trim()) { setErro('O nome da loja é obrigatório.'); return }
-    setSalvando(true); setErro(null)
+    if (!empresa.nome.trim()) { toast.error('O nome da loja é obrigatório.'); return }
+    setSalvando(true)
     const { error } = await createClient().from('empresas').update({
       nome: empresa.nome, slug: empresa.slug?.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-') || null, cnpj: empresa.cnpj||null, telefone: empresa.telefone||null,
       email: empresa.email||null, cidade: empresa.cidade||null, estado: empresa.estado||null,
       endereco: empresa.endereco||null, whatsapp: empresa.whatsapp||null, instagram: empresa.instagram||null,
     }).eq('id', empresaId)
     setSalvando(false)
-    if (error) { setErro('Erro ao salvar: '+error.message); return }
-    setSucesso(true)
-    setTimeout(()=>setSucesso(false), 3000)
+    if (error) { toast.error('Erro ao salvar: ' + error.message); return }
+    toast.success('Configurações da empresa salvas com sucesso!')
   }
 
   const inp: React.CSSProperties = { width:'100%', marginTop:'0.375rem' }
@@ -57,8 +55,6 @@ export default function ConfigEmpresaPage() {
         </div>
       </div>
 
-      {erro&&<div className="alerta alerta-perigo">{erro}</div>}
-      {sucesso&&<div className="alerta alerta-ok" style={{display:'flex',gap:'0.5rem',alignItems:'center'}}>✅ Dados salvos com sucesso!</div>}
 
       {empresa&&(
         <>

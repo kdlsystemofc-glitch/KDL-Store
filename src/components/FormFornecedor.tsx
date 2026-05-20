@@ -25,6 +25,7 @@ export function FormFornecedor({ onSuccess, onCancel }: { onSuccess: () => void;
       email:          (document.getElementById('f-email')    as HTMLInputElement)?.value || null,
       cnpj:           (document.getElementById('f-cnpj')     as HTMLInputElement)?.value || null,
       categoria:      (document.getElementById('f-cat')      as HTMLSelectElement)?.value || null,
+      endereco:       (document.getElementById('f-endereco') as HTMLInputElement)?.value || null,
       cidade:         (document.getElementById('f-cidade')   as HTMLInputElement)?.value || null,
       estado:         (document.getElementById('f-estado')   as HTMLSelectElement)?.value || null,
       prazo_entrega:  (document.getElementById('f-prazo')    as HTMLInputElement)?.value || null,
@@ -78,6 +79,10 @@ export function FormFornecedor({ onSuccess, onCancel }: { onSuccess: () => void;
             <label className="campo-label">Prazo de entrega</label>
             <input id="f-prazo" className="campo" style={{marginTop:'0.375rem'}} placeholder="Ex: 24h, 3 dias úteis"/>
           </div>
+        </div>
+        <div>
+          <label className="campo-label">Endereço completo</label>
+          <input id="f-endereco" className="campo" style={{marginTop:'0.375rem'}} placeholder="Rua, número, bairro"/>
         </div>
         <div style={{display:'grid',gridTemplateColumns:'1fr auto',gap:'0.625rem'}}>
           <div>

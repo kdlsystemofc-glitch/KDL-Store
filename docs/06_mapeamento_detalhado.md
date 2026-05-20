@@ -38,7 +38,24 @@
 - **Email / CPF / Endereço / Observações**: Textos opcionais.
 **Persistência**: Tabela `clientes`.
 
-### 3. Formulário de Cadastro Inicial (`/cadastro/page.tsx`)
+### 3. Formulário de Fornecedor (`FormFornecedor.tsx`)
+**Finalidade**: Cadastrar um novo fornecedor.
+**Campos**:
+- **Nome da empresa** (Obrigatório): Texto livre.
+- **Nome do contato**: Pessoa responsável pelo atendimento.
+- **CNPJ**: Formato `00.000.000/0001-00`.
+- **Telefone / WhatsApp**: Para botão WA direto na listagem.
+- **E-mail**: Opcional.
+- **Categoria**: Seleção entre `Eletrônicos`, `Acessórios`, `Autopeças`, `Serviços`, `Embalagens`, `Outros`.
+- **Prazo de entrega**: Texto livre (ex: "3 dias úteis", "24h").
+- **Pedido mínimo (R$)**: Valor numérico.
+- **Endereço completo**: Rua, número, bairro.
+- **Cidade / Estado**: Cidade texto + UF seleção.
+- **Anotações**: Campo livre para observações.
+**Persistência**: Tabela `fornecedores`.
+**Modal de edição** (inline na página): Mesmo conjunto de campos. Adiciona campo **Status** (Ativo / Inativo).
+
+### 4. Formulário de Cadastro Inicial (`/cadastro/page.tsx`)
 **Finalidade**: Onboarding de novo lojista (Tenant).
 **Campos**:
 - **Nome Completo** (Obrigatório)

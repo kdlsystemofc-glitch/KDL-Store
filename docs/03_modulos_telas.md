@@ -355,15 +355,36 @@ A sidebar é renderizada no `(dashboard)/layout.tsx` e **filtrada por plano**:
 
 **Acesso**: Start + Pro (Protegido inteiramente via `<AdminOnly>`. Operadores e Visualizadores não acessam)
 
-### Sub-páginas
-| Página | Rota | Conteúdo |
+### Navegação por Abas
+O layout de configurações (`configuracoes/layout.tsx`) exibe um menu horizontal de abas via `PageTabs` no topo de todas as sub-páginas, permitindo navegação fluida entre seções:
+
+| Aba | Rota | Conteúdo |
 |---|---|---|
 | Geral | `/configuracoes` | Overview das configurações, Status da Assinatura, Preferências CRM, Zona de Perigo (Cancelar Assinatura) |
-| Empresa | `/configuracoes/empresa` | Nome, telefone, cidade, link do catálogo |
+| Empresa | `/configuracoes/empresa` | Nome, telefone, cidade, link do catálogo, CNPJ, endereço, redes sociais |
 | Usuários | `/configuracoes/usuarios` | Listar, convidar, mudar papel, congelar |
-| Pagamentos | `/configuracoes/pagamentos` | Formas de pagamento + taxas |
-| Categorias | `/configuracoes/categorias` | Categorias de produtos |
+| Pagamentos | `/configuracoes/pagamentos` | Formas de pagamento + taxas (adicionar, editar, excluir, ativar/desativar) |
+| Categorias | `/configuracoes/categorias` | Categorias de produtos (adicionar, **editar**, excluir, cor) |
 | Planos | `/configuracoes/planos` | Ver plano atual, Upgrade e Portal de Faturamento |
+
+### Empresa (`/configuracoes/empresa`)
+- Campos: Nome da loja, Link do catálogo (slug), CNPJ/CPF, E-mail, Endereço completo, Cidade, Estado, WhatsApp, Telefone fixo, Instagram
+- Ao salvar com sucesso: notificação via `react-hot-toast` (toast flutuante no canto superior direito)
+- Ao salvar com erro: toast de erro com a mensagem retornada pelo Supabase
+
+### Formas de Pagamento (`/configuracoes/pagamentos`)
+- **Adicionar**: formulário no topo com nome e taxa (%)
+- **Editar**: clicar no ícone de lápis (`Pencil`) preenche o formulário no topo para edição. O botão alterna de "Adicionar" para "Salvar" com opção de cancelar.
+- **Ativar/Desativar**: toggle switch em cada linha
+- **Excluir**: botão de lixeira com confirmação
+- Todas as ações disparam toasts de sucesso ou erro
+- Formas desativadas não aparecem no PDV
+
+### Categorias de Produtos (`/configuracoes/categorias`)
+- **Adicionar**: formulário no topo com nome e seletor de cor (8 opções)
+- **Editar**: clicar no ícone de lápis (`Pencil`) preenche o formulário no topo para edição. O cabeçalho alterna para "Editar Categoria" e o botão para "Salvar" com opção de cancelar.
+- **Excluir**: botão de lixeira com confirmação
+- Todas as ações disparam toasts de sucesso ou erro
 
 ### Gestão de Usuários
 - Listar usuários da empresa
@@ -386,8 +407,35 @@ A sidebar é renderizada no `(dashboard)/layout.tsx` e **filtrada por plano**:
 
 ### Funcionalidades
 - Cadastrar/editar/excluir fornecedores
-- Registrar pedidos de compra (status: rascunho → enviado → recebido)
-- Ao receber pedido: atualiza estoque automaticamente
+- Registrar pedidos de compra (status: aguardando → confirmado → entregue)
+- Filtro/busca por nome ou categoria
+
+### Campos do Formulário de Fornecedor
+| Campo | Obs |
+|---|---|
+| Nome da empresa | Obrigatório |
+| Nome do contato | Pessoa responsável pelo atendimento |
+| CNPJ | Opcional |
+| Telefone / WhatsApp | Para botão WA direto na listagem |
+| E-mail | Opcional |
+| Categoria | `Eletrônicos`, `Acessórios`, `Autopeças`, `Serviços`, `Embalagens`, `Outros` |
+| Prazo de entrega | Texto livre (ex: "3 dias úteis", "24h") |
+| Pedido mínimo (R$) | Valor numérico |
+| Endereço completo | Rua, número, bairro |
+| Cidade | Opcional |
+| Estado | UF (seleção) |
+| Anotações | Campo livre para observações |
+| Status | Ativo / Inativo |
+
+### Listagem de Fornecedores
+- Colunas: Fornecedor, Contato/WA, Categoria, Cidade/UF, Prazo, Status, Ação
+- Botão WhatsApp no campo de contato (se telefone preenchido)
+- Botão "Editar" abre modal completo com todos os campos acima
+
+### Pedidos ao Fornecedor
+- Status: `aguardando` → `confirmado` → `entregue`
+- Associar pedido a um fornecedor cadastrado
+- Avançar status com botão na listagem
 
 ---
 

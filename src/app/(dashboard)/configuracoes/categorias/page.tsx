@@ -2,7 +2,8 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
-import { Plus, Trash2, Loader2 } from 'lucide-react'
+import { Plus, Trash2, Loader2, Pencil, Save } from 'lucide-react'
+import { toast } from 'react-hot-toast'
 
 type Categoria = { id: string; nome: string; cor: string; criado_em: string }
 
@@ -15,7 +16,7 @@ export default function CategoriasPage() {
   const [nome,     setNome]     = useState('')
   const [cor,      setCor]      = useState(CORES[0])
   const [salvando, setSalvando] = useState(false)
-  const [erro,     setErro]     = useState<string|null>(null)
+  const [editando, setEditando] = useState<Categoria|null>(null)
 
   useEffect(() => { if (empresaId) carregar(empresaId) }, [empresaId])
 
@@ -26,21 +27,50 @@ export default function CategoriasPage() {
     setLoading(false)
   }
 
+  function iniciarEdicao(c: Categoria) {
+    setEditando(c)
+    setNome(c.nome)
+    setCor(c.cor)
+  }
+
+  function cancelarEdicao() {
+    setEditando(null)
+    setNome('')
+    setCor(CORES[0])
+  }
+
+  async function salvarEdicao() {
+    if (!nome.trim()) { toast.error('Digite o nome da categoria.'); return }
+    if (!editando || !empresaId) return
+    setSalvando(true)
+    const { error } = await createClient().from('categorias_produto')
+      .update({ nome: nome.trim(), cor })
+      .eq('id', editando.id)
+    setSalvando(false)
+    if (error) { toast.error('Erro ao salvar: ' + error.message); return }
+    toast.success('Categoria editada com sucesso!')
+    cancelarEdicao()
+    carregar(empresaId)
+  }
+
   async function salvar() {
-    if (!nome.trim()) { setErro('Digite o nome da categoria.'); return }
+    if (!nome.trim()) { toast.error('Digite o nome da categoria.'); return }
     if (!empresaId) return
-    setSalvando(true); setErro(null)
+    setSalvando(true)
     const { error } = await createClient().from('categorias_produto').insert({ empresa_id: empresaId, nome: nome.trim(), cor })
     setSalvando(false)
-    if (error) { setErro('Erro: ' + error.message); return }
+    if (error) { toast.error('Erro ao adicionar: ' + error.message); return }
     setNome(''); setCor(CORES[0])
+    toast.success('Categoria adicionada com sucesso!')
     carregar(empresaId)
   }
 
   async function excluir(id: string, nomeC: string) {
     if (!confirm(`Excluir a categoria "${nomeC}"?`)) return
-    await createClient().from('categorias_produto').delete().eq('id', id)
+    const { error } = await createClient().from('categorias_produto').delete().eq('id', id)
+    if (error) { toast.error('Erro ao excluir: ' + error.message); return }
     setCats(prev => prev.filter(c => c.id !== id))
+    toast.success('Categoria excluída!')
   }
 
   return (
@@ -52,23 +82,29 @@ export default function CategoriasPage() {
         </div>
       </div>
 
-      {/* Formulário de nova categoria */}
+      {/* Formulário de nova/editar categoria */}
       <div className="card" style={{ padding:0, overflow:'hidden' }}>
-        <div className="sec-header"><span>➕ Nova Categoria</span></div>
+        <div className="sec-header"><span>{editando ? '✏️ Editar Categoria' : '➕ Nova Categoria'}</span></div>
         <div style={{ padding:'0.875rem', display:'flex', flexDirection:'column', gap:'0.75rem' }}>
-          {erro && <div className="alerta alerta-perigo">{erro}</div>}
           <div style={{ display:'flex', gap:'0.625rem', alignItems:'flex-end' }}>
             <div style={{ flex:1 }}>
               <label className="campo-label">Nome</label>
               <input className="campo" style={{ marginTop:'0.375rem' }} placeholder="Ex: Eletrônicos"
                 value={nome} onChange={e => setNome(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && salvar()}/>
+                onKeyDown={e => e.key === 'Enter' && (editando ? salvarEdicao() : salvar())}/>
             </div>
-            <button onClick={salvar} disabled={salvando} className="btn btn-primary"
-              style={{ display:'flex', alignItems:'center', gap:'0.375rem', height:'42px' }}>
-              {salvando ? <Loader2 size={14} style={{ animation:'spin 1s linear infinite' }}/> : <Plus size={14}/>}
-              Adicionar
-            </button>
+            <div style={{ display: 'flex', gap: '0.375rem' }}>
+              {editando && (
+                <button onClick={cancelarEdicao} className="btn btn-ghost" style={{ height:'42px' }}>
+                  Cancelar
+                </button>
+              )}
+              <button onClick={editando ? salvarEdicao : salvar} disabled={salvando} className="btn btn-primary"
+                style={{ display:'flex', alignItems:'center', gap:'0.375rem', height:'42px' }}>
+                {salvando ? <Loader2 size={14} style={{ animation:'spin 1s linear infinite' }}/> : (editando ? <Save size={14}/> : <Plus size={14}/>)}
+                {editando ? 'Salvar' : 'Adicionar'}
+              </button>
+            </div>
           </div>
           {/* Seletor de cor */}
           <div>
@@ -114,6 +150,10 @@ export default function CategoriasPage() {
               <span style={{ fontSize:'0.75rem', color:'var(--texto-desab)' }}>
                 {new Date(c.criado_em).toLocaleDateString('pt-BR')}
               </span>
+              <button onClick={() => iniciarEdicao(c)} className="btn btn-secondary"
+                style={{ padding:'0.25rem 0.5rem', color:'var(--texto)' }}>
+                <Pencil size={13}/>
+              </button>
               <button onClick={() => excluir(c.id, c.nome)} className="btn btn-secondary"
                 style={{ padding:'0.25rem 0.5rem', color:'var(--vermelho)' }}>
                 <Trash2 size={13}/>

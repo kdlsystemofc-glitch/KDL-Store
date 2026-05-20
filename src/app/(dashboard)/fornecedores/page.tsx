@@ -10,7 +10,7 @@ import { useSubscription } from '@/hooks/useSubscription'
 
 type Fornecedor = {
   id: string; nome: string; contato: string | null; telefone: string | null
-  email: string | null; cnpj: string | null; categoria: string | null
+  email: string | null; cnpj: string | null; categoria: string | null; endereco: string | null
   cidade: string | null; estado: string | null; prazo_entrega: string | null
   pedido_minimo: number | null; anotacoes: string | null; ativo: boolean
 }
@@ -51,7 +51,7 @@ export default function FornecedoresPage() {
     const supabase = createClient()
     const results = await Promise.allSettled([
       supabase.from('fornecedores')
-        .select('id,nome,contato,telefone,email,cnpj,categoria,cidade,estado,prazo_entrega,pedido_minimo,anotacoes,ativo')
+        .select('id,nome,contato,telefone,email,cnpj,categoria,endereco,cidade,estado,prazo_entrega,pedido_minimo,anotacoes,ativo')
         .eq('empresa_id', eid).order('nome'),
       supabase.from('pedidos_fornecedor')
         .select('id,produto,quantidade,status,criado_em,fornecedores(nome)')
@@ -75,6 +75,7 @@ export default function FornecedoresPage() {
       email:         editando.email || null,
       cnpj:          editando.cnpj || null,
       categoria:     editando.categoria || null,
+      endereco:      editando.endereco || null,
       cidade:        editando.cidade || null,
       estado:        editando.estado || null,
       prazo_entrega: editando.prazo_entrega || null,
@@ -218,6 +219,10 @@ export default function FornecedoresPage() {
                     <option value="">Selecionar...</option>
                     {CATEGORIAS_FORN.map(c=><option key={c}>{c}</option>)}
                   </select>
+                </div>
+                <div style={{ gridColumn: 'span 2' }}>
+                  <label className="campo-label">Endereço completo</label>
+                  <input className="campo" style={campo} value={editando.endereco||''} onChange={e=>set('endereco',e.target.value)}/>
                 </div>
                 <div>
                   <label className="campo-label">Cidade</label>

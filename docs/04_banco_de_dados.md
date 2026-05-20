@@ -400,6 +400,7 @@ USING (empresa_id = minha_empresa_id() OR id = auth.uid())
 | 2025-05 | v1.1 | Colunas Stripe em `subscriptions`, `slug` em `empresas` |
 | 2025-05 | v1.2 | Comissões, valor_comissao, comissao_paga em `vendas` |
 | 2026-05 | v1.3 | **Auditoria geral:** corrigidas discrepâncias frontend vs banco |
+| 2026-05 | v1.4 | Campo `endereco` adicionado a `fornecedores` |
 
 ### Detalhamento v1.3 (Auditoria de Consistência)
 
@@ -415,3 +416,17 @@ USING (empresa_id = minha_empresa_id() OR id = auth.uid())
 | `ordens_servico` | `venda_id`, `observacoes` | Rastreio de venda gerada e campo de observações |
 
 **Correção de código:** `src/lib/garantirEmpresa.ts` usava `plano: 'essencial'` (enum inválido). Corrigido para `plano: 'start'`.
+
+### Detalhamento v1.4 (Endereço em Fornecedores)
+
+> **Contexto:** O formulário de cadastro de fornecedores (`FormFornecedor.tsx`) e o modal de edição em `/fornecedores` passaram a incluir o campo **Endereço completo**, que é persistido na coluna `endereco` da tabela `fornecedores`.
+
+| Tabela | Coluna adicionada | Tipo | Motivo |
+|---|---|---|---|
+| `fornecedores` | `endereco` | TEXT NULL | Endereço completo do fornecedor (Rua, número, bairro) |
+
+**Script de migração:**
+```sql
+ALTER TABLE fornecedores ADD COLUMN IF NOT EXISTS endereco TEXT;
+```
+

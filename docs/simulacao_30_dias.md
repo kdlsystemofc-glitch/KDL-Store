@@ -327,9 +327,13 @@ Dias 29–30: Revisão Final e Planos
 | Campo | Valor |
 |-------|-------|
 | Nome | `TechBR Distribuidora` |
+| Nome do contato | `Sandro` |
 | CNPJ | `12.345.678/0001-90` |
 | Telefone | `(11) 3456-7890` |
 | E-mail | `contato@techbr.com.br` |
+| Categoria | `Eletrônicos` |
+| Prazo de entrega | `3 dias` |
+| Pedido mínimo (R$) | `100` |
 | Endereço | `Rua das Indústrias, 450` |
 | Cidade | `São Paulo` |
 | Estado | `SP` |
@@ -347,9 +351,13 @@ Dias 29–30: Revisão Final e Planos
 | Campo | Valor |
 |-------|-------|
 | Nome | `InfoParts Ltda` |
+| Nome do contato | `Carla` |
 | CNPJ | `98.765.432/0001-11` |
 | Telefone | `(11) 2222-3333` |
 | E-mail | `pedidos@infoparts.com` |
+| Categoria | `Acessórios` |
+| Prazo de entrega | `24h` |
+| Pedido mínimo (R$) | `150` |
 | Endereço | `Av. Comercial, 1200` |
 | Cidade | `São Paulo` |
 | Estado | `SP` |
@@ -366,9 +374,13 @@ Dias 29–30: Revisão Final e Planos
 | Campo | Valor |
 |-------|-------|
 | Nome | `Mega Eletrônicos` |
+| Nome do contato | `Marcos` |
 | CNPJ | `55.444.333/0001-22` |
 | Telefone | `(21) 9876-5432` |
 | E-mail | `mega@megaeletronicos.com.br` |
+| Categoria | `Outros` |
+| Prazo de entrega | `5 dias` |
+| Pedido mínimo (R$) | `500` |
 | Endereço | `Rua do Comércio, 77` |
 | Cidade | `Rio de Janeiro` |
 | Estado | `RJ` |

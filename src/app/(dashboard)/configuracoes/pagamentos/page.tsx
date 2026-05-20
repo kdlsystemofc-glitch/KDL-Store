@@ -2,7 +2,8 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
-import { Plus, Trash2, Loader2 } from 'lucide-react'
+import { Plus, Trash2, Loader2, Pencil, Save } from 'lucide-react'
+import { toast } from 'react-hot-toast'
 
 type Forma = { id:string; nome:string; taxa:number|null; ativo:boolean }
 
@@ -21,6 +22,7 @@ export default function PagamentosPage() {
   const [nome,     setNome]     = useState('')
   const [taxa,     setTaxa]     = useState('')
   const [salvando, setSalvando] = useState(false)
+  const [editando, setEditando] = useState<Forma|null>(null)
 
   useEffect(() => { if (empresaId) carregar(empresaId) }, [empresaId])
 
@@ -42,23 +44,64 @@ export default function PagamentosPage() {
   async function toggleAtivo(id: string, atual: boolean) {
     await createClient().from('formas_pagamento').update({ ativo: !atual }).eq('id', id)
     setFormas(prev => prev.map(f => f.id===id ? {...f, ativo:!atual} : f))
+    toast.success('Status da forma de pagamento atualizado!')
+  }
+
+  function iniciarEdicao(f: Forma) {
+    setEditando(f)
+    setNome(f.nome)
+    setTaxa(f.taxa !== null ? f.taxa.toString() : '')
+  }
+
+  function cancelarEdicao() {
+    setEditando(null)
+    setNome('')
+    setTaxa('')
+  }
+
+  async function salvarEdicao() {
+    if (!nome.trim() || !editando || !empresaId) return
+    setSalvando(true)
+    const tx = parseFloat(taxa)
+    const finalTaxa = isNaN(tx) ? null : tx
+    const { error } = await createClient().from('formas_pagamento')
+      .update({ nome: nome.trim(), taxa: finalTaxa })
+      .eq('id', editando.id)
+    setSalvando(false)
+    if (error) {
+      toast.error('Erro ao editar: ' + error.message)
+      return
+    }
+    setFormas(prev => prev.map(f => f.id === editando.id ? { ...f, nome: nome.trim(), taxa: finalTaxa } : f))
+    toast.success('Forma de pagamento atualizada!')
+    cancelarEdicao()
   }
 
   async function adicionar() {
     if (!nome.trim() || !empresaId) return
     setSalvando(true)
-    const { data } = await createClient().from('formas_pagamento')
+    const { data, error } = await createClient().from('formas_pagamento')
       .insert({ empresa_id:empresaId, nome:nome.trim(), taxa:parseFloat(taxa)||0, ativo:true })
       .select().single()
+    setSalvando(false)
+    if (error) {
+      toast.error('Erro ao adicionar: ' + error.message)
+      return
+    }
     if (data) setFormas(prev => [...prev, data])
     setNome(''); setTaxa('')
-    setSalvando(false)
+    toast.success('Forma de pagamento adicionada!')
   }
 
   async function excluir(id: string) {
     if (!confirm('Excluir esta forma de pagamento?')) return
-    await createClient().from('formas_pagamento').delete().eq('id', id)
+    const { error } = await createClient().from('formas_pagamento').delete().eq('id', id)
+    if (error) {
+      toast.error('Erro ao excluir: ' + error.message)
+      return
+    }
     setFormas(prev => prev.filter(f => f.id !== id))
+    toast.success('Forma de pagamento excluída!')
   }
 
   const ICONS: Record<string,string> = { PIX:'📱', Dinheiro:'💵', Crédito:'💳', Débito:'💴', Fiado:'📒' }
@@ -70,20 +113,28 @@ export default function PagamentosPage() {
           <p className="pg-sub">Ative, desative ou adicione formas de pagamento</p></div>
       </div>
 
-      {/* Add */}
+      {/* Add / Edit Form */}
       <div className="card" style={{ padding:'0.875rem', display:'flex', gap:'0.625rem', alignItems:'flex-end' }}>
         <div style={{ flex:1 }}>
-          <label className="campo-label">Nova forma</label>
+          <label className="campo-label">{editando ? 'Editar forma' : 'Nova forma'}</label>
           <input className="campo" style={{ marginTop:'0.375rem' }} placeholder="Ex: Transferência" value={nome} onChange={e=>setNome(e.target.value)}/>
         </div>
         <div style={{ width:'120px' }}>
           <label className="campo-label">Taxa (%)</label>
           <input className="campo" type="number" step="0.1" min="0" style={{ marginTop:'0.375rem' }} placeholder="0,0" value={taxa} onChange={e=>setTaxa(e.target.value)}/>
         </div>
-        <button onClick={adicionar} disabled={salvando||!nome.trim()} className="btn btn-primary"
-          style={{ display:'flex', alignItems:'center', gap:'0.375rem', height:'42px' }}>
-          {salvando ? <Loader2 size={14} style={{ animation:'spin 1s linear infinite' }}/> : <Plus size={14}/>} Adicionar
-        </button>
+        <div style={{ display: 'flex', gap: '0.375rem' }}>
+          {editando && (
+            <button onClick={cancelarEdicao} className="btn btn-ghost" style={{ height:'42px' }}>
+              Cancelar
+            </button>
+          )}
+          <button onClick={editando ? salvarEdicao : adicionar} disabled={salvando||!nome.trim()} className="btn btn-primary"
+            style={{ display:'flex', alignItems:'center', gap:'0.375rem', height:'42px' }}>
+            {salvando ? <Loader2 size={14} style={{ animation:'spin 1s linear infinite' }}/> : (editando ? <Save size={14}/> : <Plus size={14}/>)}
+            {editando ? 'Salvar' : 'Adicionar'}
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -113,6 +164,10 @@ export default function PagamentosPage() {
                   background:'#fff', boxShadow:'0 1px 3px rgba(0,0,0,0.3)',
                   left: f.ativo?'22px':'2px', transition:'left 0.2s'
                 }}/>
+              </button>
+              <button onClick={() => iniciarEdicao(f)} className="btn btn-secondary"
+                style={{ padding:'0.25rem 0.5rem', color:'var(--texto)' }}>
+                <Pencil size={13}/>
               </button>
               <button onClick={() => excluir(f.id)} className="btn btn-secondary"
                 style={{ padding:'0.25rem 0.5rem', color:'var(--vermelho)' }}>
