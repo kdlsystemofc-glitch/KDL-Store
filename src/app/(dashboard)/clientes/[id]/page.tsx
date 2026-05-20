@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { toast } from 'react-hot-toast'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/utils'
 import { ArrowLeft, Loader2 } from 'lucide-react'
@@ -43,19 +44,29 @@ export default function ClientePerfilPage() {
   async function salvar() {
     if (!cliente) return
     setSalvando(true)
-    await createClient().from('clientes').update({
+    const { error } = await createClient().from('clientes').update({
       nome: cliente.nome, telefone: cliente.telefone||null, email: cliente.email||null,
       cpf: cliente.cpf||null, endereco: cliente.endereco||null,
       anotacoes: cliente.anotacoes||null, tipo: cliente.tipo, ativo: cliente.ativo,
     }).eq('id', cliente.id)
     setSalvando(false)
-    setEditando(false)
+    if (error) {
+      toast.error('Erro ao salvar cliente: ' + error.message)
+    } else {
+      toast.success('Cliente salvo com sucesso!')
+      setEditando(false)
+    }
   }
 
   async function excluir() {
     if (!cliente || !confirm(`Excluir o cliente "${cliente.nome}"?`)) return
-    await createClient().from('clientes').delete().eq('id', cliente.id)
-    router.push('/clientes')
+    const { error } = await createClient().from('clientes').delete().eq('id', cliente.id)
+    if (error) {
+      toast.error('Erro ao excluir cliente: ' + error.message)
+    } else {
+      toast.success('Cliente excluído!')
+      router.push('/clientes')
+    }
   }
 
   const totalGasto  = vendas.filter(v=>v.status==='concluida').reduce((a,v)=>a+v.total,0)

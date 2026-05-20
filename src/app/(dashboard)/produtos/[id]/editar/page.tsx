@@ -15,7 +15,7 @@ type Produto = {
   preco_custo:number|null; preco_varejo:number; preco_atacado:number|null; preco_vip:number|null; preco_minimo:number|null
   qtd_atual:number; qtd_minima:number; qtd_maxima:number|null; qtd_min_atacado:number|null; localizacao:string|null
   pode_ser_brinde:boolean; tem_serie:boolean; ativo_catalogo:boolean; destaque:boolean
-  tem_garantia:boolean; dias_garantia:number|null; texto_garantia:string|null; ativo:boolean; imagem_url:string|null
+  tem_garantia:boolean; dias_garantia:number|null; texto_garantia:string|null; ativo:boolean; imagem_url:string|null; fornecedor_id:string|null
 }
 
 const SECAO = ({ titulo, children }: { titulo: string; children: React.ReactNode }) => (
@@ -42,6 +42,7 @@ export default function EditarProdutoPage() {
 
   const [produto,    setProduto]    = useState<Produto|null>(null)
   const [categorias, setCategorias] = useState<Categoria[]>([])
+  const [fornecedores, setFornecedores] = useState<{ id: string; nome: string }[]>([])
   const [loading,    setLoading]    = useState(true)
   const [salvando,   setSalvando]   = useState(false)
   const [erro,       setErro]       = useState<string|null>(null)
@@ -56,15 +57,18 @@ export default function EditarProdutoPage() {
     const supabase = createClient()
     const results = await Promise.allSettled([
       supabase.from('produtos').select('*').eq('id', pid).single(),
-      supabase.from('categorias_produto').select('id,nome').eq('empresa_id', eid).order('nome')
+      supabase.from('categorias_produto').select('id,nome').eq('empresa_id', eid).order('nome'),
+      supabase.from('fornecedores').select('id,nome').eq('empresa_id', eid).eq('ativo', true).order('nome')
     ])
     const getRes = (i: number): any => results[i].status === 'fulfilled' ? (results[i] as PromiseFulfilledResult<any>).value || {} : {}
     const { data: prod, error } = getRes(0)
     const { data: cats }        = getRes(1)
+    const { data: forns }       = getRes(2)
     if (error || !prod) { setErro('Produto não encontrado.'); setLoading(false); return }
     setProduto(prod)
     if (prod.imagem_url) setImagemPreview(prod.imagem_url)
     setCategorias(cats || [])
+    setFornecedores(forns || [])
     setLoading(false)
   }
 
@@ -105,6 +109,7 @@ export default function EditarProdutoPage() {
       codigo_barras: produto.codigo_barras || null,
       descricao: produto.descricao || null,
       categoria: produto.categoria || null,
+      fornecedor_id: produto.fornecedor_id || null,
       preco_custo: produto.preco_custo || null,
       preco_varejo: produto.preco_varejo,
       preco_atacado: produto.preco_atacado || null,
@@ -126,13 +131,19 @@ export default function EditarProdutoPage() {
     }).eq('id', id)
     setSalvando(false)
     if (error) { setErro('Erro ao salvar: ' + error.message); return }
+    toast.success('Produto atualizado com sucesso!')
     router.push('/produtos')
   }
 
   async function excluir() {
     if (!confirm(`Excluir o produto "${produto?.nome}"? Esta ação não pode ser desfeita.`)) return
-    await createClient().from('produtos').delete().eq('id', id)
-    router.push('/produtos')
+    const { error } = await createClient().from('produtos').delete().eq('id', id)
+    if (error) {
+      toast.error('Erro ao excluir produto: ' + error.message)
+    } else {
+      toast.success('Produto excluído com sucesso!')
+      router.push('/produtos')
+    }
   }
 
   const set = (field: keyof Produto, val: unknown) => setProduto(p => p ? { ...p, [field]: val } : p)
@@ -249,6 +260,15 @@ export default function EditarProdutoPage() {
                 {categorias.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
               </select>
             </Campo>
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.75rem' }}>
+            <Campo label="Fornecedor Vinculado">
+              <select className="campo" value={produto.fornecedor_id || ''} onChange={e=>set('fornecedor_id', e.target.value || null)}>
+                <option value="">— Nenhum —</option>
+                {fornecedores.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+              </select>
+            </Campo>
+            <div style={{}} />
           </div>
           <Campo label="Descrição">
             <textarea className="campo" rows={3} value={produto.descricao || ''} onChange={e=>set('descricao', e.target.value)}

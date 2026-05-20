@@ -52,7 +52,7 @@ export default function ClientesPage() {
     <div className="anim-fade" style={{ display:'flex', flexDirection:'column', gap:'0.75rem' }}>
       <div className="pg-header">
         <div>
-          <h1 className="pg-titulo">CLIENTES</h1>
+          <h1 className="pg-titulo">CLIENTES E FORNECEDORES</h1>
           <p className="pg-sub">{ativos} ATIVOS · {inativos} SUMIDOS</p>
         </div>
         <button onClick={() => setShowModal(true)} className="btn btn-primary">

@@ -25,7 +25,43 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
       </head>
       <body style={{ fontFamily: "'Nunito Sans', sans-serif" }}>
-        <Toaster position="top-right" toastOptions={{ style: { background: 'var(--surface-alt)', color: '#fff', border: '1px solid var(--borda-leve)', fontSize: '0.85rem' } }} />
+        <Toaster
+          position="top-right"
+          gutter={10}
+          toastOptions={{
+            duration: 3500,
+            style: {
+              background: 'rgba(15, 20, 30, 0.92)',
+              backdropFilter: 'blur(14px)',
+              WebkitBackdropFilter: 'blur(14px)',
+              color: '#f0f4f8',
+              border: '1px solid rgba(255,255,255,0.10)',
+              borderRadius: '8px',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              padding: '12px 16px',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.35)',
+              maxWidth: '380px',
+              lineHeight: '1.45',
+            },
+            success: {
+              iconTheme: { primary: '#4ade80', secondary: 'rgba(15,20,30,0.92)' },
+              style: {
+                background: 'rgba(15, 20, 30, 0.92)',
+                border: '1px solid rgba(74,222,128,0.35)',
+                color: '#f0f4f8',
+              },
+            },
+            error: {
+              iconTheme: { primary: '#f87171', secondary: 'rgba(15,20,30,0.92)' },
+              style: {
+                background: 'rgba(15, 20, 30, 0.92)',
+                border: '1px solid rgba(248,113,113,0.35)',
+                color: '#f0f4f8',
+              },
+            },
+          }}
+        />
         {children}
       </body>
     </html>

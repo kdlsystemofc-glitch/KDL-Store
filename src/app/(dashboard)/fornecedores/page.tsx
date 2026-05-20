@@ -11,6 +11,7 @@ import { useSubscription } from '@/hooks/useSubscription'
 type Fornecedor = {
   id: string; nome: string; contato: string | null; telefone: string | null
   email: string | null; cnpj: string | null; categoria: string | null; endereco: string | null
+  cep: string | null; rua: string | null; numero: string | null; bairro: string | null; complemento: string | null
   cidade: string | null; estado: string | null; prazo_entrega: string | null
   pedido_minimo: number | null; anotacoes: string | null; ativo: boolean
 }
@@ -51,7 +52,7 @@ export default function FornecedoresPage() {
     const supabase = createClient()
     const results = await Promise.allSettled([
       supabase.from('fornecedores')
-        .select('id,nome,contato,telefone,email,cnpj,categoria,endereco,cidade,estado,prazo_entrega,pedido_minimo,anotacoes,ativo')
+        .select('id,nome,contato,telefone,email,cnpj,categoria,endereco,cep,rua,numero,bairro,complemento,cidade,estado,prazo_entrega,pedido_minimo,anotacoes,ativo')
         .eq('empresa_id', eid).order('nome'),
       supabase.from('pedidos_fornecedor')
         .select('id,produto,quantidade,status,criado_em,fornecedores(nome)')
@@ -65,9 +66,36 @@ export default function FornecedoresPage() {
     setLoading(false)
   }
 
+  async function buscarCepEdicao(cepVal: string) {
+    const limpo = cepVal.replace(/\D/g, '')
+    if (limpo.length !== 8) return
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${limpo}/json/`)
+      const data = await res.json()
+      if (data.erro) return
+      setEditando(prev => {
+        if (!prev) return null
+        return {
+          ...prev,
+          cep: cepVal,
+          rua: data.logradouro || prev.rua || '',
+          bairro: data.bairro || prev.bairro || '',
+          cidade: data.localidade || prev.cidade || '',
+          estado: data.uf || prev.estado || ''
+        }
+      })
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
   async function salvarEdicao() {
     if (!editando || !editando.nome.trim()) { setErroEdit('Nome é obrigatório.'); return }
     setSalvando(true); setErroEdit(null)
+
+    const partes = [editando.rua, editando.numero, editando.bairro, editando.complemento].filter(Boolean)
+    const endereco = partes.join(', ')
+
     const { error } = await createClient().from('fornecedores').update({
       nome:          editando.nome,
       contato:       editando.contato || null,
@@ -75,9 +103,14 @@ export default function FornecedoresPage() {
       email:         editando.email || null,
       cnpj:          editando.cnpj || null,
       categoria:     editando.categoria || null,
-      endereco:      editando.endereco || null,
+      cep:           editando.cep || null,
+      rua:           editando.rua || null,
+      numero:        editando.numero || null,
+      bairro:        editando.bairro || null,
+      complemento:   editando.complemento || null,
       cidade:        editando.cidade || null,
       estado:        editando.estado || null,
+      endereco:      endereco || null,
       prazo_entrega: editando.prazo_entrega || null,
       pedido_minimo: editando.pedido_minimo || null,
       anotacoes:     editando.anotacoes || null,
@@ -85,30 +118,44 @@ export default function FornecedoresPage() {
     }).eq('id', editando.id)
     setSalvando(false)
     if (error) { setErroEdit('Erro ao salvar: ' + error.message); return }
-    setFornecedores(prev => prev.map(f => f.id === editando.id ? editando : f))
+
+    toast.success('Fornecedor atualizado com sucesso!')
+    setFornecedores(prev => prev.map(f => f.id === editando.id ? { ...editando, endereco } : f))
     setEditando(null)
   }
 
   async function avancarStatus(id: string, atual: string) {
     const next = atual === 'aguardando' ? 'confirmado' : 'entregue'
-    await createClient().from('pedidos_fornecedor').update({ status: next }).eq('id', id)
-    setPedidos(prev => prev.map(p => p.id === id ? { ...p, status: next } : p))
+    const { error } = await createClient().from('pedidos_fornecedor').update({ status: next }).eq('id', id)
+    if (error) {
+      toast.error('Erro ao atualizar pedido: ' + error.message)
+    } else {
+      toast.success(`Pedido ${next === 'confirmado' ? 'confirmado' : 'entregue'} com sucesso!`)
+      setPedidos(prev => prev.map(p => p.id === id ? { ...p, status: next } : p))
+    }
   }
 
   // FO2: cria novo pedido ao fornecedor
   async function criarPedido() {
     if (!pedProduto.trim() || !pedQtd || !empresaId) return
     setSalvandoPed(true)
-    const { data } = await createClient().from('pedidos_fornecedor').insert({
+    const { data, error } = await createClient().from('pedidos_fornecedor').insert({
       empresa_id: empresaId,
       fornecedor_id: pedFornId || null,
       produto: pedProduto.trim(),
       quantidade: parseInt(pedQtd) || 1,
       status: 'aguardando'
     }).select('id,produto,quantidade,status,criado_em,fornecedores(nome)').single()
-    if (data) setPedidos(prev => [data as any, ...prev])
-    setPedProduto(''); setPedQtd('1'); setPedFornId('')
-    setShowPedido(false); setSalvandoPed(false)
+    
+    setSalvandoPed(false)
+    if (error) {
+      toast.error('Erro ao criar pedido: ' + error.message)
+    } else {
+      toast.success('Pedido ao fornecedor criado!')
+      if (data) setPedidos(prev => [data as any, ...prev])
+      setPedProduto(''); setPedQtd('1'); setPedFornId('')
+      setShowPedido(false)
+    }
   }
 
   const filtrados = fornecedores.filter(f =>
@@ -220,9 +267,25 @@ export default function FornecedoresPage() {
                     {CATEGORIAS_FORN.map(c=><option key={c}>{c}</option>)}
                   </select>
                 </div>
-                <div style={{ gridColumn: 'span 2' }}>
-                  <label className="campo-label">Endereço completo</label>
-                  <input className="campo" style={campo} value={editando.endereco||''} onChange={e=>set('endereco',e.target.value)}/>
+                <div>
+                  <label className="campo-label">CEP</label>
+                  <input className="campo" style={{...campo,fontFamily:'monospace'}} maxLength={9} value={editando.cep||''} onChange={e=>set('cep',e.target.value)} onBlur={e=>buscarCepEdicao(e.target.value)}/>
+                </div>
+                <div>
+                  <label className="campo-label">Rua / Logradouro</label>
+                  <input className="campo" style={campo} value={editando.rua||''} onChange={e=>set('rua',e.target.value)}/>
+                </div>
+                <div>
+                  <label className="campo-label">Número</label>
+                  <input className="campo" style={campo} value={editando.numero||''} onChange={e=>set('numero',e.target.value)}/>
+                </div>
+                <div>
+                  <label className="campo-label">Bairro</label>
+                  <input className="campo" style={campo} value={editando.bairro||''} onChange={e=>set('bairro',e.target.value)}/>
+                </div>
+                <div>
+                  <label className="campo-label">Complemento</label>
+                  <input className="campo" style={campo} value={editando.complemento||''} onChange={e=>set('complemento',e.target.value)}/>
                 </div>
                 <div>
                   <label className="campo-label">Cidade</label>

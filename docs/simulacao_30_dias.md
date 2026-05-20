@@ -431,13 +431,13 @@ Para cada produto da tabela do catálogo inicial, fazer:
 | Preço Varejo | `89,90` |
 | Preço Atacado | `75,00` |
 | Preço VIP | `82,00` |
-| Estoque Atual | `15` |
-| Estoque Mínimo | `3` |
-| Estoque Máximo | `30` |
-| Limite Mínimo PDV | `1` |
+| Qtd Atual | `15` |
+| Qtd Mínima (alerta) | `3` |
+| Qtd Máxima | `30` |
+| Preço Mínimo PDV (R$) | `80,00` |
 | Controle de Garantia | ✅ Ativo |
-| Prazo de Garantia | `90 dias` |
-| Fornecedor | `TechBR Distribuidora` |
+| Prazo de Garantia (dias) | `90` |
+| Fornecedor Vinculado | `TechBR Distribuidora` |
 | Descrição | `Fone bluetooth com autonomia de 6h, design compacto.` |
 
 - [ ] Salvar.
@@ -454,12 +454,12 @@ Para cada produto da tabela do catálogo inicial, fazer:
 | Preço Varejo | `54,90` |
 | Preço Atacado | `45,00` |
 | Preço VIP | `50,00` |
-| Estoque Atual | `20` |
-| Estoque Mínimo | `5` |
-| Estoque Máximo | `40` |
+| Qtd Atual | `20` |
+| Qtd Mínima (alerta) | `5` |
+| Qtd Máxima | `40` |
 | Controle de Garantia | ✅ Ativo |
-| Prazo de Garantia | `30 dias` |
-| Fornecedor | `TechBR Distribuidora` |
+| Prazo de Garantia (dias) | `30` |
+| Fornecedor Vinculado | `TechBR Distribuidora` |
 
 - [ ] Salvar.
 
@@ -474,12 +474,12 @@ Para cada produto da tabela do catálogo inicial, fazer:
 | Preço Varejo | `69,90` |
 | Preço Atacado | `55,00` |
 | Preço VIP | `62,00` |
-| Estoque Atual | `25` |
-| Estoque Mínimo | `5` |
-| Estoque Máximo | `50` |
+| Qtd Atual | `25` |
+| Qtd Mínima (alerta) | `5` |
+| Qtd Máxima | `50` |
 | Controle de Garantia | ✅ Ativo |
-| Prazo de Garantia | `90 dias` |
-| Fornecedor | `TechBR Distribuidora` |
+| Prazo de Garantia (dias) | `90` |
+| Fornecedor Vinculado | `TechBR Distribuidora` |
 
 - [ ] Salvar.
 
@@ -493,11 +493,11 @@ Para cada produto da tabela do catálogo inicial, fazer:
 | Preço de Custo | `40,00` |
 | Preço Varejo | `79,90` |
 | Preço Atacado | `65,00` |
-| Estoque Atual | `10` |
-| Estoque Mínimo | `3` |
+| Qtd Atual | `10` |
+| Qtd Mínima (alerta) | `3` |
 | Controle de Garantia | ✅ Ativo |
-| Prazo de Garantia | `90 dias` |
-| Fornecedor | `TechBR Distribuidora` |
+| Prazo de Garantia (dias) | `90` |
+| Fornecedor Vinculado | `TechBR Distribuidora` |
 
 - [ ] Salvar.
 
@@ -511,10 +511,10 @@ Para cada produto da tabela do catálogo inicial, fazer:
 | Preço de Custo | `8,00` |
 | Preço Varejo | `19,90` |
 | Preço Atacado | `15,00` |
-| Estoque Atual | `50` |
-| Estoque Mínimo | `10` |
+| Qtd Atual | `50` |
+| Qtd Mínima (alerta) | `10` |
 | Controle de Garantia | ❌ |
-| Fornecedor | `TechBR Distribuidora` |
+| Fornecedor Vinculado | `TechBR Distribuidora` |
 
 - [ ] Salvar.
 

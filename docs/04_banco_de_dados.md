@@ -115,6 +115,7 @@ auth.users (Supabase)
 | texto_garantia | TEXT | Texto do certificado |
 | obs | TEXT | Observações internas |
 | imagem_url | TEXT | URL da imagem |
+| fornecedor_id | UUID | FK fornecedores (nullable) — vínculo com fornecedor principal |
 | criado_em | TIMESTAMPTZ | |
 | atualizado_em | TIMESTAMPTZ | |
 
@@ -241,8 +242,19 @@ auth.users (Supabase)
 | telefone | TEXT | |
 | email | TEXT | |
 | cnpj | TEXT | |
-| endereco | TEXT | |
-| obs | TEXT | |
+| contato | TEXT | Nome do contato principal |
+| categoria | TEXT | Categoria do fornecedor |
+| endereco | TEXT | Endereço compilado (compatibilidade) |
+| cep | TEXT | CEP (ex: 01310-100) |
+| rua | TEXT | Logradouro/Rua |
+| numero | TEXT | Número |
+| bairro | TEXT | Bairro |
+| complemento | TEXT | Complemento |
+| cidade | TEXT | Cidade |
+| estado | TEXT | UF (ex: SP) |
+| prazo_entrega | TEXT | Ex: 24h, 3 dias úteis |
+| pedido_minimo | NUMERIC(12,2) | Pedido mínimo em reais |
+| anotacoes | TEXT | Observações internas |
 | ativo | BOOLEAN | Soft-delete |
 | criado_em | TIMESTAMPTZ | |
 
@@ -401,6 +413,7 @@ USING (empresa_id = minha_empresa_id() OR id = auth.uid())
 | 2025-05 | v1.2 | Comissões, valor_comissao, comissao_paga em `vendas` |
 | 2026-05 | v1.3 | **Auditoria geral:** corrigidas discrepâncias frontend vs banco |
 | 2026-05 | v1.4 | Campo `endereco` adicionado a `fornecedores` |
+| 2026-05 | v1.5 | **Endereço estruturado** em `fornecedores` (cep, rua, numero, bairro, complemento); campo `fornecedor_id` adicionado a `produtos` |
 
 ### Detalhamento v1.3 (Auditoria de Consistência)
 
@@ -428,5 +441,28 @@ USING (empresa_id = minha_empresa_id() OR id = auth.uid())
 **Script de migração:**
 ```sql
 ALTER TABLE fornecedores ADD COLUMN IF NOT EXISTS endereco TEXT;
+```
+
+### Detalhamento v1.5 (Endereço Estruturado + Vínculo Fornecedor-Produto)
+
+> **Contexto:** O formulário de cadastro de fornecedores passou a coletar endereço detalhado com busca automática por CEP via ViaCEP. Também foi implementado o vínculo de fornecedor principal nos produtos.
+
+| Tabela | Coluna adicionada | Tipo | Motivo |
+|---|---|---|---|
+| `fornecedores` | `cep` | TEXT NULL | CEP para busca automática de endereço |
+| `fornecedores` | `rua` | TEXT NULL | Logradouro/Rua |
+| `fornecedores` | `numero` | TEXT NULL | Número do endereço |
+| `fornecedores` | `bairro` | TEXT NULL | Bairro |
+| `fornecedores` | `complemento` | TEXT NULL | Complemento (sala, apto, etc.) |
+| `produtos` | `fornecedor_id` | UUID NULL | FK para `fornecedores(id)` — fornecedor principal do produto |
+
+**Script de migração:**
+```sql
+ALTER TABLE fornecedores ADD COLUMN IF NOT EXISTS cep TEXT;
+ALTER TABLE fornecedores ADD COLUMN IF NOT EXISTS rua TEXT;
+ALTER TABLE fornecedores ADD COLUMN IF NOT EXISTS numero TEXT;
+ALTER TABLE fornecedores ADD COLUMN IF NOT EXISTS bairro TEXT;
+ALTER TABLE fornecedores ADD COLUMN IF NOT EXISTS complemento TEXT;
+ALTER TABLE produtos ADD COLUMN IF NOT EXISTS fornecedor_id UUID REFERENCES fornecedores(id) ON DELETE SET NULL;
 ```
 

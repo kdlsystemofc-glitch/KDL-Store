@@ -23,7 +23,7 @@
 9. Produtos
 10. Estoque
 11. Catálogo Online
-12. Clientes
+12. Clientes e Fornecedores
 13. Clientes Inativos (PRO)
 14. Fornecedores
 15. Financeiro — DRE
@@ -105,7 +105,7 @@ Todos os itens abaixo são sempre renderizados (não há filtro por plano na sid
 | Dashboard | `/dashboard` | `LayoutDashboard` | `pathname === '/dashboard'` |
 | Histórico de Vendas | `/vendas` | `ShoppingCart` | pathname começa com `/vendas/` e não inclui `/nova` |
 | Produtos / Estoque | `/produtos` | `Package` | pathname começa com `/produtos`, `/estoque` ou `/catalogo` |
-| Clientes | `/clientes` | `Users` | pathname começa com `/clientes` ou `/fornecedores` |
+| Clientes e Fornecedores | `/clientes` | `Users` | pathname começa com `/clientes` ou `/fornecedores` |
 | Ops Extras | `/garantias` | `Shield` | pathname começa com `/garantias`, `/ordens-de-servico` ou `/comissoes` |
 | Financeiro | `/financeiro` | `BarChart3` | pathname começa com `/financeiro` |
 | Relatórios | `/relatorios` | `FileBarChart2` | pathname começa com `/relatorios` |
@@ -1421,7 +1421,7 @@ Coluna única, max-width 900px. Header + PageTabs + Card Link do Catálogo + Tab
 
 ---
 
-## 12. CLIENTES (`/clientes`)
+## 12. CLIENTES E FORNECEDORES (`/clientes`)
 **Plano:** Start + Pro  
 **Arquivo:** `src/app/(dashboard)/clientes/page.tsx`
 

@@ -44,6 +44,8 @@ export function FormProduto({ onSuccess, onCancel }: { onSuccess: () => void; on
   const [codigoBarras, setCodigoBarras] = useState('')
   const [descricao,    setDescricao]    = useState('')
   const [categoria,    setCategoria]    = useState('')
+  const [fornecedores, setFornecedores] = useState<{ id: string; nome: string }[]>([])
+  const [fornecedorId, setFornecedorId] = useState('')
   const [custo,        setCusto]        = useState('')
   const [varejo,       setVarejo]       = useState('')
   const [atacado,      setAtacado]      = useState('')
@@ -71,6 +73,7 @@ export function FormProduto({ onSuccess, onCancel }: { onSuccess: () => void; on
   useEffect(() => {
     if (!empresaId) return
     carregarCategorias(empresaId)
+    carregarFornecedores(empresaId)
   }, [empresaId])
 
   async function carregarCategorias(eid: string) {
@@ -80,6 +83,16 @@ export function FormProduto({ onSuccess, onCancel }: { onSuccess: () => void; on
       .eq('empresa_id', eid)
       .order('nome')
     setCategorias(data || [])
+  }
+
+  async function carregarFornecedores(eid: string) {
+    const { data } = await createClient()
+      .from('fornecedores')
+      .select('id,nome')
+      .eq('empresa_id', eid)
+      .eq('ativo', true)
+      .order('nome')
+    setFornecedores(data || [])
   }
 
   async function criarCategoria() {
@@ -149,6 +162,7 @@ export function FormProduto({ onSuccess, onCancel }: { onSuccess: () => void; on
       codigo_barras:codigoBarras.trim() || null,
       descricao:    descricao || null,
       categoria:    categoria || null,
+      fornecedor_id:fornecedorId || null,
       preco_custo:  custoN || null,
       preco_varejo: varejoN,
       preco_atacado:parseFloat(atacado.replace(',','.'))  || null,
@@ -272,6 +286,15 @@ export function FormProduto({ onSuccess, onCancel }: { onSuccess: () => void; on
               </div>
             )}
           </Campo>
+        </div>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.75rem' }}>
+          <Campo label="Fornecedor Vinculado">
+            <select className="campo" value={fornecedorId} onChange={e=>setFornecedorId(e.target.value)}>
+              <option value="">— Nenhum —</option>
+              {fornecedores.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+            </select>
+          </Campo>
+          <div/>
         </div>
         <Campo label="Descrição">
           <textarea className="campo" rows={3} value={descricao} onChange={e=>setDescricao(e.target.value)}

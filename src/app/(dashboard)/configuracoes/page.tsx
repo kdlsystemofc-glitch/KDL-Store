@@ -96,17 +96,36 @@ export default function ConfiguracoesPage() {
       </div>
 
       {/* Plano atual — dinâmico */}
-      <div style={{
-        padding: '0.875rem 1rem', position: 'relative', overflow: 'hidden',
-        background: 'var(--fundo-painel)',
-        border: `1px solid ${isPro ? 'var(--amarelo)' : 'var(--verde)'}`,
-        borderLeft: `4px solid ${isPro ? 'var(--amarelo)' : 'var(--verde)'}`
-      }}>
-        {loadingSub ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--texto-sec)', fontSize: '0.75rem' }}>
-            <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> CARREGANDO PLANO...
+      {loadingSub ? (
+        <div className="skeleton-card" style={{
+          padding: '0.875rem 1rem', position: 'relative', overflow: 'hidden',
+          background: 'var(--fundo-painel)',
+          border: '1px solid var(--borda)',
+          borderLeft: '4px solid var(--borda-forte)',
+          display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', minHeight: '120px'
+        }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
+            <div className="skeleton-line" style={{ width: '120px', height: '14px' }} />
+            <div className="skeleton-line" style={{ width: '80px', height: '24px' }} />
+            <div className="skeleton-line" style={{ width: '220px', height: '12px' }} />
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
+              <div className="skeleton-line" style={{ width: '90px', height: '10px' }} />
+              <div className="skeleton-line" style={{ width: '95px', height: '10px' }} />
+              <div className="skeleton-line" style={{ width: '85px', height: '10px' }} />
+            </div>
           </div>
-        ) : (
+          <div style={{ width: '100%', maxWidth: '200px', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div className="skeleton-line" style={{ height: '32px', borderRadius: 'var(--radius-sm)' }} />
+            <div className="skeleton-line" style={{ height: '28px', borderRadius: 'var(--radius-sm)' }} />
+          </div>
+        </div>
+      ) : (
+        <div style={{
+          padding: '0.875rem 1rem', position: 'relative', overflow: 'hidden',
+          background: 'var(--fundo-painel)',
+          border: `1px solid ${isPro ? 'var(--amarelo)' : 'var(--verde)'}`,
+          borderLeft: `4px solid ${isPro ? 'var(--amarelo)' : 'var(--verde)'}`
+        }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.375rem' }}>
@@ -155,8 +174,8 @@ export default function ConfiguracoesPage() {
               )}
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Menu de configurações */}
       <div className="card" style={{padding:0,overflow:'hidden'}}>

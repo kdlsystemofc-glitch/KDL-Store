@@ -12,11 +12,46 @@ export function FormFornecedor({ onSuccess, onCancel }: { onSuccess: () => void;
   const [salvando, setSalvando] = useState(false)
   const [erro,     setErro]     = useState<string|null>(null)
 
+  async function buscarCep(cepVal: string) {
+    const limpo = cepVal.replace(/\D/g, '')
+    if (limpo.length !== 8) return
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${limpo}/json/`)
+      const data = await res.json()
+      if (data.erro) return
+
+      const inputRua = document.getElementById('f-rua') as HTMLInputElement
+      const inputBairro = document.getElementById('f-bairro') as HTMLInputElement
+      const inputCidade = document.getElementById('f-cidade') as HTMLInputElement
+      const selectEstado = document.getElementById('f-estado') as HTMLSelectElement
+
+      if (inputRua) inputRua.value = data.logradouro || ''
+      if (inputBairro) inputBairro.value = data.bairro || ''
+      if (inputCidade) inputCidade.value = data.localidade || ''
+      if (selectEstado) selectEstado.value = data.uf || ''
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
   async function salvar() {
     const nome = (document.getElementById('f-nome') as HTMLInputElement)?.value?.trim()
     if (!nome) { setErro('O nome do fornecedor é obrigatório.'); return }
     if (!empresaId) return
     setSalvando(true); setErro(null)
+
+    const cep = (document.getElementById('f-cep') as HTMLInputElement)?.value || null
+    const rua = (document.getElementById('f-rua') as HTMLInputElement)?.value || null
+    const numero = (document.getElementById('f-numero') as HTMLInputElement)?.value || null
+    const bairro = (document.getElementById('f-bairro') as HTMLInputElement)?.value || null
+    const complemento = (document.getElementById('f-complemento') as HTMLInputElement)?.value || null
+    const cidade = (document.getElementById('f-cidade') as HTMLInputElement)?.value || null
+    const estado = (document.getElementById('f-estado') as HTMLSelectElement)?.value || null
+
+    // Compila endereço para compatibilidade retrógrada
+    const partes = [rua, numero, bairro, complemento].filter(Boolean)
+    const endereco = partes.join(', ')
+
     const { error } = await createClient().from('fornecedores').insert({
       empresa_id:     empresaId,
       nome,
@@ -25,9 +60,14 @@ export function FormFornecedor({ onSuccess, onCancel }: { onSuccess: () => void;
       email:          (document.getElementById('f-email')    as HTMLInputElement)?.value || null,
       cnpj:           (document.getElementById('f-cnpj')     as HTMLInputElement)?.value || null,
       categoria:      (document.getElementById('f-cat')      as HTMLSelectElement)?.value || null,
-      endereco:       (document.getElementById('f-endereco') as HTMLInputElement)?.value || null,
-      cidade:         (document.getElementById('f-cidade')   as HTMLInputElement)?.value || null,
-      estado:         (document.getElementById('f-estado')   as HTMLSelectElement)?.value || null,
+      cep,
+      rua,
+      numero,
+      bairro,
+      complemento,
+      cidade,
+      estado,
+      endereco:       endereco || null,
       prazo_entrega:  (document.getElementById('f-prazo')    as HTMLInputElement)?.value || null,
       pedido_minimo:  parseFloat((document.getElementById('f-pedmin') as HTMLInputElement)?.value)||null,
       anotacoes:      (document.getElementById('f-obs')      as HTMLTextAreaElement)?.value || null,
@@ -80,10 +120,34 @@ export function FormFornecedor({ onSuccess, onCancel }: { onSuccess: () => void;
             <input id="f-prazo" className="campo" style={{marginTop:'0.375rem'}} placeholder="Ex: 24h, 3 dias úteis"/>
           </div>
         </div>
-        <div>
-          <label className="campo-label">Endereço completo</label>
-          <input id="f-endereco" className="campo" style={{marginTop:'0.375rem'}} placeholder="Rua, número, bairro"/>
+
+        {/* Endereço Estruturado */}
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 2fr 1fr', gap:'0.625rem' }}>
+          <div>
+            <label className="campo-label">CEP</label>
+            <input id="f-cep" className="campo" style={{marginTop:'0.375rem',fontFamily:'monospace'}} placeholder="00000-000" maxLength={9} onBlur={e => buscarCep(e.target.value)}/>
+          </div>
+          <div>
+            <label className="campo-label">Rua / Logradouro</label>
+            <input id="f-rua" className="campo" style={{marginTop:'0.375rem'}} placeholder="Ex: Av. Paulista"/>
+          </div>
+          <div>
+            <label className="campo-label">Número</label>
+            <input id="f-numero" className="campo" style={{marginTop:'0.375rem'}} placeholder="Ex: 1000"/>
+          </div>
         </div>
+
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.625rem'}}>
+          <div>
+            <label className="campo-label">Bairro</label>
+            <input id="f-bairro" className="campo" style={{marginTop:'0.375rem'}} placeholder="Ex: Centro"/>
+          </div>
+          <div>
+            <label className="campo-label">Complemento</label>
+            <input id="f-complemento" className="campo" style={{marginTop:'0.375rem'}} placeholder="Ex: Sala 42"/>
+          </div>
+        </div>
+
         <div style={{display:'grid',gridTemplateColumns:'1fr auto',gap:'0.625rem'}}>
           <div>
             <label className="campo-label">Cidade</label>
@@ -97,6 +161,7 @@ export function FormFornecedor({ onSuccess, onCancel }: { onSuccess: () => void;
             </select>
           </div>
         </div>
+
         <div>
           <label className="campo-label">Pedido mínimo (R$)</label>
           <div style={{position:'relative',marginTop:'0.375rem'}}>

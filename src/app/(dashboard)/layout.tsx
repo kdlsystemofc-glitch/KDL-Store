@@ -17,7 +17,7 @@ const baseItems = [
   { href: '/dashboard',     label: 'Dashboard',           icon: LayoutDashboard },
   { href: '/vendas',        label: 'Histórico de Vendas', icon: ShoppingCart },
   { href: '/produtos',      label: 'Produtos / Estoque',  icon: Package },
-  { href: '/clientes',      label: 'Clientes',            icon: Users },
+  { href: '/clientes',      label: 'Clientes e Fornecedores', icon: Users },
   { href: '/garantias',     label: 'Ops Extras',          icon: Shield },
 ]
 
