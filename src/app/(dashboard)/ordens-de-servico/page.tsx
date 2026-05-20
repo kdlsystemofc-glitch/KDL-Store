@@ -88,6 +88,12 @@ export default function OrdensServicoPage() {
     setOrdens(prev => prev.map(o => o.id === id ? { ...o, status: next } : o))
   }
 
+  async function cancelar(id: string) {
+    if (!confirm('Cancelar esta Ordem de Serviço?')) return
+    await createClient().from('ordens_servico').update({ status: 'cancelado' }).eq('id', id)
+    setOrdens(prev => prev.map(o => o.id === id ? { ...o, status: 'cancelado' } : o))
+  }
+
   const filtradas = ordens.filter(o => {
     const match = o.cliente_nome.toLowerCase().includes(busca.toLowerCase()) ||
       o.equipamento.toLowerCase().includes(busca.toLowerCase()) ||
@@ -248,6 +254,12 @@ export default function OrdensServicoPage() {
                       <button onClick={()=>avancar(o.id,o.status)}
                         className="btn btn-secondary" style={{fontSize:'0.62rem',padding:'0.15rem 0.4rem'}}>
                         → {STATUS_LABEL[FLUXO[o.status]]}
+                      </button>
+                    )}
+                    {!['entregue','cancelado'].includes(o.status) && (
+                      <button onClick={()=>cancelar(o.id)}
+                        className="btn btn-secondary" style={{fontSize:'0.62rem',padding:'0.15rem 0.4rem',color:'var(--vermelho)'}}>
+                        ✕ CANCELAR
                       </button>
                     )}
                   </td>

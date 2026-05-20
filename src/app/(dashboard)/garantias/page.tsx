@@ -23,6 +23,7 @@ export default function GarantiasPage() {
   const [devGarantia, setDevGarantia] = useState<Garantia|null>(null)
   const [devMotivo, setDevMotivo] = useState('')
   const [devRes, setDevRes] = useState('Troca de produto')
+  const [devValor, setDevValor] = useState('')  // G1: valor monetário da devolução
   const [salvandoDev, setSalvandoDev] = useState(false)
 
   useEffect(() => { if (empresaId) carregar(empresaId) }, [empresaId])
@@ -48,12 +49,13 @@ export default function GarantiasPage() {
     setSalvandoDev(true)
     const supabase = createClient()
     
-    // Insere na tabela devolucoes
+    // Insere na tabela devolucoes com valor monetário (G1)
     await supabase.from('devolucoes').insert({
       empresa_id: empresaId,
       garantia_id: devGarantia.id,
       motivo: devMotivo.trim(),
-      resolucao: devRes
+      resolucao: devRes,
+      valor: devValor ? parseFloat(devValor) : null
     })
     
     // Atualiza status da garantia
@@ -133,6 +135,12 @@ export default function GarantiasPage() {
                   <option>Sem resolução por ora</option>
                 </select>
                 {devRes === 'Troca de produto' && <p style={{fontSize:'0.75rem',color:'var(--verde)',marginTop:'0.25rem'}}>O produto devolvido será reinserido no estoque (+1) como defeituoso/retorno.</p>}
+              </div>
+              {/* G1: campo de valor monetário da devolução */}
+              <div>
+                <label className="campo-label">Valor da devolução (R$) <span style={{color:'var(--texto-desab)'}}>— opcional</span></label>
+                <input className="campo" type="number" min="0" step="0.01" style={{marginTop:'0.375rem'}} value={devValor} onChange={e=>setDevValor(e.target.value)} placeholder="0,00"/>
+                <p style={{fontSize:'0.72rem',color:'var(--texto-desab)',marginTop:'0.2rem'}}>Registre o valor para acompanhamento financeiro.</p>
               </div>
               <div style={{display:'flex',gap:'0.5rem',justifyContent:'flex-end',marginTop:'0.5rem'}}>
                 <button onClick={()=>setShowDev(false)} className="btn btn-ghost">Cancelar</button>

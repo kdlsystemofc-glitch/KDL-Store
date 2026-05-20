@@ -14,6 +14,7 @@ export default function FinanceiroPage() {
   const [despesas,   setDespesas]   = useState(0)
   const [fiado,      setFiado]      = useState(0)
   const [brindes,    setBrindes]    = useState(0)
+  const [cmv,        setCmv]        = useState(0)
   const [despLista,  setDespLista]  = useState<{categoria:string|null;tipo:string;valor:number}[]>([])
   const [formas,     setFormas]     = useState<{forma:string;total:number}[]>([])
   const [diasGraf,   setDiasGraf]   = useState<{dia:string;total:number}[]>([])
@@ -23,13 +24,17 @@ export default function FinanceiroPage() {
   async function carregar(eid: string) {
     setLoading(true)
     const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0,10)
+    const inicio15d = new Date(Date.now()-14*86400000).toISOString().slice(0,10)
     const supabase  = createClient()
     const results = await Promise.allSettled([
       supabase.from('vendas').select('total,forma_pagamento,criado_em').eq('empresa_id', eid).eq('status','concluida').gte('criado_em', inicioMes),
       supabase.from('despesas').select('categoria,tipo,valor').eq('empresa_id', eid).gte('data', inicioMes),
       supabase.from('fiados').select('valor_aberto').eq('empresa_id', eid).eq('status','aberto'),
-      supabase.from('vendas').select('criado_em,total').eq('empresa_id', eid).eq('status','concluida').gte('criado_em', new Date(Date.now()-29*86400000).toISOString()),
+      // F2: busca exatamente 15 dias para o gráfico (antes buscava 30 mas exibia só 15)
+      supabase.from('vendas').select('criado_em,total').eq('empresa_id', eid).eq('status','concluida').gte('criado_em', inicio15d),
       supabase.from('estoque_movimentacoes').select('quantidade,produto_id,produtos(preco_custo)').eq('empresa_id', eid).eq('tipo','brinde').gte('criado_em', inicioMes),
+      // F1: CMV — custo de mercadoria vendida no mês
+      supabase.from('itens_venda').select('quantidade,produtos(preco_custo)').eq('empresa_id', eid).gte('criado_em', inicioMes),
     ])
     const getRes = (i: number): any => results[i].status === 'fulfilled' ? (results[i] as PromiseFulfilledResult<any>).value || {} : {}
     const { data: vendas }     = getRes(0)
@@ -37,6 +42,7 @@ export default function FinanceiroPage() {
     const { data: fiados }     = getRes(2)
     const { data: vendasMes }  = getRes(3)
     const { data: brindesMov } = getRes(4)
+    const { data: itensMes }   = getRes(5)
 
     const totalReceita = (vendas||[]).reduce((a: number, v: any) => a + (v.total || 0), 0)
     const totalDesp    = (desps||[]).reduce((a: number, d: any) => a + (d.valor || 0), 0)
@@ -49,7 +55,16 @@ export default function FinanceiroPage() {
       const custo = Array.isArray(prod) ? (prod[0]?.preco_custo || 0) : (prod?.preco_custo || 0)
       return a + Math.abs(m.quantidade) * custo
     }, 0)
+
+    // F1: CMV = soma de (quantidade vendida × preco_custo) dos itens do mês
+    const totalCMV = (itensMes||[]).reduce((a: number, iv: any) => {
+      const prod = iv.produtos as any
+      const custo = Array.isArray(prod) ? (prod[0]?.preco_custo || 0) : (prod?.preco_custo || 0)
+      return a + (iv.quantidade || 0) * custo
+    }, 0)
+
     setReceita(totalReceita); setDespesas(totalDesp); setFiado(totalFiado); setBrindes(totalBrindes)
+    setCmv(totalCMV)
     setDespLista(desps||[])
 
     // Formas
@@ -57,7 +72,7 @@ export default function FinanceiroPage() {
     ;(vendas||[]).forEach((v: any)=>{ fMap[v.forma_pagamento]=(fMap[v.forma_pagamento]||0)+v.total })
     setFormas(Object.entries(fMap).sort((a,b)=>b[1]-a[1]).map(([forma,total])=>({forma,total})))
 
-    // Gráfico 30 dias
+    // F2: gráfico 15 dias (consistente com a query)
     const dMap: Record<string,number> = {}
     ;(vendasMes||[]).forEach((v: any)=>{ const d=v.criado_em.slice(0,10); dMap[d]=(dMap[d]||0)+v.total })
     const g = Array.from({length:15},(_,i)=>{
@@ -68,8 +83,10 @@ export default function FinanceiroPage() {
     setLoading(false)
   }
 
-  const lucro = receita - despesas
-  const margem = receita > 0 ? ((lucro/receita)*100).toFixed(1) : '0.0'
+
+  const lucroLiquido = receita - cmv - brindes - despesas
+  const lucro = lucroLiquido
+  const margem = receita > 0 ? ((lucroLiquido/receita)*100).toFixed(1) : '0.0'
   const maxGraf = Math.max(...diasGraf.map(d=>d.total), 1)
 
   return (
@@ -187,9 +204,10 @@ export default function FinanceiroPage() {
             <div style={{padding:'0.75rem'}}>
               {[
                 {l:'(+) RECEITA DE VENDAS',      v:receita,                   c:'var(--verde)',    neg:false},
+                {l:'(-) CMV (CUSTO MERCADORIA)',  v:cmv,                       c:'var(--vermelho)', neg:true},
                 {l:'(-) BRINDES CONCEDIDOS',      v:brindes,                   c:'var(--amarelo)', neg:true},
                 {l:'(-) DESPESAS TOTAIS',         v:despesas,                  c:'var(--vermelho)',neg:true},
-                {l:'(=) LUCRO LÍQUIDO ESTIMADO',  v:receita-brindes-despesas, c:(receita-brindes-despesas)>=0?'var(--verde)':'var(--vermelho)', neg:false},
+                {l:'(=) LUCRO LÍQUIDO ESTIMADO',  v:lucroLiquido,              c:lucroLiquido>=0?'var(--verde)':'var(--vermelho)', neg:false},
               ].map(r=>(
                 <div key={r.l} style={{display:'flex',justifyContent:'space-between',padding:'0.375rem 0',borderBottom:`1px ${r.l.startsWith('(=)')?'dashed':'solid'} var(--borda-leve)`}}>
                   <span style={{fontWeight:r.l.startsWith('(=)')?700:400,fontSize:'0.72rem',letterSpacing:'0.04em',color:r.l.startsWith('(=)')?'var(--texto)':'var(--texto-sec)'}}>{r.l}</span>

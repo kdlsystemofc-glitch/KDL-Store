@@ -37,6 +37,12 @@ export default function FornecedoresPage() {
   const [editando,     setEditando]     = useState<Fornecedor | null>(null)
   const [salvando,     setSalvando]     = useState(false)
   const [erroEdit,     setErroEdit]     = useState<string | null>(null)
+  // FO2: estado para novo pedido
+  const [showPedido,   setShowPedido]   = useState(false)
+  const [pedProduto,   setPedProduto]   = useState('')
+  const [pedQtd,       setPedQtd]       = useState('1')
+  const [pedFornId,    setPedFornId]    = useState('')
+  const [salvandoPed,  setSalvandoPed]  = useState(false)
 
   useEffect(() => { if (empresaId) carregar(empresaId) }, [empresaId])
 
@@ -88,6 +94,22 @@ export default function FornecedoresPage() {
     setPedidos(prev => prev.map(p => p.id === id ? { ...p, status: next } : p))
   }
 
+  // FO2: cria novo pedido ao fornecedor
+  async function criarPedido() {
+    if (!pedProduto.trim() || !pedQtd || !empresaId) return
+    setSalvandoPed(true)
+    const { data } = await createClient().from('pedidos_fornecedor').insert({
+      empresa_id: empresaId,
+      fornecedor_id: pedFornId || null,
+      produto: pedProduto.trim(),
+      quantidade: parseInt(pedQtd) || 1,
+      status: 'aguardando'
+    }).select('id,produto,quantidade,status,criado_em,fornecedores(nome)').single()
+    if (data) setPedidos(prev => [data as any, ...prev])
+    setPedProduto(''); setPedQtd('1'); setPedFornId('')
+    setShowPedido(false); setSalvandoPed(false)
+  }
+
   const filtrados = fornecedores.filter(f =>
     f.nome.toLowerCase().includes(busca.toLowerCase()) ||
     (f.categoria || '').toLowerCase().includes(busca.toLowerCase())
@@ -97,6 +119,43 @@ export default function FornecedoresPage() {
 
   return (
     <div className="anim-fade" style={{ display:'flex', flexDirection:'column', gap:'0.75rem' }}>
+
+      {/* FO2: Modal Novo Pedido */}
+      {showPedido && (
+        <div style={{ position:'fixed', inset:0, zIndex:100, background:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' }}
+          onClick={e=>{if(e.target===e.currentTarget)setShowPedido(false)}}>
+          <div className="card anim-pop" style={{ width:'100%', maxWidth:'420px', padding:'1.25rem' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1rem' }}>
+              <p style={{ fontWeight:900, fontSize:'1rem' }}>📦 Novo Pedido ao Fornecedor</p>
+              <button onClick={()=>setShowPedido(false)} className="btn-icon"><X size={16}/></button>
+            </div>
+            <div style={{ display:'flex', flexDirection:'column', gap:'0.625rem' }}>
+              <div>
+                <label className="campo-label">Produto / Descrição *</label>
+                <input className="campo" style={{marginTop:'0.375rem'}} value={pedProduto} onChange={e=>setPedProduto(e.target.value)} placeholder="Ex: Cabo HDMI 2m"/>
+              </div>
+              <div>
+                <label className="campo-label">Quantidade *</label>
+                <input className="campo" type="number" min="1" style={{marginTop:'0.375rem'}} value={pedQtd} onChange={e=>setPedQtd(e.target.value)}/>
+              </div>
+              <div>
+                <label className="campo-label">Fornecedor (opcional)</label>
+                <select className="campo" style={{marginTop:'0.375rem'}} value={pedFornId} onChange={e=>setPedFornId(e.target.value)}>
+                  <option value="">Selecionar fornecedor...</option>
+                  {fornecedores.filter(f=>f.ativo).map(f=><option key={f.id} value={f.id}>{f.nome}</option>)}
+                </select>
+              </div>
+            </div>
+            <div style={{ display:'flex', gap:'0.5rem', justifyContent:'flex-end', marginTop:'1rem' }}>
+              <button onClick={()=>setShowPedido(false)} className="btn btn-ghost">Cancelar</button>
+              <button onClick={criarPedido} disabled={!pedProduto.trim()||salvandoPed} className="btn btn-primary"
+                style={{ display:'flex', alignItems:'center', gap:'0.375rem' }}>
+                {salvandoPed?<Loader2 size={14} style={{animation:'spin 1s linear infinite'}}/>:<Save size={14}/>} Criar Pedido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Novo Fornecedor */}
       {showModal && (
@@ -212,7 +271,12 @@ export default function FornecedoresPage() {
           <h1 className="pg-titulo">FORNECEDORES</h1>
           <p className="pg-sub">{fornecedores.length} CADASTRADOS · {pendentes} PEDIDO(S) PENDENTE(S)</p>
         </div>
-        <button onClick={() => setShowModal(true)} className="btn btn-primary">+ NOVO FORNECEDOR</button>
+        <div style={{display:'flex',gap:'0.375rem'}}>
+          {aba === 'pedidos' && (
+            <button onClick={() => setShowPedido(true)} className="btn btn-secondary">+ NOVO PEDIDO</button>
+          )}
+          <button onClick={() => setShowModal(true)} className="btn btn-primary">+ NOVO FORNECEDOR</button>
+        </div>
       </div>
 
       <PageTabs tabs={[

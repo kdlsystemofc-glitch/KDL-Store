@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
@@ -9,6 +9,8 @@ import { FormCliente } from '@/components/FormCliente'
 import { BarcodeScannerModal, useHasCamera } from '@/components/BarcodeScannerModal'
 
 type ProdDB = { id:string; nome:string; sku:string|null; ean:string|null; preco_varejo:number; preco_atacado:number|null; preco_vip:number|null; preco_minimo:number|null; qtd_atual:number; tem_garantia:boolean; dias_garantia:number|null; texto_garantia:string|null }
+// CL1+P1: tipo para cliente vinculado
+type ClienteDB = { id: string; nome: string; telefone: string | null; tipo: string }
 type TipoCliente = 'varejo'|'atacado'|'vip'
 type Item = { produto:ProdDB; qty:number; serie:string; brinde:boolean; precoUsado:number }
 
@@ -24,10 +26,15 @@ export default function NovaPdvPage() {
   const { empresaId } = useEmpresaId()
   const [catalogo,    setCatalogo]    = useState<ProdDB[]>([])
   const [fiadosAtivos, setFiadosAtivos] = useState<string[]>([])
+  // CL1+P1: lista de clientes cadastrados para autocomplete
+  const [clientesDB,  setClientesDB]  = useState<ClienteDB[]>([])
   const [busca,       setBusca]       = useState('')
   const [itens,       setItens]       = useState<Item[]>([])
   const [tipoCliente, setTipoCliente] = useState<TipoCliente>('varejo')
   const [cliente,     setCliente]     = useState('')
+  // CL1+P1: id do cliente selecionado (null = cliente anônimo/não cadastrado)
+  const [clienteId,   setClienteId]   = useState<string | null>(null)
+  const [clienteSugs, setClienteSugs] = useState<ClienteDB[]>([])
   const [pagamento,   setPagamento]   = useState('')
   const [desconto,    setDesconto]    = useState(0)
   const [troco,       setTroco]       = useState('')
@@ -56,11 +63,22 @@ export default function NovaPdvPage() {
       .eq('empresa_id', eid)
       .eq('status', 'aberto')
 
+    // CL1+P1: carrega lista de clientes para autocomplete
+    const { data: clis } = await supabase
+      .from('clientes')
+      .select('id,nome,telefone,tipo')
+      .eq('empresa_id', eid)
+      .eq('ativo', true)
+      .order('nome')
+
     setCatalogo(data || [])
     setFiadosAtivos((fAbertos || []).map(f => f.cliente_nome.toLowerCase().trim()))
+    setClientesDB(clis || [])
   }, [])
 
   useEffect(() => { if (empresaId) carregar(empresaId) }, [empresaId, carregar])
+
+
 
   const resultados = busca.length >= 1
     ? catalogo.filter(p => 
@@ -147,7 +165,8 @@ export default function NovaPdvPage() {
 
     const { data: vendaId, error } = await supabase.rpc('checkout_venda_transaction', {
       p_empresa_id: empresaId,
-      p_cliente_id: null,
+      // CL1+P1: passa o UUID real do cliente quando selecionado
+      p_cliente_id: clienteId,
       p_cliente_nome: cliente || 'Anônimo',
       p_forma_pagamento: pagamento,
       p_total: total,
@@ -165,6 +184,14 @@ export default function NovaPdvPage() {
       setErro('Erro crítico ao processar a venda. Nenhuma cobrança ou baixa foi feita. Detalhes: ' + error.message)
       setSalvando(false)
       return
+    }
+
+    // CL1+P1: atualiza ultima_compra do cliente vinculado
+    if (clienteId) {
+      await supabase
+        .from('clientes')
+        .update({ ultima_compra: new Date().toISOString().slice(0, 10) })
+        .eq('id', clienteId)
     }
 
     setSalvando(false)
@@ -188,7 +215,7 @@ export default function NovaPdvPage() {
       {pagamento==='Fiado' && <p style={{color:'var(--amarelo)',fontWeight:700}}>📒 Registrado no fiado de {cliente}</p>}
       <div style={{display:'flex',gap:'0.625rem',flexWrap:'wrap',justifyContent:'center',marginTop:'0.5rem'}}>
         <Link href={`/vendas/${vendaId}`} className="btn btn-secondary">🧾 Ver Recibo</Link>
-        <button className="btn btn-primary" onClick={()=>{setItens([]);setFase('pdv');setPagamento('');setDesconto(0);setTroco('');setCliente('');setPrazoDias(null)}}>
+        <button className="btn btn-primary" onClick={()=>{setItens([]);setFase('pdv');setPagamento('');setDesconto(0);setTroco('');setCliente('');setClienteId(null);setClienteSugs([]);setPrazoDias(null)}}>
           + Nova Venda
         </button>
       </div>
@@ -366,7 +393,7 @@ export default function NovaPdvPage() {
             </div>
           </div>
 
-          {/* Cliente */}
+          {/* Cliente com autocomplete — CL1+P1 */}
           <div className="card" style={{padding:'0.75rem',border:`1px solid ${pagamento==='Fiado'&&!cliente?'var(--vermelho)':'var(--borda)'}`,borderRadius:'var(--radius)'}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
               <label className="campo-label">
@@ -376,9 +403,59 @@ export default function NovaPdvPage() {
                 <Plus size={10}/> Novo
               </button>
             </div>
-            <input id="pdv-cliente" className="campo" style={{marginTop:'0.25rem'}} placeholder="Nome..." value={cliente} onChange={e=>setCliente(e.target.value)}/>
+            {/* Autocomplete */}
+            <div style={{position:'relative',marginTop:'0.25rem'}}>
+              <input
+                id="pdv-cliente"
+                className="campo"
+                placeholder="Nome do cliente..."
+                value={cliente}
+                autoComplete="off"
+                onChange={e => {
+                  const v = e.target.value
+                  setCliente(v)
+                  setClienteId(null) // reseta link quando digita manualmente
+                  if (v.length >= 2) {
+                    const q = v.toLowerCase()
+                    setClienteSugs(clientesDB.filter(c => c.nome.toLowerCase().includes(q)).slice(0, 6))
+                  } else {
+                    setClienteSugs([])
+                  }
+                }}
+              />
+              {/* Dropdown de sugestões */}
+              {clienteSugs.length > 0 && (
+                <div style={{position:'absolute',top:'100%',left:0,right:0,zIndex:50,background:'var(--fundo-painel)',border:'1px solid var(--verde)',borderTop:'none',maxHeight:'180px',overflowY:'auto'}}>
+                  {clienteSugs.map(c => (
+                    <button key={c.id} type="button"
+                      style={{width:'100%',textAlign:'left',padding:'0.4rem 0.625rem',background:'none',border:'none',cursor:'pointer',borderBottom:'1px solid var(--borda-leve)',fontFamily:'inherit'}}
+                      onMouseEnter={e=>(e.currentTarget.style.background='var(--surface-alt)')}
+                      onMouseLeave={e=>(e.currentTarget.style.background='none')}
+                      onClick={() => {
+                        setCliente(c.nome)
+                        setClienteId(c.id)
+                        setClienteSugs([])
+                        // Ajusta tabela de preço automaticamente se cliente tem tipo definido
+                        if (c.tipo === 'atacado' || c.tipo === 'vip') {
+                          setTipoCliente(c.tipo as TipoCliente)
+                          setItens(prev => prev.map(i => i.brinde ? i : {...i, precoUsado: getPreco(i.produto, c.tipo as TipoCliente)}))
+                        }
+                      }}>
+                      <span style={{fontWeight:700,fontSize:'0.82rem',color:'var(--texto)'}}>{c.nome}</span>
+                      {c.tipo !== 'varejo' && <span style={{fontSize:'0.65rem',color:'var(--verde)',marginLeft:'0.5rem',textTransform:'uppercase'}}>{c.tipo}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            {/* Badge de cliente vinculado */}
+            {clienteId && (
+              <div style={{marginTop:'0.375rem',fontSize:'0.65rem',color:'var(--verde)',fontWeight:700,letterSpacing:'0.04em'}}>
+                ● CLIENTE VINCULADO — HISTÓRICO SERÁ ATUALIZADO
+              </div>
+            )}
             <div style={{display:'flex',gap:'0.375rem',marginTop:'0.375rem'}}>
-              <button className="btn btn-secondary" style={{fontSize:'0.72rem',flex:1}} onClick={()=>setCliente('Anônimo')} disabled={pagamento==='Fiado'}>Anônimo</button>
+              <button className="btn btn-secondary" style={{fontSize:'0.72rem',flex:1}} onClick={()=>{setCliente('Anônimo');setClienteId(null);setClienteSugs([])}} disabled={pagamento==='Fiado'}>Anônimo</button>
             </div>
           </div>
 

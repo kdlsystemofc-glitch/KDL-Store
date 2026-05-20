@@ -12,6 +12,7 @@ type VendaComissao = {
   id:string; numero:number; total:number; forma_pagamento:string; criado_em:string
   comissionado_nome:string; comissionado_id:string
   valor_comissao: number
+  comissao_paga: boolean  // C2
 }
 
 export default function ComissoesPage() {
@@ -41,7 +42,8 @@ export default function ComissoesPage() {
     setLoadingV(true)
     const { data: vendasData } = await createClient()
       .from('vendas')
-      .select('id,numero,total,forma_pagamento,criado_em,comissionado_id,comissionado_nome')
+      // C1+C2: inclui valor_comissao (taxa histórica) e comissao_paga
+      .select('id,numero,total,forma_pagamento,criado_em,comissionado_id,comissionado_nome,valor_comissao,comissao_paga')
       .eq('empresa_id', eid)
       .eq('status', 'concluida')
       .not('comissionado_id', 'is', null)
@@ -50,7 +52,7 @@ export default function ComissoesPage() {
 
     if (!vendasData || vendasData.length === 0) { setVendas([]); setLoadingV(false); return }
 
-    // Calcula comissão usando a taxa do comissionado
+    // C1: usa valor_comissao do banco se já gravado; caso contrário calcula pela taxa atual (fallback)
     const { data: comissoes } = await createClient()
       .from('comissoes')
       .select('id,taxa,tipo_comissao')
@@ -59,12 +61,15 @@ export default function ComissoesPage() {
     const mapa = Object.fromEntries((comissoes||[]).map(c => [c.id, c]))
 
     const result: VendaComissao[] = vendasData.map(v => {
-      const com = mapa[v.comissionado_id]
-      let valor_comissao = 0
-      if (com) {
-        valor_comissao = com.tipo_comissao === 'percentual'
-          ? (v.total * com.taxa) / 100
-          : com.taxa
+      let valor_comissao = v.valor_comissao ?? 0  // usa valor histórico se disponível
+      if (!v.valor_comissao) {
+        // fallback: calcula pela taxa atual (vendas antigas sem valor gravado)
+        const com = mapa[v.comissionado_id]
+        if (com) {
+          valor_comissao = com.tipo_comissao === 'percentual'
+            ? (v.total * com.taxa) / 100
+            : com.taxa
+        }
       }
       return {
         id:               v.id,
@@ -75,6 +80,7 @@ export default function ComissoesPage() {
         comissionado_nome: v.comissionado_nome || '—',
         comissionado_id:  v.comissionado_id,
         valor_comissao,
+        comissao_paga:    v.comissao_paga ?? false,  // C2
       }
     })
     setVendas(result)
@@ -84,6 +90,12 @@ export default function ComissoesPage() {
   function handleAba(a: 'cadastro'|'por-venda') {
     setAba(a)
     if (a === 'por-venda' && empresaId && vendas.length === 0) carregarVendas(empresaId)
+  }
+
+  // C2: marca/desmarca comissão como paga
+  async function marcarPago(id: string, pago: boolean) {
+    await createClient().from('vendas').update({ comissao_paga: !pago }).eq('id', id)
+    setVendas(prev => prev.map(v => v.id === id ? { ...v, comissao_paga: !pago } : v))
   }
 
   async function salvar() {
@@ -109,7 +121,9 @@ export default function ComissoesPage() {
   }
 
   const ativos   = lista.filter(c=>c.status==='ativo')
-  const totalComissoes = vendas.reduce((a,v)=>a+v.valor_comissao, 0)
+  const totalComissoes  = vendas.reduce((a,v)=>a+v.valor_comissao, 0)
+  const totalPendente   = vendas.filter(v=>!v.comissao_paga).reduce((a,v)=>a+v.valor_comissao, 0)  // C2
+  const totalPago       = vendas.filter(v=>v.comissao_paga).reduce((a,v)=>a+v.valor_comissao, 0)    // C2
 
   // Agrupa por comissionado para ranking
   const ranking = Object.values(
@@ -248,8 +262,8 @@ export default function ComissoesPage() {
                 <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'0.625rem'}}>
                   {[
                     {l:'Vendas comissionadas', v:vendas.length, suf:'vendas', c:'var(--texto)'},
-                    {l:'Total vendido',        v:formatCurrency(vendas.reduce((a,v)=>a+v.total,0)), suf:'em vendas com comissão', c:'var(--verde)'},
-                    {l:'Total a pagar',        v:formatCurrency(totalComissoes), suf:'em comissões', c:'var(--amarelo)'},
+                    {l:'Pendente de pagamento', v:formatCurrency(totalPendente), suf:'aguardando pagar', c:'var(--amarelo)'},  
+                    {l:'Total pago', v:formatCurrency(totalPago), suf:'já pago ao puxador', c:'var(--verde)'},
                   ].map(k=>(
                     <div key={k.l} className="card" style={{padding:'0.875rem'}}>
                       <p style={{fontSize:'0.78rem',color:'var(--texto-desab)',marginBottom:'0.25rem'}}>{k.l}</p>
@@ -284,17 +298,27 @@ export default function ComissoesPage() {
                         <th>INDICADOR</th>
                         <th style={{textAlign:'right'}}>TOTAL</th>
                         <th style={{textAlign:'right'}}>COMISSÃO</th>
+                        <th style={{textAlign:'center'}}>STATUS</th>
                     </tr></thead>
                     <tbody>
                       {vendas.map(v=>(
-                        <tr key={v.id}>
+                        <tr key={v.id} style={{opacity: v.comissao_paga ? 0.65 : 1}}>
                           <td><span style={{fontWeight:700,color:'var(--verde)',fontFamily:'monospace'}}>#{String(v.numero).padStart(4,'0')}</span></td>
                           <td style={{fontSize:'0.82rem',color:'var(--texto-desab)'}}>{new Date(v.criado_em).toLocaleDateString('pt-BR')}</td>
                           <td style={{fontSize:'0.82rem'}}>{v.forma_pagamento}</td>
                           <td style={{fontWeight:600}}>{v.comissionado_nome}</td>
                           <td style={{textAlign:'right',fontFamily:'monospace',fontWeight:700}}>{formatCurrency(v.total)}</td>
-                          <td style={{textAlign:'right',fontFamily:'monospace',fontWeight:800,color:'var(--amarelo)'}}>
+                          <td style={{textAlign:'right',fontFamily:'monospace',fontWeight:800,color:v.comissao_paga?'var(--texto-desab)':'var(--amarelo)'}}>
                             {formatCurrency(v.valor_comissao)}
+                          </td>
+                          <td style={{textAlign:'center'}}>
+                            <button onClick={()=>marcarPago(v.id, v.comissao_paga)}
+                              className="btn btn-secondary"
+                              style={{fontSize:'0.62rem',padding:'0.15rem 0.5rem',
+                                color: v.comissao_paga ? 'var(--verde)' : 'var(--amarelo)',
+                                border: `1px solid ${v.comissao_paga ? 'var(--verde)' : 'var(--amarelo)'}`}}>
+                              {v.comissao_paga ? '✔ PAGO' : '○ PENDENTE'}
+                            </button>
                           </td>
                         </tr>
                       ))}

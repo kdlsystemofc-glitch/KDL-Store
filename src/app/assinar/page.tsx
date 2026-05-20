@@ -16,6 +16,8 @@ function AssinarPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const motivo = searchParams.get('motivo')
+  // L6: pré-seleciona plano passado pela landing (?plano=pro ou ?plano=start)
+  const planoParam = searchParams.get('plano') as 'start' | 'pro' | null
   const [loading, setLoading] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
 
@@ -44,6 +46,9 @@ function AssinarPage() {
       const data = await res.json()
       if (data.url) {
         window.location.href = data.url
+      } else if (res.status === 400 && data.error?.includes('assinatura ativa')) {
+        // A1: usuário já tem assinatura — redireciona para gerenciar plano
+        router.push('/configuracoes/planos')
       } else {
         setErro(data.error || 'Erro ao processar pagamento.')
         setLoading(null)
@@ -53,6 +58,7 @@ function AssinarPage() {
       setLoading(null)
     }
   }
+
 
   const features = {
     start: [
@@ -82,11 +88,12 @@ function AssinarPage() {
         <span style={{ color: 'var(--texto)', fontFamily: "'Nunito', sans-serif", fontWeight: 700, fontSize: '1.05rem' }}>DL Store</span>
       </div>
       <h2 style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 800, fontSize: '1.5rem', color: 'var(--texto)', marginBottom: '0.375rem' }}>
-        Escolha seu plano
+        {planoParam ? `Você escolheu o plano ${planoParam === 'pro' ? 'Pro ⭐' : 'Start'}` : 'Escolha seu plano'}
       </h2>
       <p style={{ color: 'var(--muted)', fontSize: '0.88rem', marginBottom: '2rem' }}>
         Sem contrato. Cancele quando quiser.
       </p>
+
 
       {motivo === 'inadimplente' && (
         <div style={{
@@ -137,15 +144,17 @@ function AssinarPage() {
               </li>
             ))}
           </ul>
-          <button onClick={() => assinar('start')} disabled={loading !== null}
+      <button onClick={() => assinar('start')} disabled={loading !== null}
             style={{
               width: '100%', padding: '0.75rem', borderRadius: 'var(--r-lg)',
-              background: 'transparent', color: 'var(--roxo)', border: '2px solid var(--roxo)',
+              background: planoParam === 'start' ? 'var(--roxo)' : 'transparent',
+              color: planoParam === 'start' ? '#fff' : 'var(--roxo)',
+              border: '2px solid var(--roxo)',
               fontWeight: 700, fontSize: '0.88rem', cursor: loading ? 'not-allowed' : 'pointer',
               fontFamily: 'inherit', opacity: loading && loading !== 'start' ? 0.5 : 1,
               transition: 'background 0.15s, color 0.15s',
             }}>
-            {loading === 'start' ? 'Ativando...' : 'Começar com Start'}
+            {loading === 'start' ? 'Ativando...' : planoParam === 'start' ? '▶ Confirmar plano Start' : 'Começar com Start'}
           </button>
         </div>
 
@@ -185,7 +194,7 @@ function AssinarPage() {
               opacity: loading && loading !== 'pro' ? 0.5 : 1,
               transition: 'transform 0.15s, box-shadow 0.15s',
             }}>
-            {loading === 'pro' ? 'Ativando...' : 'Começar com Pro'}
+            {loading === 'pro' ? 'Ativando...' : planoParam === 'pro' ? '▶ Confirmar plano Pro' : 'Começar com Pro'}
           </button>
         </div>
       </div>

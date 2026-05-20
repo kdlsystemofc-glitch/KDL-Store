@@ -68,10 +68,11 @@ export default function ConfiguracoesPage() {
     if (!empresaId) return
     setDeletando(true)
     try {
+      // CO3: abre portal direto no fluxo de cancelamento (não na tela de cartões)
       const res = await fetch('/api/stripe/portal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ empresaId })
+        body: JSON.stringify({ empresaId, flow: 'cancel' })
       })
       const json = await res.json()
       if (json.url) window.location.href = json.url
@@ -200,8 +201,8 @@ export default function ConfiguracoesPage() {
         </div>
       </div>
 
-      {/* Zona de Perigo (oculta se já estiver cancelado) */}
-      {(!cancel_at_period_end) && (
+      {/* CO1: só exibe Zona de Perigo após dados do plano carregarem */}
+      {!loadingSub && (!cancel_at_period_end) && (
         <div className="card" style={{padding:0,overflow:'hidden',border:'1px solid var(--vermelho)'}}>
           <div className="sec-header" style={{borderBottom:'1px solid var(--vermelho)'}}><span style={{color:'var(--vermelho)'}}>⚠ ZONA DE PERIGO</span></div>
           <div style={{padding:'0.875rem 1rem'}}>

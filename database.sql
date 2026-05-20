@@ -567,6 +567,17 @@ ALTER TABLE itens_venda ALTER COLUMN empresa_id SET NOT NULL;
 ALTER TABLE produtos
   ALTER COLUMN preco_catalogo TYPE TEXT USING preco_catalogo::TEXT;
 
+-- 6. C1: valor_comissao — grava a comissão calculada no momento da venda
+-- Evita que mudanças de taxa retroagem no histórico
+ALTER TABLE vendas ADD COLUMN IF NOT EXISTS valor_comissao NUMERIC(12,2) DEFAULT NULL;
+
+-- 7. C2: comissao_paga — controle de pagamento de comissões ao puxador
+ALTER TABLE vendas ADD COLUMN IF NOT EXISTS comissao_paga BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- 8. G1: valor na tabela devolucoes (já existe no schema, garante para BDs antigos)
+ALTER TABLE devolucoes ALTER COLUMN valor DROP NOT NULL;
+ALTER TABLE devolucoes ALTER COLUMN valor SET DEFAULT NULL;
+
 -- =============================================================
 -- ROW LEVEL SECURITY (RLS)
 -- =============================================================
