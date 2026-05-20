@@ -68,10 +68,14 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 CREATE TABLE IF NOT EXISTS empresas (
   id                          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   nome                        TEXT NOT NULL,
+  cnpj                        TEXT,
+  email                       TEXT,
   telefone                    TEXT,
   whatsapp                    TEXT,
   instagram                   TEXT,
+  endereco                    TEXT,
   cidade                      TEXT,
+  estado                      TEXT,
   slug                        TEXT UNIQUE,
   plano                       tipo_plano NOT NULL DEFAULT 'start',
   crm_prazo_inatividade_dias  INT NOT NULL DEFAULT 60,
@@ -149,6 +153,7 @@ CREATE TABLE IF NOT EXISTS produtos (
   sku             TEXT,
   ean             TEXT,
   categoria       TEXT,
+  descricao       TEXT,
   preco_custo     NUMERIC(12,2) NOT NULL DEFAULT 0,
   preco_varejo    NUMERIC(12,2) NOT NULL DEFAULT 0,
   preco_atacado   NUMERIC(12,2),
@@ -199,6 +204,7 @@ CREATE TABLE IF NOT EXISTS clientes (
   email           TEXT,
   cpf             TEXT,
   endereco        TEXT,
+  anotacoes       TEXT,
   obs             TEXT,
   tipo            TEXT NOT NULL DEFAULT 'varejo', -- 'varejo' | 'atacado' | 'vip'
   ultima_compra   DATE,
@@ -300,6 +306,7 @@ CREATE TABLE IF NOT EXISTS despesas (
   tipo        TEXT,
   valor       NUMERIC(12,2) NOT NULL DEFAULT 0,
   data        DATE NOT NULL DEFAULT CURRENT_DATE,
+  recorrente  BOOLEAN NOT NULL DEFAULT FALSE,
   criado_em   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -334,6 +341,7 @@ CREATE TABLE IF NOT EXISTS pedidos_fornecedor (
   empresa_id      UUID NOT NULL REFERENCES empresas(id) ON DELETE CASCADE,
   fornecedor_id   UUID REFERENCES fornecedores(id) ON DELETE SET NULL,
   fornecedor_nome TEXT,
+  venda_id        UUID REFERENCES public.vendas(id) ON DELETE SET NULL,
   produto         TEXT NOT NULL DEFAULT '',
   quantidade      NUMERIC(12,3) NOT NULL DEFAULT 1,
   status          TEXT NOT NULL DEFAULT 'aguardando', -- 'aguardando' | 'confirmado' | 'entregue'
@@ -385,6 +393,7 @@ CREATE TABLE IF NOT EXISTS ordens_servico (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   empresa_id      UUID NOT NULL REFERENCES empresas(id) ON DELETE CASCADE,
   numero          SERIAL,
+  venda_id        UUID REFERENCES public.vendas(id) ON DELETE SET NULL,
   cliente_nome    TEXT NOT NULL,
   cliente_tel     TEXT,
   equipamento     TEXT NOT NULL DEFAULT '',
@@ -392,6 +401,7 @@ CREATE TABLE IF NOT EXISTS ordens_servico (
   defeito_relatado TEXT NOT NULL DEFAULT '',
   problema        TEXT,
   laudo           TEXT,
+  observacoes     TEXT,
   status          TEXT NOT NULL DEFAULT 'aguardando',
   orcamento       NUMERIC(12,2),
   valor_servico   NUMERIC(12,2) NOT NULL DEFAULT 0,
@@ -532,6 +542,26 @@ CREATE TRIGGER trg_estoque_venda
 ALTER TABLE empresas ADD COLUMN IF NOT EXISTS whatsapp TEXT;
 ALTER TABLE empresas ADD COLUMN IF NOT EXISTS instagram TEXT;
 ALTER TABLE empresas ADD COLUMN IF NOT EXISTS slug TEXT UNIQUE;
+ALTER TABLE empresas ADD COLUMN IF NOT EXISTS cnpj TEXT;
+ALTER TABLE empresas ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE empresas ADD COLUMN IF NOT EXISTS estado TEXT;
+ALTER TABLE empresas ADD COLUMN IF NOT EXISTS endereco TEXT;
+
+-- 1b. Tabela: produtos
+ALTER TABLE produtos ADD COLUMN IF NOT EXISTS descricao TEXT;
+
+-- 1c. Tabela: clientes
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS anotacoes TEXT;
+
+-- 1d. Tabela: despesas
+ALTER TABLE despesas ADD COLUMN IF NOT EXISTS recorrente BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- 1e. Tabela: pedidos_fornecedor
+ALTER TABLE pedidos_fornecedor ADD COLUMN IF NOT EXISTS venda_id UUID REFERENCES public.vendas(id) ON DELETE SET NULL;
+
+-- 1f. Tabela: ordens_servico
+ALTER TABLE ordens_servico ADD COLUMN IF NOT EXISTS venda_id UUID REFERENCES public.vendas(id) ON DELETE SET NULL;
+ALTER TABLE ordens_servico ADD COLUMN IF NOT EXISTS observacoes TEXT;
 
 -- 2. Tabela: subscriptions
 ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT UNIQUE;

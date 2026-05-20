@@ -23,7 +23,7 @@ export async function garantirEmpresa(): Promise<string | null> {
   const nomeLoja = user.user_metadata?.nome_loja || 'Minha Loja'
   const { data: empresa, error } = await supabase
     .from('empresas')
-    .insert({ nome: nomeLoja, plano: 'essencial' })
+    .insert({ nome: nomeLoja, plano: 'start' })
     .select('id')
     .single()
 

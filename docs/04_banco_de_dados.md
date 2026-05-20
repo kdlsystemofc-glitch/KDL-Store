@@ -40,8 +40,15 @@ auth.users (Supabase)
 |---|---|---|---|---|
 | id | UUID | uuid_generate_v4() | ✅ | PK |
 | nome | TEXT | — | ✅ | Nome da loja |
-| telefone | TEXT | NULL | ❌ | Telefone da loja |
+| cnpj | TEXT | NULL | ❌ | CNPJ ou CPF da empresa |
+| email | TEXT | NULL | ❌ | E-mail de contato |
+| telefone | TEXT | NULL | ❌ | Telefone fixo |
+| whatsapp | TEXT | NULL | ❌ | WhatsApp |
+| instagram | TEXT | NULL | ❌ | Arroba do Instagram |
+| endereco | TEXT | NULL | ❌ | Endereço completo |
 | cidade | TEXT | NULL | ❌ | Cidade |
+| estado | TEXT | NULL | ❌ | UF (ex: SP, MG) |
+| slug | TEXT | NULL | ❌ | URL única do catálogo |
 | plano | tipo_plano | 'start' | ✅ | 'start' ou 'pro' |
 | crm_prazo_inatividade_dias | INT | 60 | ✅ | Dias para cliente ser "sumido" |
 | criado_em | TIMESTAMPTZ | NOW() | ✅ | Data de criação |
@@ -91,11 +98,12 @@ auth.users (Supabase)
 | sku | TEXT | Código interno |
 | ean | TEXT | Código de barras EAN |
 | categoria | TEXT | Categoria livre |
+| descricao | TEXT | Descrição longa do produto (catálogo) |
 | preco_custo | NUMERIC(12,2) | Custo |
 | preco_varejo | NUMERIC(12,2) | Preço padrão |
 | preco_atacado | NUMERIC(12,2) | Tabela atacado |
 | preco_vip | NUMERIC(12,2) | Tabela VIP |
-| preco_catalogo | NUMERIC(12,2) | Preço no catálogo online |
+| preco_catalogo | TEXT | 'varejo' \| 'atacado' \| 'vip' \| 'ocultar' |
 | preco_minimo | NUMERIC(12,2) | Piso de venda (alerta no PDV) |
 | qtd_atual | NUMERIC(12,3) | Estoque atual |
 | qtd_minima | NUMERIC(12,3) | Estoque mínimo (alerta dashboard) |
@@ -105,7 +113,7 @@ auth.users (Supabase)
 | tem_garantia | BOOLEAN | Gera garantia ao vender |
 | dias_garantia | INT | Duração da garantia |
 | texto_garantia | TEXT | Texto do certificado |
-| obs | TEXT | Observações |
+| obs | TEXT | Observações internas |
 | imagem_url | TEXT | URL da imagem |
 | criado_em | TIMESTAMPTZ | |
 | atualizado_em | TIMESTAMPTZ | |
@@ -131,6 +139,7 @@ auth.users (Supabase)
 | email | TEXT | |
 | cpf | TEXT | |
 | endereco | TEXT | |
+| anotacoes | TEXT | Notas internas sobre o cliente |
 | obs | TEXT | |
 | ultima_compra | DATE | Atualizado via trigger |
 | ativo | BOOLEAN | Soft-delete |
@@ -217,9 +226,10 @@ auth.users (Supabase)
 | empresa_id | UUID | FK |
 | descricao | TEXT | Obrigatório |
 | categoria | TEXT | Aluguel, Fornecedor, Energia... |
-| tipo | TEXT | Fixo / Variável |
+| tipo | TEXT | 'fixa' \| 'variavel' |
 | valor | NUMERIC(12,2) | Obrigatório |
 | data | DATE | Data da despesa |
+| recorrente | BOOLEAN | Se é despesa recorrente (padrão: false) |
 | criado_em | TIMESTAMPTZ | |
 
 ### `fornecedores`
@@ -243,8 +253,11 @@ auth.users (Supabase)
 | empresa_id | UUID | FK |
 | fornecedor_id | UUID | FK fornecedores |
 | fornecedor_nome | TEXT | Desnormalizado |
-| status | status_pedido | rascunho/enviado/recebido/cancelado |
-| total | NUMERIC(12,2) | |
+| venda_id | UUID | FK vendas (opcional, venda que originou o pedido) |
+| produto | TEXT | Produto/item solicitado |
+| quantidade | NUMERIC(12,3) | Quantidade pedida |
+| status | TEXT | 'aguardando' \| 'confirmado' \| 'entregue' |
+| total | NUMERIC(12,2) | Valor total |
 | obs | TEXT | |
 | criado_em | TIMESTAMPTZ | |
 
@@ -280,14 +293,22 @@ auth.users (Supabase)
 |---|---|---|
 | id | UUID | PK |
 | empresa_id | UUID | FK |
+| numero | SERIAL | Número sequencial da OS |
+| venda_id | UUID | FK vendas (opcional, venda gerada ao concluir) |
 | cliente_nome | TEXT | Obrigatório |
 | cliente_tel | TEXT | |
-| produto_desc | TEXT | Descrição do equipamento |
-| problema | TEXT | Problema relatado |
+| equipamento | TEXT | Equipamento recebido |
+| produto_desc | TEXT | Descrição complementar |
+| defeito_relatado | TEXT | Defeito relatado pelo cliente |
+| problema | TEXT | Diagnóstico interno |
 | laudo | TEXT | Laudo técnico |
-| status | status_os | aberto/em_andamento/concluido/cancelado |
+| observacoes | TEXT | Observações gerais |
+| status | TEXT | 'aguardando' \| 'em_andamento' \| 'concluido' \| 'cancelado' |
+| orcamento | NUMERIC(12,2) | Valor orçado |
 | valor_servico | NUMERIC(12,2) | Mão de obra |
 | valor_pecas | NUMERIC(12,2) | Peças |
+| tecnico | TEXT | Nome do técnico responsável |
+| previsao | DATE | Previsão de entrega |
 | criado_em | TIMESTAMPTZ | |
 | atualizado_em | TIMESTAMPTZ | |
 
@@ -368,3 +389,29 @@ USING (venda_id IN (
 ```sql
 USING (empresa_id = minha_empresa_id() OR id = auth.uid())
 ```
+
+---
+
+## 4.6 Histórico de Migrações
+
+| Data | Versão | Descrição |
+|---|---|---|
+| 2025-04 | v1.0 | Schema inicial — tabelas base |
+| 2025-05 | v1.1 | Colunas Stripe em `subscriptions`, `slug` em `empresas` |
+| 2025-05 | v1.2 | Comissões, valor_comissao, comissao_paga em `vendas` |
+| 2026-05 | v1.3 | **Auditoria geral:** corrigidas discrepâncias frontend vs banco |
+
+### Detalhamento v1.3 (Auditoria de Consistência)
+
+> **Contexto:** Auditoria identificou 6 grupos de campos usados no frontend mas ausentes no schema, causando erros HTTP 400 no Supabase.
+
+| Tabela | Colunas adicionadas | Motivo |
+|---|---|---|
+| `empresas` | `cnpj`, `email`, `estado`, `endereco` | Tela Configurações > Dados da Empresa enviava esses campos |
+| `produtos` | `descricao` | Catálogo online e tela de produto usavam `descricao` |
+| `clientes` | `anotacoes` | Perfil do cliente salvava campo `anotacoes` |
+| `despesas` | `recorrente` | Formulário de despesas incluía checkbox de recorrência |
+| `pedidos_fornecedor` | `venda_id` | Campo de rastreio de venda de origem |
+| `ordens_servico` | `venda_id`, `observacoes` | Rastreio de venda gerada e campo de observações |
+
+**Correção de código:** `src/lib/garantirEmpresa.ts` usava `plano: 'essencial'` (enum inválido). Corrigido para `plano: 'start'`.
