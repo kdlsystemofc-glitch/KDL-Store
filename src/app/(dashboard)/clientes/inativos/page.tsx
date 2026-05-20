@@ -5,6 +5,8 @@ import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
 import { Loader2 } from 'lucide-react'
 import { PageTabs } from '@/components/PageTabs'
+import { ProOnly } from '@/components/ProOnly'
+import { useSubscription } from '@/hooks/useSubscription'
 
 
 type ClienteInativo = {
@@ -27,6 +29,7 @@ function msgWhatsApp(nome: string, categoria: string) {
 
 export default function ClientesInativosPage() {
   const { empresaId } = useEmpresaId()
+  const { plano } = useSubscription()
   const [inativos, setInativos] = useState<ClienteInativo[]>([])
   const [loading,  setLoading]  = useState(true)
 
@@ -86,6 +89,7 @@ export default function ClientesInativosPage() {
     .reduce((a,c) => a + (c.numCompras>0 ? c.totalGasto/c.numCompras : 0), 0)
 
   return (
+    <ProOnly>
     <div className="anim-fade" style={{display:'flex',flexDirection:'column',gap:'0.875rem'}}>
       <div className="pg-header">
         <div>
@@ -96,7 +100,7 @@ export default function ClientesInativosPage() {
 
       <PageTabs tabs={[
         { label: 'Todos os Clientes', href: '/clientes' },
-        { label: 'Sumidos ⚠', href: '/clientes/inativos' },
+        { label: plano === 'pro' ? 'Sumidos ⚠' : 'Sumidos 🔒', href: '/clientes/inativos' },
         { label: 'Fornecedores', href: '/fornecedores' }
       ]} />
 
@@ -202,5 +206,6 @@ export default function ClientesInativosPage() {
         )}
 
     </div>
+    </ProOnly>
   )
 }

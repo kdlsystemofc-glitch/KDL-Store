@@ -6,6 +6,7 @@ import { formatCurrency } from '@/lib/utils'
 import { Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { PageTabs } from '@/components/PageTabs'
+import { ProOnly } from '@/components/ProOnly'
 
 export default function FinanceiroPage() {
   const { empresaId } = useEmpresaId()
@@ -90,6 +91,7 @@ export default function FinanceiroPage() {
   const maxGraf = Math.max(...diasGraf.map(d=>d.total), 1)
 
   return (
+    <ProOnly>
     <div className="anim-fade" style={{display:'flex',flexDirection:'column',gap:'0.75rem'}}>
       <div className="pg-header">
         <div>
@@ -222,5 +224,6 @@ export default function FinanceiroPage() {
         </>
       )}
     </div>
+    </ProOnly>
   )
 }

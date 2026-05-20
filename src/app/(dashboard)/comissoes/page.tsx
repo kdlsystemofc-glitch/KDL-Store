@@ -5,6 +5,8 @@ import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
 import { Plus, Loader2, Trash2, X, Save } from 'lucide-react'
 import { PageTabs } from '@/components/PageTabs'
+import { ProOnly } from '@/components/ProOnly'
+import { useSubscription } from '@/hooks/useSubscription'
 
 
 type Comissao = { id:string; nome:string; telefone:string|null; tipo:string; taxa:number; status:string; criado_em:string }
@@ -17,6 +19,7 @@ type VendaComissao = {
 
 export default function ComissoesPage() {
   const { empresaId } = useEmpresaId()
+  const { plano } = useSubscription()
   const [aba,      setAba]      = useState<'cadastro'|'por-venda'>('cadastro')
   const [lista,    setLista]    = useState<Comissao[]>([])
   const [vendas,   setVendas]   = useState<VendaComissao[]>([])
@@ -137,6 +140,7 @@ export default function ComissoesPage() {
   ).sort((a,b) => b.comissao - a.comissao)
 
   return (
+    <ProOnly>
     <div className="anim-fade" style={{display:'flex',flexDirection:'column',gap:'0.875rem',maxWidth:'860px'}}>
 
       {/* Modal Novo Comissionado */}
@@ -183,7 +187,7 @@ export default function ComissoesPage() {
       <PageTabs tabs={[
         { label: 'Garantias', href: '/garantias' },
         { label: 'Ordens de Serviço', href: '/ordens-de-servico' },
-        { label: 'Comissões', href: '/comissoes' }
+        { label: plano === 'pro' ? 'Comissões' : 'Comissões 🔒', href: '/comissoes' }
       ]} />
 
 
@@ -342,5 +346,6 @@ export default function ComissoesPage() {
         )}
 
     </div>
+    </ProOnly>
   )
 }

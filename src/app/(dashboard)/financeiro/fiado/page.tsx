@@ -6,6 +6,7 @@ import { formatCurrency } from '@/lib/utils'
 import { Loader2 } from 'lucide-react'
 import { PageTabs } from '@/components/PageTabs'
 import { OperadorOnly } from '@/components/OperadorOnly'
+import { ProOnly } from '@/components/ProOnly'
 
 
 type Fiado = { id:string; cliente_nome:string; cliente_tel:string|null; valor_aberto:number; criado_em:string; status:string; data_vencimento:string|null }
@@ -92,6 +93,7 @@ export default function FiadoPage() {
   }
 
   return (
+    <ProOnly>
     <div className="anim-fade" style={{display:'flex',flexDirection:'column',gap:'0.875rem'}}>
       <div className="pg-header">
         <div>
@@ -225,5 +227,6 @@ export default function FiadoPage() {
         )}
 
     </div>
+    </ProOnly>
   )
 }

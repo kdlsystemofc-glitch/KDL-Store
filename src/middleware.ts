@@ -91,6 +91,10 @@ export async function middleware(request: NextRequest) {
   }
 
   // ── Proteção de rotas Pro ──
+  // Deixamos que o cliente carregue a página normalmente para que o componente <ProOnly>
+  // faça a verificação do plano no lado do cliente e exiba a tela de upgrade premium (Locker).
+  // Isso evita loops de redirecionamento e proporciona uma experiência SaaS premium e consistente.
+  /*
   const proRoutes = ['/financeiro', '/relatorios', '/clientes/inativos', '/comissoes']
   const isProRoute = proRoutes.some(r => pathname === r || pathname.startsWith(r + '/'))
 
@@ -100,6 +104,7 @@ export async function middleware(request: NextRequest) {
     url.pathname = '/assinar'
     return NextResponse.redirect(url)
   }
+  */
 
   // Permite acesso livre a /configuracoes/planos mesmo inadimplente para ele poder mudar cartão
   if (!hasActiveSubscription && pathname === '/configuracoes/planos') {

@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
 import { Loader2, Printer, Download } from 'lucide-react'
+import { ProOnly } from '@/components/ProOnly'
 
 type Venda = { id: string; total: number; desconto: number; forma_pagamento: string; status: string; criado_em: string; cliente_nome: string | null; comissionado_id?: string }
 type ItemVenda = { produto_id: string; produto_nome: string; quantidade: number; preco_unitario: number; brinde: boolean }
@@ -178,6 +179,7 @@ export default function RelatoriosPage() {
 
 
   return (
+    <ProOnly>
     <div className="anim-fade" style={{display:'flex',flexDirection:'column',gap:'0.875rem'}}>
       <style>{`
         @media print {
@@ -367,5 +369,6 @@ export default function RelatoriosPage() {
         </div>
       )}
     </div>
+    </ProOnly>
   )
 }

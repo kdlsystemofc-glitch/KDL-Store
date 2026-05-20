@@ -118,7 +118,7 @@ export default function OrdensServicoPage() {
       <PageTabs tabs={[
         { label: 'Garantias', href: '/garantias' },
         { label: 'Ordens de Serviço', href: '/ordens-de-servico' },
-        ...(plano === 'pro' ? [{ label: 'Comissões', href: '/comissoes' }] : [])
+        { label: plano === 'pro' ? 'Comissões' : 'Comissões 🔒', href: '/comissoes' }
       ]} />
 
       {/* Formulário Modal */}

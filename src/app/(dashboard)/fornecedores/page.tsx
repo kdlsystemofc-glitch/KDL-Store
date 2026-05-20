@@ -281,7 +281,7 @@ export default function FornecedoresPage() {
 
       <PageTabs tabs={[
         { label: 'Todos os Clientes', href: '/clientes' },
-        ...(plano === 'pro' ? [{ label: 'Sumidos ⚠', href: '/clientes/inativos' }] : []),
+        { label: plano === 'pro' ? 'Sumidos ⚠' : 'Sumidos 🔒', href: '/clientes/inativos' },
         { label: 'Fornecedores', href: '/fornecedores' }
       ]} />
 

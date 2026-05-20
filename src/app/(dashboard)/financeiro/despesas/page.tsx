@@ -7,6 +7,7 @@ import { formatCurrency } from '@/lib/utils'
 import { ArrowLeft, Plus, Trash2, Loader2 } from 'lucide-react'
 import { PageTabs } from '@/components/PageTabs'
 import { AdminOnly } from '@/components/AdminOnly'
+import { ProOnly } from '@/components/ProOnly'
 
 type Despesa = { id:string; descricao:string; categoria:string; tipo:string; valor:number; data:string; recorrente:boolean }
 
@@ -57,6 +58,7 @@ export default function DespesasPage() {
   const totalFixas = despMes.filter(d=>d.tipo==='fixa').reduce((a,d)=>a+d.valor,0)
 
   return (
+    <ProOnly>
     <div className="anim-fade" style={{display:'flex',flexDirection:'column',gap:'0.875rem',maxWidth:'820px'}}>
       <div className="pg-header">
         <div style={{display:'flex',alignItems:'center',gap:'0.625rem'}}>
@@ -178,5 +180,6 @@ export default function DespesasPage() {
         </div>
       )}
     </div>
+    </ProOnly>
   )
 }

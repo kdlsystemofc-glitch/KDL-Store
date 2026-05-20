@@ -7,6 +7,7 @@ import { Loader2, Printer } from 'lucide-react'
 import Link from 'next/link'
 import { PageTabs } from '@/components/PageTabs'
 import { AdminOnly } from '@/components/AdminOnly'
+import { ProOnly } from '@/components/ProOnly'
 
 
 type Venda = { total:number; forma_pagamento:string; criado_em:string }
@@ -57,6 +58,7 @@ export default function FechamentoPage() {
 
   return (
     <AdminOnly fallbackRedirect="/financeiro">
+      <ProOnly>
       <div className="anim-fade" style={{display:'flex',flexDirection:'column',gap:'0.875rem',maxWidth:'680px'}}>
       <div className="pg-header">
         <div><h1 className="pg-titulo">🔒 Fechamento de Caixa</h1>
@@ -173,6 +175,7 @@ export default function FechamentoPage() {
         )}
 
       </div>
+      </ProOnly>
     </AdminOnly>
   )
 }
