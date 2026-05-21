@@ -557,25 +557,426 @@ Para cada produto da tabela do catálogo inicial, fazer:
 
 - [ ] Salvar.
 
-**Produtos 6 a 20:** Repetir o processo para cada produto da tabela do catálogo, utilizando os dados da tabela principal de produtos e preenchendo os campos adicionais conforme a tabela de referência abaixo:
+**Produtos 6 a 20:** Cadastrar os demais produtos do catálogo inicial um a um com as tabelas de especificações a seguir:
 
-| # | Produto | SKU | Qtd Mín Atacado | Localização | Brinde? | Série? | Catálogo? | Destaque? | Garantia (Dias) | Termos da Garantia |
-|---|---|---|---|---|---|---|---|---|---|---|
-| 6 | Cabo Lightning 2m | `CABO-LIGHT-2M` | 10 | Prateleira C2 | Sim | Não | Sim | Não | ❌ Inativo | — |
-| 7 | Capa Silicone iPhone 15 | `CAPA-IPH15-SIL` | 5 | Gaveta D1 | Não | Não | Sim | Não | ❌ Inativo | — |
-| 8 | Capa Anti-Impacto Samsung A55 | `CAPA-SAMA55-IMP` | 5 | Gaveta D2 | Não | Não | Sim | Não | ❌ Inativo | — |
-| 9 | Película Vidro 3D iPhone 15 | `PEL-IPH15-3D` | 15 | Gaveta E1 | Sim | Não | Sim | Não | ❌ Inativo | — |
-| 10 | Película Hydrogel Samsung | `PEL-SAM-HYDRO` | 20 | Gaveta E2 | Sim | Não | Sim | Não | ❌ Inativo | — |
-| 11 | Caixa de Som JBL Go 4 | `JBL-GO4-BLK` | 3 | Prateleira F1 | Não | Sim | Sim | Sim | 90 | Garantia de 90 dias contra defeitos de fabricação. |
-| 12 | Caixa de Som Portátil XS | `BOX-XS-PORT` | 3 | Prateleira F2 | Não | Sim | Sim | Não | 90 | Garantia de 90 dias. Não cobre avarias por contato com água. |
-| 13 | Suporte Veicular Magnético | `SUP-VEIC-MAG` | 5 | Prateleira G1 | Não | Não | Sim | Não | ❌ Inativo | — |
-| 14 | Carregador Veicular 2x USB | `CAR-VEIC-2X` | 5 | Prateleira B3 | Não | Não | Sim | Não | 30 | Garantia de 30 dias para defeitos de fabricação. |
-| 15 | Power Bank 10000mAh | `PWB-10K-AMP` | 4 | Prateleira B4 | Não | Sim | Sim | Sim | 90 | Garantia de 90 dias contra perda de capacidade de carga severa. |
-| 16 | Headset Gamer RGB | `HEADSET-GAM-RGB` | 3 | Prateleira A4 | Não | Sim | Sim | Sim | 90 | Garantia de 90 dias contra defeitos de fabricação. Não cobre danos ao microfone. |
-| 17 | Adaptador USB-C para P2 | `ADAP-USBC-P2` | 10 | Prateleira C3 | Sim | Não | Sim | Não | ❌ Inativo | — |
-| 18 | Hub USB 4 Portas | `HUB-USB-4P` | 5 | Prateleira C4 | Não | Não | Sim | Não | ❌ Inativo | — |
-| 19 | Mouse Bluetooth Recarregável | `MOUSE-BT-REC` | 4 | Prateleira H1 | Não | Sim | Sim | Não | 90 | Garantia de 90 dias contra defeitos no sensor ótico ou conectividade. |
-| 20 | Teclado Bluetooth Slim | `TECLADO-BT-SLM` | 3 | Prateleira H2 | Não | Sim | Sim | Não | 90 | Garantia de 90 dias. Cobre falhas físicas nas teclas ou bateria interna. |
+**Produto 6 — Cabo Lightning 2m:**
+
+| Campo | Valor |
+|-------|-------|
+| Nome | `Cabo Lightning 2m` |
+| SKU (Código interno) | `CABO-LIGHT-2M` |
+| Código de Barras | `7896789012345` |
+| Categoria | `Cabos` |
+| Preço de Custo | `10,00` |
+| Preço Varejo | `24,90` |
+| Preço Atacado | `18,00` |
+| Preço VIP | `22,00` |
+| Qtd Atual | `40` |
+| Qtd Mínima (alerta) | `8` |
+| Qtd Máxima | `100` |
+| Qtd Mín p/ Atacado | `10` |
+| Localização no estoque | `Prateleira C2` |
+| Pode ser usado como brinde | ✅ Ativo / Sim |
+| Rastrear número de série | ❌ Inativo / Não |
+| Visível no catálogo online | ✅ Ativo / Sim |
+| Produto em destaque | ❌ Inativo / Não |
+| Controle de Garantia | ❌ |
+| Fornecedor Vinculado | `TechBR Distribuidora` |
+| Descrição | `Cabo Lightning de 2 metros reforçado com nylon trançado.` |
+
+- [ ] Salvar.
+
+**Produto 7 — Capa Silicone iPhone 15:**
+
+| Campo | Valor |
+|-------|-------|
+| Nome | `Capa Silicone iPhone 15` |
+| SKU (Código interno) | `CAPA-IPH15-SIL` |
+| Código de Barras | `7897890123456` |
+| Categoria | `Capas e Películas` |
+| Preço de Custo | `12,00` |
+| Preço Varejo | `29,90` |
+| Preço Atacado | `22,00` |
+| Preço VIP | `25,00` |
+| Qtd Atual | `30` |
+| Qtd Mínima (alerta) | `5` |
+| Qtd Máxima | `50` |
+| Qtd Mín p/ Atacado | `5` |
+| Localização no estoque | `Gaveta D1` |
+| Pode ser usado como brinde | ❌ Inativo / Não |
+| Rastrear número de série | ❌ Inativo / Não |
+| Visível no catálogo online | ✅ Ativo / Sim |
+| Produto em destaque | ❌ Inativo / Não |
+| Controle de Garantia | ❌ |
+| Fornecedor Vinculado | `InfoParts Ltda` |
+| Descrição | `Capa de silicone com toque suave e proteção interna de microfibra para iPhone 15.` |
+
+- [ ] Salvar.
+
+**Produto 8 — Capa Anti-Impacto Samsung A55:**
+
+| Campo | Valor |
+|-------|-------|
+| Nome | `Capa Anti-Impacto Samsung A55` |
+| SKU (Código interno) | `CAPA-SAMA55-IMP` |
+| Código de Barras | `7898901234567` |
+| Categoria | `Capas e Películas` |
+| Preço de Custo | `18,00` |
+| Preço Varejo | `39,90` |
+| Preço Atacado | `32,00` |
+| Preço VIP | `35,00` |
+| Qtd Atual | `25` |
+| Qtd Mínima (alerta) | `5` |
+| Qtd Máxima | `50` |
+| Qtd Mín p/ Atacado | `5` |
+| Localização no estoque | `Gaveta D2` |
+| Pode ser usado como brinde | ❌ Inativo / Não |
+| Rastrear número de série | ❌ Inativo / Não |
+| Visível no catálogo online | ✅ Ativo / Sim |
+| Produto em destaque | ❌ Inativo / Não |
+| Controle de Garantia | ❌ |
+| Fornecedor Vinculado | `InfoParts Ltda` |
+| Descrição | `Capa com bordas reforçadas anti-impacto transparente para Samsung A55.` |
+
+- [ ] Salvar.
+
+**Produto 9 — Película Vidro 3D iPhone 15:**
+
+| Campo | Valor |
+|-------|-------|
+| Nome | `Película Vidro 3D iPhone 15` |
+| SKU (Código interno) | `PEL-IPH15-3D` |
+| Código de Barras | `7899012345678` |
+| Categoria | `Capas e Películas` |
+| Preço de Custo | `6,00` |
+| Preço Varejo | `14,90` |
+| Preço Atacado | `11,00` |
+| Preço VIP | `13,00` |
+| Qtd Atual | `60` |
+| Qtd Mínima (alerta) | `15` |
+| Qtd Máxima | `150` |
+| Qtd Mín p/ Atacado | `15` |
+| Localização no estoque | `Gaveta E1` |
+| Pode ser usado como brinde | ✅ Ativo / Sim |
+| Rastrear número de série | ❌ Inativo / Não |
+| Visível no catálogo online | ✅ Ativo / Sim |
+| Produto em destaque | ❌ Inativo / Não |
+| Controle de Garantia | ❌ |
+| Fornecedor Vinculado | `InfoParts Ltda` |
+| Descrição | `Película de vidro temperado 3D com cobertura completa de borda a borda para iPhone 15.` |
+
+- [ ] Salvar.
+
+**Produto 10 — Película Hydrogel Samsung:**
+
+| Campo | Valor |
+|-------|-------|
+| Nome | `Película Hydrogel Samsung` |
+| SKU (Código interno) | `PEL-SAM-HYDRO` |
+| Código de Barras | `7890123456789` |
+| Categoria | `Capas e Películas` |
+| Preço de Custo | `5,00` |
+| Preço Varejo | `12,90` |
+| Preço Atacado | `9,00` |
+| Preço VIP | `11,00` |
+| Qtd Atual | `80` |
+| Qtd Mínima (alerta) | `20` |
+| Qtd Máxima | `200` |
+| Qtd Mín p/ Atacado | `20` |
+| Localização no estoque | `Gaveta E2` |
+| Pode ser usado como brinde | ✅ Ativo / Sim |
+| Rastrear número de série | ❌ Inativo / Não |
+| Visível no catálogo online | ✅ Ativo / Sim |
+| Produto em destaque | ❌ Inativo / Não |
+| Controle de Garantia | ❌ |
+| Fornecedor Vinculado | `InfoParts Ltda` |
+| Descrição | `Película de hydrogel flexível ultra resistente com autorreparação para telas curvas Samsung.` |
+
+- [ ] Salvar.
+
+**Produto 11 — Caixa de Som JBL Go 4:**
+
+| Campo | Valor |
+|-------|-------|
+| Nome | `Caixa de Som JBL Go 4` |
+| SKU (Código interno) | `JBL-GO4-BLK` |
+| Código de Barras | `7891357924680` |
+| Categoria | `Caixas de Som` |
+| Preço de Custo | `120,00` |
+| Preço Varejo | `229,90` |
+| Preço Atacado | `195,00` |
+| Preço VIP | `210,00` |
+| Qtd Atual | `8` |
+| Qtd Mínima (alerta) | `2` |
+| Qtd Máxima | `20` |
+| Qtd Mín p/ Atacado | `3` |
+| Localização no estoque | `Prateleira F1` |
+| Pode ser usado como brinde | ❌ Inativo / Não |
+| Rastrear número de série | ✅ Ativo / Sim |
+| Visível no catálogo online | ✅ Ativo / Sim |
+| Produto em destaque | ✅ Ativo / Sim |
+| Controle de Garantia | ✅ Ativo |
+| Prazo de Garantia (dias) | `90` |
+| Termos da garantia | `Garantia de 90 dias contra defeitos de fabricação.` |
+| Fornecedor Vinculado | `Mega Eletrônicos` |
+| Descrição | `Caixa de som ultraportátil bluetooth JBL Go 4, à prova d'água com som de alta qualidade.` |
+
+- [ ] Salvar.
+
+**Produto 12 — Caixa de Som Portátil XS:**
+
+| Campo | Valor |
+|-------|-------|
+| Nome | `Caixa de Som Portátil XS` |
+| SKU (Código interno) | `BOX-XS-PORT` |
+| Código de Barras | `7892468013579` |
+| Categoria | `Caixas de Som` |
+| Preço de Custo | `75,00` |
+| Preço Varejo | `149,90` |
+| Preço Atacado | `125,00` |
+| Preço VIP | `135,00` |
+| Qtd Atual | `6` |
+| Qtd Mínima (alerta) | `2` |
+| Qtd Máxima | `15` |
+| Qtd Mín p/ Atacado | `3` |
+| Localização no estoque | `Prateleira F2` |
+| Pode ser usado como brinde | ❌ Inativo / Não |
+| Rastrear número de série | ✅ Ativo / Sim |
+| Visível no catálogo online | ✅ Ativo / Sim |
+| Produto em destaque | ❌ Inativo / Não |
+| Controle de Garantia | ✅ Ativo |
+| Prazo de Garantia (dias) | `90` |
+| Termos da garantia | `Garantia de 90 dias. Não cobre avarias por contato com água.` |
+| Fornecedor Vinculado | `Mega Eletrônicos` |
+| Descrição | `Caixa de som portátil potente bluetooth com luzes RGB integradas.` |
+
+- [ ] Salvar.
+
+**Produto 13 — Suporte Veicular Magnético:**
+
+| Campo | Valor |
+|-------|-------|
+| Nome | `Suporte Veicular Magnético` |
+| SKU (Código interno) | `SUP-VEIC-MAG` |
+| Código de Barras | `7893579124680` |
+| Categoria | `Acessórios Veiculares` |
+| Preço de Custo | `15,00` |
+| Preço Varejo | `34,90` |
+| Preço Atacado | `28,00` |
+| Preço VIP | `30,00` |
+| Qtd Atual | `20` |
+| Qtd Mínima (alerta) | `4` |
+| Qtd Máxima | `40` |
+| Qtd Mín p/ Atacado | `5` |
+| Localização no estoque | `Prateleira G1` |
+| Pode ser usado como brinde | ❌ Inativo / Não |
+| Rastrear número de série | ❌ Inativo / Não |
+| Visível no catálogo online | ✅ Ativo / Sim |
+| Produto em destaque | ❌ Inativo / Não |
+| Controle de Garantia | ❌ |
+| Fornecedor Vinculado | `InfoParts Ltda` |
+| Descrição | `Suporte magnético automotivo para fixação em saída de ar, com super ímãs.` |
+
+- [ ] Salvar.
+
+**Produto 14 — Carregador Veicular 2x USB:**
+
+| Campo | Valor |
+|-------|-------|
+| Nome | `Carregador Veicular 2x USB` |
+| SKU (Código interno) | `CAR-VEIC-2X` |
+| Código de Barras | `7894680235791` |
+| Categoria | `Acessórios Veiculares` |
+| Preço de Custo | `12,00` |
+| Preço Varejo | `27,90` |
+| Preço Atacado | `22,00` |
+| Preço VIP | `24,00` |
+| Qtd Atual | `18` |
+| Qtd Mínima (alerta) | `4` |
+| Qtd Máxima | `35` |
+| Qtd Mín p/ Atacado | `5` |
+| Localização no estoque | `Prateleira B3` |
+| Pode ser usado como brinde | ❌ Inativo / Não |
+| Rastrear número de série | ❌ Inativo / Não |
+| Visível no catálogo online | ✅ Ativo / Sim |
+| Produto em destaque | ❌ Inativo / Não |
+| Controle de Garantia | ✅ Ativo |
+| Prazo de Garantia (dias) | `30` |
+| Termos da garantia | `Garantia de 30 dias para defeitos de fabricação.` |
+| Fornecedor Vinculado | `TechBR Distribuidora` |
+| Descrição | `Carregador veicular rápido inteligente com duas portas USB.` |
+
+- [ ] Salvar.
+
+**Produto 15 — Power Bank 10000mAh:**
+
+| Campo | Valor |
+|-------|-------|
+| Nome | `Power Bank 10000mAh` |
+| SKU (Código interno) | `PWB-10K-AMP` |
+| Código de Barras | `7895791346802` |
+| Categoria | `Carregadores` |
+| Preço de Custo | `55,00` |
+| Preço Varejo | `109,90` |
+| Preço Atacado | `89,00` |
+| Preço VIP | `98,00` |
+| Qtd Atual | `12` |
+| Qtd Mínima (alerta) | `3` |
+| Qtd Máxima | `25` |
+| Qtd Mín p/ Atacado | `4` |
+| Localização no estoque | `Prateleira B4` |
+| Pode ser usado como brinde | ❌ Inativo / Não |
+| Rastrear número de série | ✅ Ativo / Sim |
+| Visível no catálogo online | ✅ Ativo / Sim |
+| Produto em destaque | ✅ Ativo / Sim |
+| Controle de Garantia | ✅ Ativo |
+| Prazo de Garantia (dias) | `90` |
+| Termos da garantia | `Garantia de 90 dias contra perda de capacidade de carga severa.` |
+| Fornecedor Vinculado | `TechBR Distribuidora` |
+| Descrição | `Carregador portátil rápido de 10000mAh com display indicador LED.` |
+
+- [ ] Salvar.
+
+**Produto 16 — Headset Gamer RGB:**
+
+| Campo | Valor |
+|-------|-------|
+| Nome | `Headset Gamer RGB` |
+| SKU (Código interno) | `HEADSET-GAM-RGB` |
+| Código de Barras | `7896802457913` |
+| Categoria | `Fones de Ouvido` |
+| Preço de Custo | `88,00` |
+| Preço Varejo | `169,90` |
+| Preço Atacado | `145,00` |
+| Preço VIP | `155,00` |
+| Qtd Atual | `5` |
+| Qtd Mínima (alerta) | `2` |
+| Qtd Máxima | `15` |
+| Qtd Mín p/ Atacado | `3` |
+| Localização no estoque | `Prateleira A4` |
+| Pode ser usado como brinde | ❌ Inativo / Não |
+| Rastrear número de série | ✅ Ativo / Sim |
+| Visível no catálogo online | ✅ Ativo / Sim |
+| Produto em destaque | ✅ Ativo / Sim |
+| Controle de Garantia | ✅ Ativo |
+| Prazo de Garantia (dias) | `90` |
+| Termos da garantia | `Garantia de 90 dias contra defeitos de fabricação. Não cobre danos ao microfone.` |
+| Fornecedor Vinculado | `Mega Eletrônicos` |
+| Descrição | `Headset gamer com som surround 7.1, iluminação RGB e microfone cancelador de ruído.` |
+
+- [ ] Salvar.
+
+**Produto 17 — Adaptador USB-C para P2:**
+
+| Campo | Valor |
+|-------|-------|
+| Nome | `Adaptador USB-C para P2` |
+| SKU (Código interno) | `ADAP-USBC-P2` |
+| Código de Barras | `7897913568024` |
+| Categoria | `Cabos` |
+| Preço de Custo | `7,00` |
+| Preço Varejo | `16,90` |
+| Preço Atacado | `13,00` |
+| Preço VIP | `15,00` |
+| Qtd Atual | `35` |
+| Qtd Mínima (alerta) | `8` |
+| Qtd Máxima | `80` |
+| Qtd Mín p/ Atacado | `10` |
+| Localização no estoque | `Prateleira C3` |
+| Pode ser usado como brinde | ✅ Ativo / Sim |
+| Rastrear número de série | ❌ Inativo / Não |
+| Visível no catálogo online | ✅ Ativo / Sim |
+| Produto em destaque | ❌ Inativo / Não |
+| Controle de Garantia | ❌ |
+| Fornecedor Vinculado | `TechBR Distribuidora` |
+| Descrição | `Adaptador conversor USB-C macho para P2 fêmea de 3.5mm de alta qualidade de áudio.` |
+
+- [ ] Salvar.
+
+**Produto 18 — Hub USB 4 Portas:**
+
+| Campo | Valor |
+|-------|-------|
+| Nome | `Hub USB 4 Portas` |
+| SKU (Código interno) | `HUB-USB-4P` |
+| Código de Barras | `7898024679135` |
+| Categoria | `Acessórios` |
+| Preço de Custo | `22,00` |
+| Preço Varejo | `49,90` |
+| Preço Atacado | `40,00` |
+| Preço VIP | `45,00` |
+| Qtd Atual | `15` |
+| Qtd Mínima (alerta) | `3` |
+| Qtd Máxima | `30` |
+| Qtd Mín p/ Atacado | `5` |
+| Localização no estoque | `Prateleira C4` |
+| Pode ser usado como brinde | ❌ Inativo / Não |
+| Rastrear número de série | ❌ Inativo / Não |
+| Visível no catálogo online | ✅ Ativo / Sim |
+| Produto em destaque | ❌ Inativo / Não |
+| Controle de Garantia | ❌ |
+| Fornecedor Vinculado | `InfoParts Ltda` |
+| Descrição | `Hub extensor USB com 4 portas de alta velocidade USB 3.0.` |
+
+- [ ] Salvar.
+
+**Produto 19 — Mouse Bluetooth Recarregável:**
+
+| Campo | Valor |
+|-------|-------|
+| Nome | `Mouse Bluetooth Recarregável` |
+| SKU (Código interno) | `MOUSE-BT-REC` |
+| Código de Barras | `7899135780246` |
+| Categoria | `Informática` |
+| Preço de Custo | `65,00` |
+| Preço Varejo | `129,90` |
+| Preço Atacado | `109,00` |
+| Preço VIP | `119,00` |
+| Qtd Atual | `8` |
+| Qtd Mínima (alerta) | `2` |
+| Qtd Máxima | `20` |
+| Qtd Mín p/ Atacado | `4` |
+| Localização no estoque | `Prateleira H1` |
+| Pode ser usado como brinde | ❌ Inativo / Não |
+| Rastrear número de série | ✅ Ativo / Sim |
+| Visível no catálogo online | ✅ Ativo / Sim |
+| Produto em destaque | ❌ Inativo / Não |
+| Controle de Garantia | ✅ Ativo |
+| Prazo de Garantia (dias) | `90` |
+| Termos da garantia | `Garantia de 90 dias contra defeitos no sensor ótico ou conectividade.` |
+| Fornecedor Vinculado | `InfoParts Ltda` |
+| Descrição | `Mouse óptico silencioso recarregável com conexão Bluetooth e dongle 2.4Ghz.` |
+
+- [ ] Salvar.
+
+**Produto 20 — Teclado Bluetooth Slim:**
+
+| Campo | Valor |
+|-------|-------|
+| Nome | `Teclado Bluetooth Slim` |
+| SKU (Código interno) | `TECLADO-BT-SLM` |
+| Código de Barras | `7890246891357` |
+| Categoria | `Informática` |
+| Preço de Custo | `95,00` |
+| Preço Varejo | `189,90` |
+| Preço Atacado | `159,00` |
+| Preço VIP | `175,00` |
+| Qtd Atual | `5` |
+| Qtd Mínima (alerta) | `2` |
+| Qtd Máxima | `15` |
+| Qtd Mín p/ Atacado | `3` |
+| Localização no estoque | `Prateleira H2` |
+| Pode ser usado como brinde | ❌ Inativo / Não |
+| Rastrear número de série | ✅ Ativo / Sim |
+| Visível no catálogo online | ✅ Ativo / Sim |
+| Produto em destaque | ❌ Inativo / Não |
+| Controle de Garantia | ✅ Ativo |
+| Prazo de Garantia (dias) | `90` |
+| Termos da garantia | `Garantia de 90 dias. Cobre falhas físicas nas teclas ou bateria interna.` |
+| Fornecedor Vinculado | `InfoParts Ltda` |
+| Descrição | `Teclado bluetooth ultrafino com layout slim, recarregável e silencioso.` |
+
+- [ ] Salvar.
 
 - [ ] **Verificar ao final:** 20 produtos aparecem na lista de produtos.
 - [ ] **Verificar:** Os produtos com estoque próximo do mínimo mostram alerta visual.
