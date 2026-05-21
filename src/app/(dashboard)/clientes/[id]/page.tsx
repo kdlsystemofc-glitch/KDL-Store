@@ -272,7 +272,12 @@ export default function ClientePerfilPage() {
                     <input className="campo" value={end.cidade} onChange={e=>setEndField('cidade', e.target.value)} placeholder="Cidade"/>
                   </CampoEdit>
                   <CampoEdit label="UF">
-                    <input className="campo" value={end.estado} onChange={e=>setEndField('estado', e.target.value.toUpperCase().slice(0,2))} placeholder="SP" maxLength={2}/>
+                    <select className="campo" value={end.estado} onChange={e => setEndField('estado', e.target.value)}>
+                      <option value="">UF</option>
+                      {['AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT','PA','PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO'].map(s => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
                   </CampoEdit>
                 </div>
               </div>

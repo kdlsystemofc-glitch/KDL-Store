@@ -31,7 +31,19 @@ export default function ConvitePage() {
       .single()
       .then(({ data, error }) => {
         if (error || !data) { setInvalid(true); setStep('form') }
-        else { setConvite(data); setNome(data.nome || ''); setStep('form') }
+        else {
+          const MAP_DB_TO_UI: Record<string, string> = {
+            admin: 'admin',
+            operador: 'vendedor',
+            visualizador: 'estoquista',
+            vendedor: 'vendedor',
+            estoquista: 'estoquista'
+          }
+          const uiPapel = MAP_DB_TO_UI[data.papel] || data.papel
+          setConvite({ ...data, papel: uiPapel });
+          setNome(data.nome || '');
+          setStep('form')
+        }
       })
   }, [])
 

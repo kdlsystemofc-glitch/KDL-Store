@@ -91,9 +91,15 @@ export default function ClientesPage() {
           { v:'varejo',   l:'VAREJO' },
           { v:'atacado',  l:'ATACADO' },
           { v:'vip',      l:'★ VIP' },
-          { v:'inativos', l:'⚠ SUMIDOS' },
+          { v:'inativos', l: plano === 'pro' ? '⚠ SUMIDOS' : '⚠ SUMIDOS 🔒' },
         ] as const).map(f => (
-          <button key={f.v} onClick={() => setFiltro(f.v)}
+          <button key={f.v} onClick={() => {
+            if (f.v === 'inativos' && plano !== 'pro') {
+              toast.error('O filtro de clientes inativos/sumidos é exclusivo do plano PRO!')
+              return
+            }
+            setFiltro(f.v)
+          }}
             className={filtro === f.v ? 'btn btn-primary' : 'btn btn-secondary'}
             style={{ fontSize:'0.65rem', padding:'0.3rem 0.625rem' }}>
             {f.l}

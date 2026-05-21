@@ -595,10 +595,10 @@ Se não encontrado → estado inválido.
 
 **Info do convite (exibida acima do form):**
 - Email do convidado (📧 `{convite.email}`)
-- Descrição do papel:
-  - `admin` → "Administrador — acesso total"
-  - `vendedor` → "Vendedor — vendas e clientes"
-  - `estoquista` → "Estoquista — produtos e estoque"
+- Descrição do papel (mapeado de DB para UI):
+  - `admin` (DB) / `admin` (UI) → "Administrador — acesso total"
+  - `operador` (DB) / `vendedor` (UI) → "Vendedor — vendas e clientes"
+  - `visualizador` (DB) / `estoquista` (UI) → "Estoquista — produtos e estoque"
 
 | Campo | Label na Tela | Tipo | Placeholder | Obrigatório | Validação |
 |---|---|---|---|---|---|

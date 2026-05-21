@@ -24,6 +24,16 @@ export async function POST(request: Request) {
     // Gera token único
     const token = [...Array(64)].map(() => Math.floor(Math.random() * 16).toString(16)).join('')
 
+    // Mapeia papel da UI para o banco de dados
+    const MAP_PAPEL_TO_DB: Record<string, string> = {
+      admin: 'admin',
+      vendedor: 'operador',
+      estoquista: 'visualizador',
+      operador: 'operador',
+      visualizador: 'visualizador'
+    }
+    const dbPapel = MAP_PAPEL_TO_DB[papel] || 'operador'
+
     // 1. Inserir no banco de dados na tabela convites
     const { data: conviteData, error: dbError } = await supabaseAdmin
       .from('convites')
@@ -31,7 +41,7 @@ export async function POST(request: Request) {
         empresa_id: empresaId,
         email: email.trim().toLowerCase(),
         nome: nome?.trim() || null,
-        papel: papel,
+        papel: dbPapel,
         token: token,
       })
       .select()
@@ -47,7 +57,7 @@ export async function POST(request: Request) {
       data: {
         invite_token: token,
         empresa_id: empresaId,
-        papel: papel,
+        papel: dbPapel,
         nome: nome?.trim() || null,
       },
       redirectTo: `${siteUrl}/convite?token=${token}`

@@ -45,8 +45,29 @@ export default function UsuariosPage() {
     const { data: convs }   = getRes(2)
     const user = userObj?.user
     setMeuId(user?.id || null)
-    setUsuarios(users || [])
-    setConvites((convs || []).filter((c: any) => c.status === 'pendente'))
+
+    const MAP_DB_TO_UI: Record<string, string> = {
+      admin: 'admin',
+      operador: 'vendedor',
+      visualizador: 'estoquista',
+      vendedor: 'vendedor',
+      estoquista: 'estoquista'
+    }
+
+    const mappedUsers = (users || []).map((u: any) => ({
+      ...u,
+      papel: MAP_DB_TO_UI[u.papel] || u.papel
+    }))
+
+    const mappedConvs = (convs || [])
+      .filter((c: any) => c.status === 'pendente')
+      .map((c: any) => ({
+        ...c,
+        papel: MAP_DB_TO_UI[c.papel] || c.papel
+      }))
+
+    setUsuarios(mappedUsers)
+    setConvites(mappedConvs)
     setLoading(false)
   }
 
@@ -86,7 +107,18 @@ export default function UsuariosPage() {
   async function alterarPapel(uid: string, papel: string) {
     if (uid === meuId) return
     setSalvando(uid + '-papel')
-    await createClient().from('profiles').update({ papel }).eq('id', uid)
+    
+    // Mapeia papel da UI para o banco de dados
+    const MAP_UI_TO_DB: Record<string, string> = {
+      admin: 'admin',
+      vendedor: 'operador',
+      estoquista: 'visualizador',
+      operador: 'operador',
+      visualizador: 'visualizador'
+    }
+    const dbPapel = MAP_UI_TO_DB[papel] || 'operador'
+
+    await createClient().from('profiles').update({ papel: dbPapel }).eq('id', uid)
     setUsuarios(prev => prev.map(u => u.id===uid ? {...u, papel} : u))
     setSalvando(null)
   }
