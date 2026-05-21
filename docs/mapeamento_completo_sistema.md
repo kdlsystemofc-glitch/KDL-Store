@@ -2570,14 +2570,19 @@ Formulário inteligente e modularizado para cadastro rápido de novos clientes.
   - `Telefone / WhatsApp` (campo de texto, id: `cli-tel`).
   - `CPF` (fonte mono, id: `cli-cpf`, placeholder formatado: `000.000.000-00`).
   - `E-mail` (campo do tipo email, id: `cli-email`).
-  - `Endereço` (campo de texto longo, id: `cli-end`).
+  - **Endereço Estruturado** (agrupado em container dedicado):
+    - `CEP`: Campo numérico de 8 dígitos (`00000-000`) com busca de CEP ativa que consome a API externa do **ViaCEP** (`https://viacep.com.br/ws/[cep]/json/`) ao preencher ou ao clicar no botão de busca. Auto-preenche rua, bairro, cidade e estado.
+    - `Rua / Logradouro`: Campo de texto.
+    - `Número` e `Complemento` (Apto, bloco, sala, etc.).
+    - `Bairro` e `Cidade`: Campos de texto.
+    - `UF`: Campo de 2 caracteres em maiúsculo (ex: SP).
   - `Anotações` (textarea sem redimensionamento, 2 linhas, id: `cli-obs`).
 - **Seletor de Tipo de Cliente:** Grid com 3 colunas toggleables (`varejo` | `atacado` | `vip`):
   - `🏪 Varejo` (Preço normal)
   - `📦 Atacado` (Preço de atacado)
   - `⭐ VIP` (Preço especial)
   - O tipo selecionado recebe borda verde `2px solid var(--verde)` e fundo `var(--verde-claro)`.
-- **Ações:** Botão `Salvar cliente` com ícone `Save` e feedback visual de salvamento (`Loader2` com rotação 360° infinita) que executa a transação direta de `INSERT` na tabela `clientes` com os dados digitados e `empresa_id` capturado no contexto de sessão.
+- **Ações:** Botão `Salvar cliente` com ícone `Save` e feedback visual de salvamento (`Loader2` com rotação 360° infinita) que serializa o endereço estruturado como uma string JSON e executa a transação direta de `INSERT` na tabela `clientes` com os dados digitados e `empresa_id` capturado no contexto de sessão. Retrocompatibilidade automática garante que endereços antigos em formato texto simples sejam lidos e salvos corretamente sem perda de informação.
 
 ### 7. `FormFornecedor.tsx`
 Formulário completo para credenciamento e rastreamento de distribuidores parceiros.
@@ -2601,15 +2606,15 @@ O formulário de cadastro de produtos é a peça central do estoque, agrupando c
   - **📸 Imagem do Produto:** Bloco de arrastar/selecionar imagem de até 2MB. Mostra preview em miniatura. Faz upload no bucket Supabase Storage `produtos` sob a pasta `{empresa_id}/{timestamp}-{hash}.ext` gerando a URL pública.
   - **📦 Identificação:**
     - `Nome do Produto` (Obrigatório).
-    - `SKU (Código interno)` (Permite inserção manual ou geração aleatória imediata via botão com ícone `RefreshCw` invocando `generateSKU()`).
-    - `Código de Barras (EAN/ISBN)` (Integrado ao modal scanner via câmera).
+    - `SKU (Código interno)` (Permite inserção manual ou geração aleatória imediata via botão com ícone `RefreshCw` invocando `generateSKU()`. Contém dica explicativa).
+    - `Código de Barras (EAN/ISBN)` (Integrado ao modal scanner via câmera. Contém dica explicativa).
   - **🏷️ Categorias & Atributos:**
     - `Categoria` (Dropdown). Possui botão ao lado (`+`) para cadastrar categorias inline rapidamente em modal flutuante sem perder o preenchimento do formulário.
-    - `Preço Custo`, `Preço Varejo` (Obrigatório), `Preço Atacado` e `Preço VIP`.
-    - `Preço Mínimo` (Bloqueio automático de desconto no PDV).
+    - `Preço Custo`, `Preço Varejo` (Obrigatório), `Preço Atacado` (com dica explicativa) e `Preço VIP` (com dica explicativa).
+    - `Preço Mínimo` (Bloqueio automático de desconto no PDV. Contém dica explicativa).
   - **🗃️ Estoque & Logística:**
-    - `Quantidade Atual`, `Quantidade Mínima` (Alerta de reposição) e `Quantidade Máxima`.
-    - `Qtd Mínima p/ Atacado` e `Localização` (ex: Prateleira B2).
+    - `Quantidade Atual`, `Quantidade Mínima` (Alerta de reposição, com dica explicativa) e `Quantidade Máxima` (com dica explicativa).
+    - `Qtd Mínima p/ Atacado` (com dica explicativa) e `Localização` (ex: Prateleira B2).
   - **⚙️ Configurações Especiais (Botões Toggle Estilo Switch):**
     - `Pode ser brinde?` (Toggle).
     - `Controlar número de série?` (Toggle - exige digitação de serial no PDV).

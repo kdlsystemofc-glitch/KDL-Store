@@ -214,15 +214,15 @@ A sidebar é renderizada no `(dashboard)/layout.tsx` e **filtrada por plano**:
 | telefone | Para WhatsApp |
 | email | Opcional |
 | cpf | Opcional |
-| endereco | Opcional |
+| endereco | Opcional. Estruturado em JSON (CEP, Rua, Número, Complemento, Bairro, Cidade, UF) com auto-fill via ViaCEP |
 | obs | Observações |
 | ultima_compra | Atualizado automaticamente ao fechar venda |
 | ativo | Soft-delete |
 
 ### Perfil do Cliente (`/clientes/[id]`)
-- Dados cadastrais
-- Histórico de compras (últimas 20 vendas)
-- Fiados do cliente
+- **Dados cadastrais**: com visualização limpa e formatada do endereço estruturado em modo de exibição, e inputs divididos com auto-fill de CEP ViaCEP em modo de edição.
+- **Histórico de compras** (últimas 20 vendas)
+- **Fiados do cliente**
 
 ### CRM Sumidos (`/clientes/inativos`) [PRO]
 - Lista clientes sem compra há X dias (configurável por empresa)

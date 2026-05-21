@@ -35,8 +35,16 @@
 **Campos**:
 - **Nome** (Obrigatório): Texto.
 - **WhatsApp**: Texto (máscara implícita de telefone).
-- **Email / CPF / Endereço / Observações**: Textos opcionais.
-**Persistência**: Tabela `clientes`.
+- **Email / CPF / Observações**: Textos opcionais.
+- **Endereço Estruturado**:
+  - **CEP**: Entrada numérica (máscara `00000-000`) com integração automática da API ViaCEP (`https://viacep.com.br/ws/[cep]/json/`) para autopreenchimento de rua, bairro, cidade e UF.
+  - **Rua / Logradouro**: Preenchido automaticamente ou editável.
+  - **Número**: Complemento opcional do endereço.
+  - **Complemento**: Apto, bloco, sala, etc.
+  - **Bairro**: Nome do bairro.
+  - **Cidade**: Nome da cidade.
+  - **UF / Estado**: Sigla de 2 caracteres em maiúsculo (ex: SP).
+**Persistência**: Tabela `clientes`, com os dados de endereço estruturado serializados e persistidos como string JSON (`EnderecoJSON`) no campo `endereco`. Possui mapeamento automático e retrocompatibilidade com cadastros antigos em formato texto simples (tratados como rua).
 
 ### 3. Formulário de Fornecedor (`FormFornecedor.tsx`)
 **Finalidade**: Cadastrar um novo fornecedor.

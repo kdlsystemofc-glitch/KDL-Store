@@ -25,11 +25,12 @@ const SECAO = ({ titulo, children }: { titulo: string; children: React.ReactNode
   </div>
 )
 
-const Campo = ({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) => (
-  <div style={{ display:'flex', flexDirection:'column', gap:'0.375rem' }}>
+const Campo = ({ label, required, dica, children }: { label: string; required?: boolean; dica?: string; children: React.ReactNode }) => (
+  <div style={{ display:'flex', flexDirection:'column', gap:'0.25rem' }}>
     <label style={{ fontSize:'0.82rem', fontWeight:600, color:'var(--texto-sec)' }}>
       {label}{required && <span style={{ color:'var(--vermelho)', marginLeft:'2px' }}>*</span>}
     </label>
+    {dica && <span style={{ fontSize:'0.72rem', color:'var(--texto-desab)', fontWeight:400, marginTop:'-2px', lineHeight:1.25 }}>{dica}</span>}
     {children}
   </div>
 )
@@ -78,6 +79,21 @@ export default function EditarProdutoPage() {
     if (!produto.nome.trim()) { setErro('O nome é obrigatório.'); return }
     if (produto.preco_varejo <= 0) { setErro('Informe o preço de venda (varejo).'); return }
     setSalvando(true)
+
+    if (produto.sku && produto.sku.trim() !== '') {
+      const { data: skuExistente } = await createClient()
+        .from('produtos')
+        .select('id')
+        .eq('empresa_id', empresaId)
+        .eq('sku', produto.sku.trim())
+        .neq('id', produto.id)
+        .maybeSingle()
+      if (skuExistente) {
+        setErro('Esse SKU já está em uso por outro produto na sua loja.')
+        setSalvando(false)
+        return
+      }
+    }
 
     let final_imagem_url = produto.imagem_url || null
     if (imagemFile) {
@@ -161,8 +177,53 @@ export default function EditarProdutoPage() {
   )
 
   if (loading) return (
-    <div style={{ display:'flex', justifyContent:'center', padding:'3rem', gap:'0.75rem', color:'var(--texto-desab)' }}>
-      <Loader2 size={20} style={{ animation:'spin 1s linear infinite' }}/> Carregando produto...
+    <div className="anim-fade" style={{ display:'flex', flexDirection:'column', gap:'1rem', maxWidth:'800px' }}>
+      <div className="pg-header">
+        <div style={{ display:'flex', alignItems:'center', gap:'0.625rem' }}>
+          <div style={{ width:'24px', height:'24px', borderRadius:'4px' }} className="skeleton" />
+          <div>
+            <div style={{ width:'140px', height:'20px', marginBottom:'6px', borderRadius:'4px' }} className="skeleton" />
+            <div style={{ width:'220px', height:'12px', borderRadius:'4px' }} className="skeleton" />
+          </div>
+        </div>
+      </div>
+
+      <div className="card" style={{ display:'flex', flexDirection:'column', gap:'1.5rem' }}>
+        {/* Imagem do Produto Skeleton */}
+        <div>
+          <div style={{ width:'120px', height:'14px', marginBottom:'0.75rem', borderRadius:'4px' }} className="skeleton" />
+          <div style={{ display:'flex', gap:'1rem', alignItems:'center' }}>
+            <div style={{ width:'100px', height:'100px', borderRadius:'8px' }} className="skeleton" />
+            <div style={{ display:'flex', flexDirection:'column', gap:'0.5rem' }}>
+              <div style={{ width:'120px', height:'32px', borderRadius:'4px' }} className="skeleton" />
+              <div style={{ width:'200px', height:'12px', borderRadius:'4px' }} className="skeleton" />
+            </div>
+          </div>
+        </div>
+
+        {/* Identificação Skeleton */}
+        <div style={{ display:'flex', flexDirection:'column', gap:'0.75rem', marginTop:'0.5rem' }}>
+          <div style={{ width:'100px', height:'14px', marginBottom:'0.25rem', borderRadius:'4px' }} className="skeleton" />
+          <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap:'0.75rem' }}>
+            <div style={{ height:'36px', borderRadius:'4px' }} className="skeleton" />
+            <div style={{ width:'130px', height:'36px', borderRadius:'4px' }} className="skeleton" />
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.75rem' }}>
+            <div style={{ height:'36px', borderRadius:'4px' }} className="skeleton" />
+            <div style={{ height:'36px', borderRadius:'4px' }} className="skeleton" />
+          </div>
+        </div>
+
+        {/* Preços Skeleton */}
+        <div style={{ display:'flex', flexDirection:'column', gap:'0.75rem', marginTop:'0.5rem' }}>
+          <div style={{ width:'80px', height:'14px', marginBottom:'0.25rem', borderRadius:'4px' }} className="skeleton" />
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:'0.75rem' }}>
+            <div style={{ height:'36px', borderRadius:'4px' }} className="skeleton" />
+            <div style={{ height:'36px', borderRadius:'4px' }} className="skeleton" />
+            <div style={{ height:'36px', borderRadius:'4px' }} className="skeleton" />
+          </div>
+        </div>
+      </div>
     </div>
   )
   if (!produto) return <div className="alerta alerta-perigo">{erro||'Produto não encontrado.'}</div>
@@ -246,12 +307,12 @@ export default function EditarProdutoPage() {
             <Campo label="Nome do Produto" required>
               <input className="campo" value={produto.nome} onChange={e=>set('nome', e.target.value)}/>
             </Campo>
-            <Campo label="SKU (Código interno)">
+            <Campo label="SKU (Código interno)" dica="Código único de controle interno (ex: CAM-VER-G).">
               <input className="campo" value={produto.sku || ''} onChange={e=>set('sku', e.target.value)} style={{ minWidth:'130px' }}/>
             </Campo>
           </div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.75rem' }}>
-            <Campo label="Código de Barras (EAN/ISBN)">
+            <Campo label="Código de Barras (EAN/ISBN)" dica="Código de barras numérico para leitura rápida no PDV.">
               <input className="campo" value={produto.codigo_barras || ''} onChange={e=>set('codigo_barras', e.target.value)}/>
             </Campo>
             <Campo label="Categoria">
@@ -285,15 +346,15 @@ export default function EditarProdutoPage() {
             <Campo label="Preço Varejo (R$)" required>
               <input className="campo" type="number" min="0" step="0.01" value={produto.preco_varejo || ''} onChange={e=>set('preco_varejo', parseFloat(e.target.value))} placeholder="0,00"/>
             </Campo>
-            <Campo label="Preço Mínimo PDV (R$)">
+            <Campo label="Preço Mínimo PDV (R$)" dica="Menor preço que o vendedor pode praticar após descontos.">
               <input className="campo" type="number" min="0" step="0.01" value={produto.preco_minimo || ''} onChange={e=>set('preco_minimo', parseFloat(e.target.value))} placeholder="0,00"/>
             </Campo>
           </div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.75rem' }}>
-            <Campo label="Preço Atacado (R$)">
+            <Campo label="Preço Atacado (R$)" dica="Preço aplicado para compras em grandes volumes.">
               <input className="campo" type="number" min="0" step="0.01" value={produto.preco_atacado || ''} onChange={e=>set('preco_atacado', parseFloat(e.target.value))} placeholder="0,00"/>
             </Campo>
-            <Campo label="Preço VIP (R$)">
+            <Campo label="Preço VIP (R$)" dica="Preço especial voltado para clientes cadastrados como VIP.">
               <input className="campo" type="number" min="0" step="0.01" value={produto.preco_vip || ''} onChange={e=>set('preco_vip', parseFloat(e.target.value))} placeholder="0,00"/>
             </Campo>
           </div>
@@ -302,19 +363,30 @@ export default function EditarProdutoPage() {
         {/* ── Estoque ── */}
         <SECAO titulo="📊 Estoque e Localização">
           <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'0.75rem' }}>
-            <div style={{ display:'flex', flexDirection:'column', gap:'0.375rem' }}>
-              <label style={{ fontSize:'0.82rem', fontWeight:600, color:'var(--texto-sec)' }}>Qtd Atual (Somente leitura)</label>
-              <div className="campo" style={{ textAlign:'center', fontWeight:900, fontSize:'1.2rem', fontFamily:'monospace', cursor:'not-allowed', background:'var(--surface-alt)' }}>
-                {produto.qtd_atual}
-              </div>
-            </div>
-            <Campo label="Qtd Mínima (alerta)">
+            <Campo label="Qtd Atual (Somente leitura)">
+              <input
+                className="campo"
+                type="text"
+                readOnly
+                disabled
+                value={produto.qtd_atual}
+                style={{
+                  textAlign: 'center',
+                  fontWeight: 700,
+                  fontFamily: 'monospace',
+                  cursor: 'not-allowed',
+                  background: 'var(--surface-alt)',
+                  color: 'var(--texto-sec)'
+                }}
+              />
+            </Campo>
+            <Campo label="Qtd Mínima (alerta)" dica="Nível mínimo para disparar alertas de reposição de estoque.">
               <input className="campo" type="number" min="0" value={produto.qtd_minima} onChange={e=>set('qtd_minima', parseInt(e.target.value))}/>
             </Campo>
-            <Campo label="Qtd Máxima">
+            <Campo label="Qtd Máxima" dica="Quantidade máxima ideal sugerida para armazenamento.">
               <input className="campo" type="number" min="0" value={produto.qtd_maxima || ''} onChange={e=>set('qtd_maxima', parseInt(e.target.value))}/>
             </Campo>
-            <Campo label="Qtd Mín p/ Atacado">
+            <Campo label="Qtd Mín p/ Atacado" dica="Mínimo de itens no carrinho para ativar o Preço de Atacado.">
               <input className="campo" type="number" min="0" value={produto.qtd_min_atacado || ''} onChange={e=>set('qtd_min_atacado', parseInt(e.target.value))}/>
             </Campo>
           </div>

@@ -6,7 +6,7 @@ import { formatCurrency } from '@/lib/utils'
 import { Loader2, Search } from 'lucide-react'
 import { PageTabs } from '@/components/PageTabs'
 
-type Produto = { id:string; nome:string; sku:string|null; categoria:string|null; qtd_atual:number; qtd_minima:number; preco_custo:number }
+type Produto = { id:string; nome:string; sku:string|null; categoria:string|null; qtd_atual:number; qtd_minima:number; preco_custo:number; pode_ser_brinde:boolean }
 type Mov     = { id:string; tipo:string; quantidade:number; criado_em:string; obs:string|null; produtos:{ nome:string }[]|null }
 
 export default function EstoquePage() {
@@ -25,7 +25,7 @@ export default function EstoquePage() {
     setLoading(true)
     const supabase = createClient()
     const results = await Promise.allSettled([
-      supabase.from('produtos').select('id,nome,sku,categoria,qtd_atual,qtd_minima,preco_custo').eq('empresa_id',eid).order('nome'),
+      supabase.from('produtos').select('id,nome,sku,categoria,qtd_atual,qtd_minima,preco_custo,pode_ser_brinde').eq('empresa_id',eid).order('nome'),
       supabase.from('estoque_movimentacoes').select('id,tipo,quantidade,criado_em,obs,produtos(nome)').eq('empresa_id',eid).order('criado_em',{ascending:false}).limit(50),
     ])
     const getRes = (i: number): any => results[i].status === 'fulfilled' ? (results[i] as PromiseFulfilledResult<any>).value || {} : {}
@@ -56,7 +56,7 @@ export default function EstoquePage() {
 
   const filtrados = produtos.filter(p => {
     const matchBusca = p.nome.toLowerCase().includes(busca.toLowerCase()) || (p.sku||'').toLowerCase().includes(busca.toLowerCase())
-    const matchFiltro = filtro==='todos' ? true : filtro==='criticos' ? p.qtd_atual<=p.qtd_minima&&p.qtd_minima>0 : filtro==='brindes'
+    const matchFiltro = filtro==='todos' ? true : filtro==='criticos' ? p.qtd_atual<=p.qtd_minima&&p.qtd_minima>0 : !!p.pode_ser_brinde
     return matchBusca && matchFiltro
   })
 

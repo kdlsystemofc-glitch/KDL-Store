@@ -5,11 +5,54 @@ import Link from 'next/link'
 import { toast } from 'react-hot-toast'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/utils'
-import { ArrowLeft, Loader2 } from 'lucide-react'
+import { ArrowLeft, Loader2, Search } from 'lucide-react'
+
+type EnderecoJSON = {
+  cep: string; rua: string; numero: string; complemento: string
+  bairro: string; cidade: string; estado: string
+}
+
+function parseEndereco(raw: string | null): EnderecoJSON {
+  if (!raw) return { cep:'', rua:'', numero:'', complemento:'', bairro:'', cidade:'', estado:'' }
+  if (raw.trim().startsWith('{')) {
+    try {
+      const obj = JSON.parse(raw) as Partial<EnderecoJSON>
+      return {
+        cep:         obj.cep         || '',
+        rua:         obj.rua         || '',
+        numero:      obj.numero      || '',
+        complemento: obj.complemento || '',
+        bairro:      obj.bairro      || '',
+        cidade:      obj.cidade      || '',
+        estado:      obj.estado      || '',
+      }
+    } catch { /* fall through */ }
+  }
+  // Legacy plain text — map to rua
+  return { cep:'', rua: raw, numero:'', complemento:'', bairro:'', cidade:'', estado:'' }
+}
+
+function formatEnderecoDisplay(e: EnderecoJSON): string {
+  const partes: string[] = []
+  if (e.rua)    partes.push(e.rua + (e.numero ? `, ${e.numero}` : ''))
+  if (e.complemento) partes.push(e.complemento)
+  if (e.bairro) partes.push(e.bairro)
+  const cidadeUf = [e.cidade, e.estado].filter(Boolean).join('/')
+  if (cidadeUf)  partes.push(cidadeUf)
+  if (e.cep)     partes.push(`CEP ${e.cep}`)
+  return partes.join(' · ') || '—'
+}
 
 type Cliente = { id:string; nome:string; telefone:string|null; cpf:string|null; email:string|null; endereco:string|null; anotacoes:string|null; tipo:string; ativo:boolean; criado_em:string }
 type Venda   = { id:string; numero:number; total:number; forma_pagamento:string; criado_em:string; status:string }
 type Fiado   = { id:string; valor_aberto:number; status:string; criado_em:string }
+
+const CampoEdit = ({ label, children, span2 }: { label: string; children: React.ReactNode; span2?: boolean }) => (
+  <div style={{ display:'flex', flexDirection:'column', gap:'0.25rem', gridColumn: span2 ? '1 / -1' : undefined }}>
+    <label style={{ fontSize:'0.78rem', fontWeight:600, color:'var(--texto-sec)' }}>{label}</label>
+    {children}
+  </div>
+)
 
 export default function ClientePerfilPage() {
   const { id }   = useParams() as { id: string }
@@ -20,8 +63,20 @@ export default function ClientePerfilPage() {
   const [loading,  setLoading]  = useState(true)
   const [editando, setEditando] = useState(false)
   const [salvando, setSalvando] = useState(false)
+  const [buscandoCep, setBuscandoCep] = useState(false)
+
+  // Endereço estruturado para edição
+  const [end, setEnd] = useState<EnderecoJSON>({ cep:'', rua:'', numero:'', complemento:'', bairro:'', cidade:'', estado:'' })
+  const setEndField = (k: keyof EnderecoJSON, v: string) => setEnd(p => ({ ...p, [k]: v }))
 
   useEffect(() => { if (id) carregar(id) }, [id])
+
+  // Sync endereço structured state whenever we enter edit mode
+  useEffect(() => {
+    if (editando && cliente) {
+      setEnd(parseEndereco(cliente.endereco))
+    }
+  }, [editando, cliente])
 
   async function carregar(cid: string) {
     setLoading(true)
@@ -41,18 +96,45 @@ export default function ClientePerfilPage() {
     setLoading(false)
   }
 
+  async function buscarCep(cep: string) {
+    const digits = cep.replace(/\D/g, '')
+    if (digits.length !== 8) return
+    setBuscandoCep(true)
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`)
+      const data = await res.json()
+      if (!data.erro) {
+        setEnd(p => ({
+          ...p,
+          rua:    data.logradouro || p.rua,
+          bairro: data.bairro     || p.bairro,
+          cidade: data.localidade || p.cidade,
+          estado: data.uf        || p.estado,
+        }))
+      }
+    } catch { /* silently ignore */ }
+    setBuscandoCep(false)
+  }
+
   async function salvar() {
     if (!cliente) return
     setSalvando(true)
+
+    // Serialise structured address back to JSON string
+    const endFilled = Object.values(end).some(v => v.trim() !== '')
+    const endStr = endFilled ? JSON.stringify(end) : null
+
     const { error } = await createClient().from('clientes').update({
       nome: cliente.nome, telefone: cliente.telefone||null, email: cliente.email||null,
-      cpf: cliente.cpf||null, endereco: cliente.endereco||null,
+      cpf: cliente.cpf||null, endereco: endStr,
       anotacoes: cliente.anotacoes||null, tipo: cliente.tipo, ativo: cliente.ativo,
     }).eq('id', cliente.id)
     setSalvando(false)
     if (error) {
       toast.error('Erro ao salvar cliente: ' + error.message)
     } else {
+      // Persist address string in local state so view reflects new value
+      setCliente(c => c ? { ...c, endereco: endStr } : c)
       toast.success('Cliente salvo com sucesso!')
       setEditando(false)
     }
@@ -80,6 +162,7 @@ export default function ClientePerfilPage() {
   if (!cliente) return <div className="alerta alerta-perigo">Cliente não encontrado.</div>
 
   const set = (k: keyof Cliente, v: unknown) => setCliente(c => c ? {...c,[k]:v} : c)
+  const endParsed = parseEndereco(cliente.endereco)
 
   return (
     <div className="anim-fade" style={{display:'flex',flexDirection:'column',gap:'0.875rem',maxWidth:'760px'}}>
@@ -140,10 +223,60 @@ export default function ClientePerfilPage() {
                   <input className="campo" style={{marginTop:'0.375rem',fontFamily:'monospace'}} value={cliente.cpf||''} onChange={e=>set('cpf',e.target.value)}/>
                 </div>
               </div>
-              <div>
-                <label className="campo-label">Endereço</label>
-                <input className="campo" style={{marginTop:'0.375rem'}} value={cliente.endereco||''} onChange={e=>set('endereco',e.target.value)}/>
+
+              {/* ── Endereço estruturado (edição) ── */}
+              <div style={{ display:'flex', flexDirection:'column', gap:'0.5rem', padding:'0.75rem', background:'var(--surface-alt)', borderRadius:'var(--radius-sm)', border:'1px solid var(--borda)' }}>
+                <p style={{ fontSize:'0.78rem', fontWeight:700, color:'var(--texto-desab)', textTransform:'uppercase', letterSpacing:'0.04em' }}>📍 Endereço</p>
+
+                <div style={{ display:'grid', gridTemplateColumns:'160px 1fr', gap:'0.5rem', alignItems:'end' }}>
+                  <CampoEdit label="CEP">
+                    <div style={{ display:'flex', gap:'0.375rem' }}>
+                      <input
+                        className="campo"
+                        style={{ fontFamily:'monospace', flex:1 }}
+                        value={end.cep}
+                        onChange={e => {
+                          const v = e.target.value.replace(/\D/g,'').slice(0,8)
+                          const fmt = v.length > 5 ? `${v.slice(0,5)}-${v.slice(5)}` : v
+                          setEndField('cep', fmt)
+                          if (v.length === 8) buscarCep(v)
+                        }}
+                        placeholder="00000-000"
+                        maxLength={9}
+                      />
+                      <button type="button" className="btn btn-secondary" style={{ padding:'0 0.5rem' }}
+                        onClick={() => buscarCep(end.cep)} disabled={buscandoCep} title="Buscar CEP">
+                        {buscandoCep ? <Loader2 size={14} style={{ animation:'spin 1s linear infinite' }}/> : <Search size={14}/>}
+                      </button>
+                    </div>
+                  </CampoEdit>
+                  <CampoEdit label="Rua / Logradouro">
+                    <input className="campo" value={end.rua} onChange={e=>setEndField('rua', e.target.value)} placeholder="Nome da rua"/>
+                  </CampoEdit>
+                </div>
+
+                <div style={{ display:'grid', gridTemplateColumns:'120px 1fr', gap:'0.5rem' }}>
+                  <CampoEdit label="Número">
+                    <input className="campo" value={end.numero} onChange={e=>setEndField('numero', e.target.value)} placeholder="Ex: 42"/>
+                  </CampoEdit>
+                  <CampoEdit label="Complemento">
+                    <input className="campo" value={end.complemento} onChange={e=>setEndField('complemento', e.target.value)} placeholder="Apto, Bloco, Sala..."/>
+                  </CampoEdit>
+                </div>
+
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 80px', gap:'0.5rem' }}>
+                  <CampoEdit label="Bairro">
+                    <input className="campo" value={end.bairro} onChange={e=>setEndField('bairro', e.target.value)} placeholder="Bairro"/>
+                  </CampoEdit>
+                  <CampoEdit label="Cidade">
+                    <input className="campo" value={end.cidade} onChange={e=>setEndField('cidade', e.target.value)} placeholder="Cidade"/>
+                  </CampoEdit>
+                  <CampoEdit label="UF">
+                    <input className="campo" value={end.estado} onChange={e=>setEndField('estado', e.target.value.toUpperCase().slice(0,2))} placeholder="SP" maxLength={2}/>
+                  </CampoEdit>
+                </div>
               </div>
+
               <div>
                 <label className="campo-label">Anotações</label>
                 <textarea className="campo" rows={2} style={{marginTop:'0.375rem',resize:'none'}} value={cliente.anotacoes||''} onChange={e=>set('anotacoes',e.target.value)}/>
@@ -170,7 +303,6 @@ export default function ClientePerfilPage() {
                 {l:'Telefone', v:cliente.telefone, link:cliente.telefone?`https://wa.me/55${cliente.telefone.replace(/\D/g,'')}`:null},
                 {l:'E-mail',   v:cliente.email,     link:null},
                 {l:'CPF',      v:cliente.cpf,        link:null},
-                {l:'Endereço', v:cliente.endereco,   link:null},
               ].map(f=>(
                 <div key={f.l}>
                   <p style={{color:'var(--texto-desab)',fontSize:'0.75rem',fontWeight:600}}>{f.l}</p>
@@ -180,6 +312,11 @@ export default function ClientePerfilPage() {
                   }
                 </div>
               ))}
+              {/* Endereço formatado — ocupa linha inteira */}
+              <div style={{ gridColumn:'1 / -1' }}>
+                <p style={{color:'var(--texto-desab)',fontSize:'0.75rem',fontWeight:600}}>Endereço</p>
+                <p style={{fontWeight:600,marginTop:'2px'}}>{formatEnderecoDisplay(endParsed)}</p>
+              </div>
               {cliente.anotacoes&&(
                 <div style={{gridColumn:'1/-1'}}>
                   <p style={{color:'var(--texto-desab)',fontSize:'0.75rem',fontWeight:600}}>Anotações</p>

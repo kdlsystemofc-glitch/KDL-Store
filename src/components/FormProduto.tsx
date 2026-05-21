@@ -16,11 +16,12 @@ const SECAO = ({ titulo, children }: { titulo: string; children: React.ReactNode
   </div>
 )
 
-const Campo = ({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) => (
-  <div style={{ display:'flex', flexDirection:'column', gap:'0.375rem' }}>
+const Campo = ({ label, required, dica, children }: { label: string; required?: boolean; dica?: string; children: React.ReactNode }) => (
+  <div style={{ display:'flex', flexDirection:'column', gap:'0.25rem' }}>
     <label style={{ fontSize:'0.82rem', fontWeight:600, color:'var(--texto-sec)' }}>
       {label}{required && <span style={{ color:'var(--vermelho)', marginLeft:'2px' }}>*</span>}
     </label>
+    {dica && <span style={{ fontSize:'0.72rem', color:'var(--texto-desab)', fontWeight:400, marginTop:'-2px', lineHeight:1.25 }}>{dica}</span>}
     {children}
   </div>
 )
@@ -126,7 +127,7 @@ export function FormProduto({ onSuccess, onCancel }: { onSuccess: () => void; on
         .select('id')
         .eq('empresa_id', empresaId)
         .eq('sku', sku.trim())
-        .single()
+        .maybeSingle()
       if (skuExistente) {
         setErro('Esse SKU já está em uso por outro produto na sua loja.')
         setSalvando(false)
@@ -247,7 +248,7 @@ export function FormProduto({ onSuccess, onCancel }: { onSuccess: () => void; on
           <Campo label="Nome do Produto" required>
             <input className="campo" value={nome} onChange={e=>setNome(e.target.value)} placeholder="Ex: Som JBL Stage 200"/>
           </Campo>
-          <Campo label="SKU (Código interno)">
+          <Campo label="SKU (Código interno)" dica="Código único de controle interno (ex: CAM-VER-G).">
             <div style={{ display: 'flex', gap: '0.375rem' }}>
               <input className="campo" value={sku} onChange={e=>setSku(e.target.value)} style={{ minWidth:'130px', fontFamily:'monospace' }} placeholder="Ex: PRD-123"/>
               <button type="button" onClick={() => setSku(generateSKU())} className="btn btn-secondary" style={{ padding:'0 0.5rem' }} title="Gerar novo SKU aleatório">
@@ -257,7 +258,7 @@ export function FormProduto({ onSuccess, onCancel }: { onSuccess: () => void; on
           </Campo>
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.75rem' }}>
-          <Campo label="Código de Barras (EAN/ISBN)">
+          <Campo label="Código de Barras (EAN/ISBN)" dica="Código de barras numérico para leitura rápida no PDV.">
             <div style={{ display: 'flex', gap: '0.375rem' }}>
               <input className="campo" value={codigoBarras} onChange={e=>setCodigoBarras(e.target.value)} placeholder="Ex: 7891234567890" style={{ fontFamily:'monospace' }}/>
               {hasCamera && (
@@ -311,15 +312,15 @@ export function FormProduto({ onSuccess, onCancel }: { onSuccess: () => void; on
           <Campo label="Preço Varejo (R$)" required>
             <input className="campo" type="number" min="0" step="0.01" value={varejo} onChange={e=>setVarejo(e.target.value)} placeholder="0,00"/>
           </Campo>
-          <Campo label="Preço Mínimo PDV (R$)">
+          <Campo label="Preço Mínimo PDV (R$)" dica="Menor preço que o vendedor pode praticar após descontos.">
             <input className="campo" type="number" min="0" step="0.01" value={minimo} onChange={e=>setMinimo(e.target.value)} placeholder="Piso de desconto"/>
           </Campo>
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.75rem' }}>
-          <Campo label="Preço Atacado (R$)">
+          <Campo label="Preço Atacado (R$)" dica="Preço aplicado para compras em grandes volumes.">
             <input className="campo" type="number" min="0" step="0.01" value={atacado} onChange={e=>setAtacado(e.target.value)} placeholder="Para clientes atacado"/>
           </Campo>
-          <Campo label="Preço VIP (R$)">
+          <Campo label="Preço VIP (R$)" dica="Preço especial voltado para clientes cadastrados como VIP.">
             <input className="campo" type="number" min="0" step="0.01" value={vip} onChange={e=>setVip(e.target.value)} placeholder="Para clientes VIP"/>
           </Campo>
         </div>
@@ -331,13 +332,13 @@ export function FormProduto({ onSuccess, onCancel }: { onSuccess: () => void; on
           <Campo label="Qtd Atual">
             <input className="campo" type="number" min="0" value={qtdAtual} onChange={e=>setQtdAtual(e.target.value)} placeholder="0"/>
           </Campo>
-          <Campo label="Qtd Mínima (alerta)">
+          <Campo label="Qtd Mínima (alerta)" dica="Nível mínimo para disparar alertas de reposição de estoque.">
             <input className="campo" type="number" min="0" value={qtdMin} onChange={e=>setQtdMin(e.target.value)} placeholder="0"/>
           </Campo>
-          <Campo label="Qtd Máxima">
+          <Campo label="Qtd Máxima" dica="Quantidade máxima ideal sugerida para armazenamento.">
             <input className="campo" type="number" min="0" value={qtdMax} onChange={e=>setQtdMax(e.target.value)} placeholder="Opcional"/>
           </Campo>
-          <Campo label="Qtd Mín p/ Atacado">
+          <Campo label="Qtd Mín p/ Atacado" dica="Mínimo de itens no carrinho para ativar o Preço de Atacado.">
             <input className="campo" type="number" min="0" value={qtdMinAtacado} onChange={e=>setQtdMinAtacado(e.target.value)} placeholder="Ex: 5"/>
           </Campo>
         </div>
