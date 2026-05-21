@@ -425,6 +425,7 @@ Para cada produto da tabela do catálogo inicial, fazer:
 | Campo | Valor |
 |-------|-------|
 | Nome | `Fone Bluetooth JBL T110` |
+| SKU (Código interno) | `JBL-T110-BLU` |
 | Código de Barras | `7891234567890` |
 | Categoria | `Fones de Ouvido` |
 | Preço de Custo | `45,00` |
@@ -434,9 +435,16 @@ Para cada produto da tabela do catálogo inicial, fazer:
 | Qtd Atual | `15` |
 | Qtd Mínima (alerta) | `3` |
 | Qtd Máxima | `30` |
+| Qtd Mín p/ Atacado | `5` |
+| Localização no estoque | `Prateleira A1` |
+| Pode ser usado como brinde | ❌ Inativo / Não |
+| Rastrear número de série | ✅ Ativo / Sim |
+| Visível no catálogo online | ✅ Ativo / Sim |
+| Produto em destaque | ✅ Ativo / Sim |
 | Preço Mínimo PDV (R$) | `80,00` |
 | Controle de Garantia | ✅ Ativo |
 | Prazo de Garantia (dias) | `90` |
+| Termos da garantia | `Garantia de 90 dias contra defeitos de fabricação.` |
 | Fornecedor Vinculado | `TechBR Distribuidora` |
 | Descrição | `Fone bluetooth com autonomia de 6h, design compacto.` |
 
@@ -448,6 +456,7 @@ Para cada produto da tabela do catálogo inicial, fazer:
 | Campo | Valor |
 |-------|-------|
 | Nome | `Fone com Fio Sony MDR` |
+| SKU (Código interno) | `SONY-MDR-WHT` |
 | Código de Barras | `7892345678901` |
 | Categoria | `Fones de Ouvido` |
 | Preço de Custo | `28,00` |
@@ -457,8 +466,15 @@ Para cada produto da tabela do catálogo inicial, fazer:
 | Qtd Atual | `20` |
 | Qtd Mínima (alerta) | `5` |
 | Qtd Máxima | `40` |
+| Qtd Mín p/ Atacado | `10` |
+| Localização no estoque | `Prateleira A2` |
+| Pode ser usado como brinde | ✅ Ativo / Sim |
+| Rastrear número de série | ❌ Inativo / Não |
+| Visível no catálogo online | ✅ Ativo / Sim |
+| Produto em destaque | ❌ Inativo / Não |
 | Controle de Garantia | ✅ Ativo |
 | Prazo de Garantia (dias) | `30` |
+| Termos da garantia | `Garantia de 30 dias para defeitos de fabricação.` |
 | Fornecedor Vinculado | `TechBR Distribuidora` |
 
 - [ ] Salvar.
@@ -468,6 +484,7 @@ Para cada produto da tabela do catálogo inicial, fazer:
 | Campo | Valor |
 |-------|-------|
 | Nome | `Carregador Turbo 65W USB-C` |
+| SKU (Código interno) | `TURBO-65W-USB` |
 | Código de Barras | `7893456789012` |
 | Categoria | `Carregadores` |
 | Preço de Custo | `32,00` |
@@ -477,8 +494,15 @@ Para cada produto da tabela do catálogo inicial, fazer:
 | Qtd Atual | `25` |
 | Qtd Mínima (alerta) | `5` |
 | Qtd Máxima | `50` |
+| Qtd Mín p/ Atacado | `5` |
+| Localização no estoque | `Prateleira B1` |
+| Pode ser usado como brinde | ❌ Inativo / Não |
+| Rastrear número de série | ✅ Ativo / Sim |
+| Visível no catálogo online | ✅ Ativo / Sim |
+| Produto em destaque | ✅ Ativo / Sim |
 | Controle de Garantia | ✅ Ativo |
 | Prazo de Garantia (dias) | `90` |
+| Termos da garantia | `Garantia de 90 dias contra defeitos elétricos.` |
 | Fornecedor Vinculado | `TechBR Distribuidora` |
 
 - [ ] Salvar.
@@ -488,6 +512,7 @@ Para cada produto da tabela do catálogo inicial, fazer:
 | Campo | Valor |
 |-------|-------|
 | Nome | `Carregador Wireless 15W` |
+| SKU (Código interno) | `WIRELESS-15W-CHG` |
 | Código de Barras | `7894567890123` |
 | Categoria | `Carregadores` |
 | Preço de Custo | `40,00` |
@@ -495,8 +520,15 @@ Para cada produto da tabela do catálogo inicial, fazer:
 | Preço Atacado | `65,00` |
 | Qtd Atual | `10` |
 | Qtd Mínima (alerta) | `3` |
+| Qtd Mín p/ Atacado | `5` |
+| Localização no estoque | `Prateleira B2` |
+| Pode ser usado como brinde | ❌ Inativo / Não |
+| Rastrear número de série | ❌ Inativo / Não |
+| Visível no catálogo online | ✅ Ativo / Sim |
+| Produto em destaque | ❌ Inativo / Não |
 | Controle de Garantia | ✅ Ativo |
 | Prazo de Garantia (dias) | `90` |
+| Termos da garantia | `Garantia de 90 dias contra defeitos de fabricação.` |
 | Fornecedor Vinculado | `TechBR Distribuidora` |
 
 - [ ] Salvar.
@@ -506,6 +538,7 @@ Para cada produto da tabela do catálogo inicial, fazer:
 | Campo | Valor |
 |-------|-------|
 | Nome | `Cabo USB-C 1m Reforçado` |
+| SKU (Código interno) | `CABO-USBC-1M` |
 | Código de Barras | `7895678901234` |
 | Categoria | `Cabos` |
 | Preço de Custo | `8,00` |
@@ -513,12 +546,36 @@ Para cada produto da tabela do catálogo inicial, fazer:
 | Preço Atacado | `15,00` |
 | Qtd Atual | `50` |
 | Qtd Mínima (alerta) | `10` |
+| Qtd Mín p/ Atacado | `10` |
+| Localização no estoque | `Prateleira C1` |
+| Pode ser usado como brinde | ✅ Ativo / Sim |
+| Rastrear número de série | ❌ Inativo / Não |
+| Visível no catálogo online | ✅ Ativo / Sim |
+| Produto em destaque | ❌ Inativo / Não |
 | Controle de Garantia | ❌ |
 | Fornecedor Vinculado | `TechBR Distribuidora` |
 
 - [ ] Salvar.
 
-**Produtos 6 a 20:** Repetir o processo para cada produto da tabela do catálogo, utilizando os dados exatos da tabela **"PRODUTOS FICTÍCIOS"** acima.
+**Produtos 6 a 20:** Repetir o processo para cada produto da tabela do catálogo, utilizando os dados da tabela principal de produtos e preenchendo os campos adicionais conforme a tabela de referência abaixo:
+
+| # | Produto | SKU | Qtd Mín Atacado | Localização | Brinde? | Série? | Catálogo? | Destaque? | Garantia (Dias) | Termos da Garantia |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 6 | Cabo Lightning 2m | `CABO-LIGHT-2M` | 10 | Prateleira C2 | Sim | Não | Sim | Não | ❌ Inativo | — |
+| 7 | Capa Silicone iPhone 15 | `CAPA-IPH15-SIL` | 5 | Gaveta D1 | Não | Não | Sim | Não | ❌ Inativo | — |
+| 8 | Capa Anti-Impacto Samsung A55 | `CAPA-SAMA55-IMP` | 5 | Gaveta D2 | Não | Não | Sim | Não | ❌ Inativo | — |
+| 9 | Película Vidro 3D iPhone 15 | `PEL-IPH15-3D` | 15 | Gaveta E1 | Sim | Não | Sim | Não | ❌ Inativo | — |
+| 10 | Película Hydrogel Samsung | `PEL-SAM-HYDRO` | 20 | Gaveta E2 | Sim | Não | Sim | Não | ❌ Inativo | — |
+| 11 | Caixa de Som JBL Go 4 | `JBL-GO4-BLK` | 3 | Prateleira F1 | Não | Sim | Sim | Sim | 90 | Garantia de 90 dias contra defeitos de fabricação. |
+| 12 | Caixa de Som Portátil XS | `BOX-XS-PORT` | 3 | Prateleira F2 | Não | Sim | Sim | Não | 90 | Garantia de 90 dias. Não cobre avarias por contato com água. |
+| 13 | Suporte Veicular Magnético | `SUP-VEIC-MAG` | 5 | Prateleira G1 | Não | Não | Sim | Não | ❌ Inativo | — |
+| 14 | Carregador Veicular 2x USB | `CAR-VEIC-2X` | 5 | Prateleira B3 | Não | Não | Sim | Não | 30 | Garantia de 30 dias para defeitos de fabricação. |
+| 15 | Power Bank 10000mAh | `PWB-10K-AMP` | 4 | Prateleira B4 | Não | Sim | Sim | Sim | 90 | Garantia de 90 dias contra perda de capacidade de carga severa. |
+| 16 | Headset Gamer RGB | `HEADSET-GAM-RGB` | 3 | Prateleira A4 | Não | Sim | Sim | Sim | 90 | Garantia de 90 dias contra defeitos de fabricação. Não cobre danos ao microfone. |
+| 17 | Adaptador USB-C para P2 | `ADAP-USBC-P2` | 10 | Prateleira C3 | Sim | Não | Sim | Não | ❌ Inativo | — |
+| 18 | Hub USB 4 Portas | `HUB-USB-4P` | 5 | Prateleira C4 | Não | Não | Sim | Não | ❌ Inativo | — |
+| 19 | Mouse Bluetooth Recarregável | `MOUSE-BT-REC` | 4 | Prateleira H1 | Não | Sim | Sim | Não | 90 | Garantia de 90 dias contra defeitos no sensor ótico ou conectividade. |
+| 20 | Teclado Bluetooth Slim | `TECLADO-BT-SLM` | 3 | Prateleira H2 | Não | Sim | Sim | Não | 90 | Garantia de 90 dias. Cobre falhas físicas nas teclas ou bateria interna. |
 
 - [ ] **Verificar ao final:** 20 produtos aparecem na lista de produtos.
 - [ ] **Verificar:** Os produtos com estoque próximo do mínimo mostram alerta visual.
