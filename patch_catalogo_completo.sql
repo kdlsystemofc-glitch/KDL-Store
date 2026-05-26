@@ -1,7 +1,44 @@
 -- ═══════════════════════════════════════════════════════
--- SCRIPT DE MIGRAÇÃO COMPLETO: Personalização do Catálogo
+-- SCRIPT DE MIGRAÇÃO COMPLETO: Catálogo & Storage Bucket
 -- Execute em: Supabase > SQL Editor > Run
 -- ═══════════════════════════════════════════════════════
+
+-- ─────────────────────────────────────────────
+-- 1. CRIAÇÃO E CONFIGURAÇÃO DO BUCKET DE STORAGE
+-- ─────────────────────────────────────────────
+
+-- Garante que o bucket 'produtos' exista e seja público
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES ('produtos', 'produtos', true, 5242880, ARRAY['image/jpeg', 'image/png', 'image/webp'])
+ON CONFLICT (id) DO NOTHING;
+
+-- Habilita políticas de leitura pública para o bucket 'produtos'
+DROP POLICY IF EXISTS "Leitura Pública de Imagens" ON storage.objects;
+CREATE POLICY "Leitura Pública de Imagens"
+ON storage.objects FOR SELECT
+USING (bucket_id = 'produtos');
+
+-- Habilita políticas de upload para o bucket 'produtos'
+DROP POLICY IF EXISTS "Upload de Imagens" ON storage.objects;
+CREATE POLICY "Upload de Imagens"
+ON storage.objects FOR INSERT
+WITH CHECK (bucket_id = 'produtos');
+
+-- Habilita políticas de atualização/exclusão
+DROP POLICY IF EXISTS "Atualização de Imagens" ON storage.objects;
+CREATE POLICY "Atualização de Imagens"
+ON storage.objects FOR UPDATE
+USING (bucket_id = 'produtos');
+
+DROP POLICY IF EXISTS "Exclusão de Imagens" ON storage.objects;
+CREATE POLICY "Exclusão de Imagens"
+ON storage.objects FOR DELETE
+USING (bucket_id = 'produtos');
+
+
+-- ─────────────────────────────────────────────
+-- 2. ALTERAÇÕES DE TABELA DO BANCO DE DADOS
+-- ─────────────────────────────────────────────
 
 ALTER TABLE empresas
   ADD COLUMN IF NOT EXISTS catalogo_cor_primaria      TEXT DEFAULT '#6C63FF',
