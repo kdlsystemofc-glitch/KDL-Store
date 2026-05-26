@@ -52,35 +52,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Erro ao registrar convite no banco: ' + dbError.message }, { status: 500 })
     }
 
-    // 2. Tentar enviar e-mail via Supabase Auth e capturar o auth_user_id gerado
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-    const { data: inviteData, error: authError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
-      email.trim().toLowerCase(),
-      {
-        data: {
-          invite_token: token,      // trigger on_auth_user_created lê 'invite_token'
-          empresa_id: empresaId,
-          papel: dbPapel,
-          nome: nome?.trim() || null,
-        },
-        redirectTo: `${siteUrl}/convite?token=${token}`,
-      }
-    )
+    const emailSent = false
 
-    // Se o Supabase criou/encontrou o usuário, guarda o ID no convite.
-    // Isso permite que /api/convite/aceitar atualize a senha diretamente
-    // via Admin API sem depender de nenhuma função RPC auxiliar.
-    const authUserId = inviteData?.user?.id ?? null
-    if (authUserId) {
-      await supabaseAdmin
-        .from('convites')
-        .update({ auth_user_id: authUserId })
-        .eq('id', conviteData.id)
-    }
-
-    const emailSent = !authError
-
-    return NextResponse.json({ success: true, convite: { ...conviteData, auth_user_id: authUserId }, emailSent })
+    return NextResponse.json({ success: true, convite: conviteData, emailSent })
   } catch (err: any) {
     return NextResponse.json({ error: 'Erro interno do servidor: ' + err.message }, { status: 500 })
   }
@@ -112,27 +86,14 @@ export async function GET(request: Request) {
 
     const { data, error } = await supabaseAdmin
       .from('convites')
-      .select('email, nome, papel, auth_user_id, status')
+      .select('email, nome, papel')
       .eq('token', token)
-      .in('status', ['pendente', 'aceito'])
+      .eq('status', 'pendente')
       .gt('expira_em', new Date().toISOString())
       .single()
 
     if (error || !data) {
       return NextResponse.json({ error: 'Convite inválido ou expirado' }, { status: 404 })
-    }
-
-    // Se já foi aceito no banco e não tem auth_user_id associado, bloqueia
-    if (data.status === 'aceito' && !data.auth_user_id) {
-      return NextResponse.json({ error: 'Este convite já foi aceito' }, { status: 404 })
-    }
-
-    // Se tem auth_user_id, verifica no Supabase Auth se a senha já foi definida (convite finalizado)
-    if (data.auth_user_id) {
-      const { data: authUser, error: authErr } = await supabaseAdmin.auth.admin.getUserById(data.auth_user_id)
-      if (!authErr && authUser?.user?.user_metadata?.invite_accepted === true) {
-        return NextResponse.json({ error: 'Este convite já foi aceito' }, { status: 400 })
-      }
     }
 
     // Mapeia papel do banco para a UI
@@ -143,7 +104,7 @@ export async function GET(request: Request) {
     }
     const uiPapel = MAP_DB_TO_UI[data.papel] || data.papel
 
-    return NextResponse.json({ convite: { email: data.email, nome: data.nome, papel: uiPapel } })
+    return NextResponse.json({ convite: { ...data, papel: uiPapel } })
   } catch (err: any) {
     return NextResponse.json({ error: 'Erro interno: ' + err.message }, { status: 500 })
   }

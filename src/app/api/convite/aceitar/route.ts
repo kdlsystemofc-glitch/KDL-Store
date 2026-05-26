@@ -46,9 +46,9 @@ export async function POST(request: Request) {
     // ── 1. Valida o convite ──────────────────────────────────────────────────
     const { data: convite, error: conviteErr } = await admin
       .from('convites')
-      .select('id, email, nome, papel, empresa_id, auth_user_id, status')
+      .select('id, email, nome, papel, empresa_id, auth_user_id')
       .eq('token', token)
-      .in('status', ['pendente', 'aceito'])
+      .eq('status', 'pendente')
       .gt('expira_em', new Date().toISOString())
       .single()
 
@@ -56,13 +56,6 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: 'Convite inválido ou expirado' },
         { status: 404 }
-      )
-    }
-
-    if (convite.status === 'aceito' && !convite.auth_user_id) {
-      return NextResponse.json(
-        { error: 'Este convite já foi aceito' },
-        { status: 400 }
       )
     }
 
