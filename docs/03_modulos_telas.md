@@ -441,13 +441,23 @@ O layout de configurações (`configuracoes/layout.tsx`) exibe um menu horizonta
 
 ## 3.13 MÓDULO: Catálogo Online (`/catalogo`)
 
-**Objetivo**: Catálogo de produtos compartilhável via link/QR Code.
+**Objetivo**: Catálogo de produtos compartilhável via link/QR Code com suporte a identidade de marca e pedidos integrados.
 
 **Acesso**: Start + Pro
 
-### Funcionalidades
-- Lista produtos com `ativo_catalogo = true`
-- Produtos em destaque aparecem primeiro
-- Exibe `preco_catalogo` (pode ser diferente do varejo)
-- Link público sem autenticação
-- QR Code gerado para compartilhar
+### Recursos do Catálogo Público (`/loja/[slug]`)
+- **Três Templates Visuais Premium**:
+  - *Grid Moderno (`moderno`)*: Suave, com bordas arredondadas e efeito glassmorphic.
+  - *Minimalista Clean (`minimalista`)*: Visual contemporâneo preto e branco, cantos retos e bastante espaçamento.
+  - *Luxo Escuro (`luxo_escuro`)*: Tema escuro refinado com bordas brilhantes em degradê sob o mouse.
+- **Seletor de Fontes**: Carregamento dinâmico do Google Fonts para as tipografias *Inter*, *Poppins*, *Outfit* e *Playfair Display*.
+- **Logomarca/Banner**: Upload/Link de imagem para estampar a identidade visual no topo do catálogo.
+- **Carrinho de Compras Integrado**: O cliente pode selecionar múltiplos itens, quantidades, preencher nome e forma de envio e gerar um pedido formatado enviado pelo WhatsApp.
+- **Modal de Detalhes**: Pop-up interativo com zoom e descrição detalhada do produto.
+- **Busca e Filtro por Categoria**: Navegação instantânea e responsiva.
+
+### Painel Administrativo do Catálogo (`/catalogo`)
+- **Configuração de Identidade Visual**: Lojista escolhe cores primária/secundária, paletas prontas, templates de layout, fontes e links de imagem.
+- **Preview em Tempo Real**: Janela interativa reproduzindo fielmente o catálogo para experimentação instantânea de cores, layouts e fontes antes de salvar.
+- **Compartilhamento**: Geração de QR Code e links de cópia rápida ou compartilhamento direto via WhatsApp.
+- **Tabela de Visibilidade**: Ativação inline de visibilidade pública, destaques e tipo de tabela de preço (Varejo/Atacado/VIP/Ocultar) por produto.

@@ -51,6 +51,13 @@ auth.users (Supabase)
 | slug | TEXT | NULL | ❌ | URL única do catálogo |
 | plano | tipo_plano | 'start' | ✅ | 'start' ou 'pro' |
 | crm_prazo_inatividade_dias | INT | 60 | ✅ | Dias para cliente ser "sumido" |
+| catalogo_cor_primaria | TEXT | '#6C63FF' | ❌ | Cor primária da marca |
+| catalogo_cor_secundaria | TEXT | '#00BFA5' | ❌ | Cor de destaque da marca |
+| catalogo_descricao | TEXT | NULL | ❌ | Slogan ou descrição do catálogo |
+| catalogo_template | TEXT | 'moderno' | ❌ | 'moderno' \| 'minimalista' \| 'luxo_escuro' |
+| catalogo_fonte | TEXT | 'Inter' | ❌ | Família de fonte padrão |
+| catalogo_logo_url | TEXT | NULL | ❌ | Link da imagem da logomarca/banner |
+| catalogo_mostrar_carrinho | BOOLEAN | TRUE | ❌ | Exibição da chave do carrinho de compras |
 | criado_em | TIMESTAMPTZ | NOW() | ✅ | Data de criação |
 
 ### `profiles`
@@ -414,6 +421,7 @@ USING (empresa_id = minha_empresa_id() OR id = auth.uid())
 | 2026-05 | v1.3 | **Auditoria geral:** corrigidas discrepâncias frontend vs banco |
 | 2026-05 | v1.4 | Campo `endereco` adicionado a `fornecedores` |
 | 2026-05 | v1.5 | **Endereço estruturado** em `fornecedores` (cep, rua, numero, bairro, complemento); campo `fornecedor_id` adicionado a `produtos` |
+| 2026-05 | v1.6 | **Customização Premium do Catálogo:** adicionadas colunas de marca, templates, fontes e chave do carrinho de compras em `empresas` |
 
 ### Detalhamento v1.3 (Auditoria de Consistência)
 
@@ -464,5 +472,29 @@ ALTER TABLE fornecedores ADD COLUMN IF NOT EXISTS numero TEXT;
 ALTER TABLE fornecedores ADD COLUMN IF NOT EXISTS bairro TEXT;
 ALTER TABLE fornecedores ADD COLUMN IF NOT EXISTS complemento TEXT;
 ALTER TABLE produtos ADD COLUMN IF NOT EXISTS fornecedor_id UUID REFERENCES fornecedores(id) ON DELETE SET NULL;
+```
+
+### Detalhamento v1.6 (Personalização do Catálogo & Carrinho de Compras)
+
+> **Contexto:** O Catálogo Online público foi redesenhado para suportar templates, fontes do Google e carrinho de compras integrado com WhatsApp. Foi implementado no painel administrativo do catálogo a customização destas opções.
+
+| Tabela | Coluna adicionada | Tipo | Motivo |
+|---|---|---|---|
+| `empresas` | `catalogo_template` | TEXT DEFAULT 'moderno' | Identificação do template visual ('moderno', 'minimalista', 'luxo_escuro') |
+| `empresas` | `catalogo_fonte` | TEXT DEFAULT 'Inter' | Família de fonte padrão do Google Fonts |
+| `empresas` | `catalogo_logo_url` | TEXT NULL | Logomarca e banner de cobertura da loja |
+| `empresas` | `catalogo_mostrar_carrinho` | BOOLEAN DEFAULT TRUE | Exibição da chave do carrinho de compras integrado |
+
+**Script de migração (`patch_catalogo_v3.sql`):**
+```sql
+ALTER TABLE empresas
+  ADD COLUMN IF NOT EXISTS catalogo_template          TEXT DEFAULT 'moderno',
+  ADD COLUMN IF NOT EXISTS catalogo_fonte             TEXT DEFAULT 'Inter',
+  ADD COLUMN IF NOT EXISTS catalogo_logo_url          TEXT,
+  ADD COLUMN IF NOT EXISTS catalogo_mostrar_carrinho  BOOLEAN DEFAULT TRUE;
+
+UPDATE empresas SET catalogo_template = 'moderno' WHERE catalogo_template IS NULL;
+UPDATE empresas SET catalogo_fonte = 'Inter' WHERE catalogo_fonte IS NULL;
+UPDATE empresas SET catalogo_mostrar_carrinho = TRUE WHERE catalogo_mostrar_carrinho IS NULL;
 ```
 

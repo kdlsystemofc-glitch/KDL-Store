@@ -318,6 +318,14 @@ rewrites: [
 
 ## 5.13 Changelog Vivo
 
+### v1.6.0 — 2026-05-26
+- ✅ **Renovação Visual do Catálogo**: Lançamento de 3 templates de design premium (*Grid Moderno*, *Minimalista Clean*, *Luxo Escuro*).
+- ✅ **Google Fonts Dinâmico**: Tipografias carregadas sob demanda do Google Fonts (*Inter*, *Poppins*, *Outfit*, *Playfair Display*).
+- ✅ **Carrinho de Compras e WhatsApp Checkout**: Adicionado sistema completo de carrinho de compras flutuante com gaveta lateral, permitindo que os clientes finais finalizem pedidos estruturados de forma consolidada via API do WhatsApp.
+- ✅ **Modal de Detalhes**: Pop-up interativo com zoom e descrição detalhada de produtos.
+- ✅ **Preview Administrativo em Tempo Real**: Novo container interativo no painel de customização `/catalogo` que reproduz fielmente as opções do catálogo do cliente em tempo real ao alterar cores, layouts e fontes.
+- ✅ **Migration SQL**: Script `patch_catalogo_v3.sql` gerado para fácil aplicação no editor do Supabase.
+
 ### v1.0.0 — 2026-05-15
 - ✅ Sistema completo funcional em produção (Vercel)
 - ✅ Sidebar filtrada por plano (Start não vê módulos Pro)
@@ -346,7 +354,7 @@ rewrites: [
 - Garantias automáticas
 - CRM Sumidos com WhatsApp
 - Comissões com ranking
-- Catálogo online
+- Catálogo online com Carrinho Integrado (v1.6.0)
 - Ordens de Serviço
 - Convite de usuários
 - Segregação Start/Pro no sidebar e conteúdo
