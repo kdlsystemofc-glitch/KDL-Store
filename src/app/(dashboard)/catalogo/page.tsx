@@ -66,6 +66,8 @@ export default function CatalogoPage() {
   const [loading, setLoading] = useState(true)
   const [salvando, setSalvando] = useState<string | null>(null)
   const [salvandoCores, setSalvandoCores] = useState(false)
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [logoPreview, setLogoPreview] = useState<string | null>(null)
 
   useEffect(() => { if (empresaId) carregar(empresaId) }, [empresaId])
 
@@ -95,6 +97,9 @@ export default function CatalogoPage() {
         catalogo_logo_url: emp.catalogo_logo_url,
         catalogo_mostrar_carrinho: emp.catalogo_mostrar_carrinho !== false
       })
+      if (emp.catalogo_logo_url) {
+        setLogoPreview(emp.catalogo_logo_url)
+      }
     }
     setLoading(false)
   }
@@ -102,17 +107,40 @@ export default function CatalogoPage() {
   async function salvarPersonalizacao() {
     if (!empresaId) return
     setSalvandoCores(true)
+
+    let logoUrl = empresa.catalogo_logo_url
+    if (logoFile) {
+      if (logoFile.size > 2 * 1024 * 1024) {
+        toast.error('O logotipo não pode ter mais de 2MB.')
+        setSalvandoCores(false)
+        return
+      }
+      const ext = logoFile.name.split('.').pop()
+      const path = `${empresaId}/logo-${Date.now()}-${Math.random().toString(36).substring(2)}.${ext}`
+      const supabase = createClient()
+      const { error: upErr } = await supabase.storage.from('produtos').upload(path, logoFile, { upsert: true })
+      if (upErr) {
+        toast.error('Erro no upload da imagem: ' + upErr.message)
+        setSalvandoCores(false)
+        return
+      }
+      const { data: urlData } = supabase.storage.from('produtos').getPublicUrl(path)
+      logoUrl = urlData.publicUrl
+      setEmpresa(prev => ({ ...prev, catalogo_logo_url: logoUrl }))
+    }
+
     const { error } = await createClient().from('empresas').update({
       catalogo_cor_primaria: empresa.catalogo_cor_primaria || '#6C63FF',
       catalogo_cor_secundaria: empresa.catalogo_cor_secundaria || '#00BFA5',
       catalogo_descricao: empresa.catalogo_descricao || null,
       catalogo_template: empresa.catalogo_template || 'moderno',
       catalogo_fonte: empresa.catalogo_fonte || 'Inter',
-      catalogo_logo_url: empresa.catalogo_logo_url || null,
+      catalogo_logo_url: logoUrl || null,
       catalogo_mostrar_carrinho: empresa.catalogo_mostrar_carrinho !== false,
     }).eq('id', empresaId)
     setSalvandoCores(false)
     if (error) { toast.error('Erro ao salvar: ' + error.message); return }
+    setLogoFile(null)
     toast.success('Aparência do catálogo atualizada!')
   }
 
@@ -441,17 +469,52 @@ export default function CatalogoPage() {
         {/* 3. Logomarca e Banner */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem', marginBottom: '1.5rem' }}>
           <div>
-            <label className="campo-label" style={{ marginBottom: '0.375rem', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-              <ImageIcon size={15} /> Link da Logomarca (URL da Imagem)
+            <label className="campo-label" style={{ marginBottom: '0.625rem', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+              <ImageIcon size={15} /> 3. Logomarca da Loja (Upload)
             </label>
-            <input className="campo" style={{ width: '100%' }}
-              value={empresa.catalogo_logo_url || ''}
-              onChange={e => setEmpresa(em => ({ ...em, catalogo_logo_url: e.target.value }))}
-              placeholder="Ex: https://imgur.com/meulogo.png"
-            />
-            <p style={{ fontSize: '0.7rem', color: 'var(--texto-desab)', marginTop: '0.25rem' }}>
-              Insira uma URL pública da logomarca da sua empresa (de preferência quadrada).
-            </p>
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+              <div style={{
+                width: '72px', height: '72px', borderRadius: '12px', border: '1px dashed var(--borda-forte)',
+                display: 'flex', alignItems: 'center', justifySelf: 'center', justifyContent: 'center',
+                overflow: 'hidden', background: 'var(--surface-alt)', position: 'relative'
+              }}>
+                {logoPreview ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={logoPreview} alt="Logo Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <span style={{ fontSize: '1.5rem', opacity: 0.3 }}>🏪</span>
+                )}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <label className="btn btn-secondary" style={{ cursor: 'pointer', padding: '0.4rem 0.75rem', fontSize: '0.75rem' }}>
+                    Escolher Imagem
+                    <input type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} onChange={e => {
+                      const f = e.target.files?.[0]
+                      if (!f) return
+                      if (f.size > 2 * 1024 * 1024) { toast.error('A imagem do logotipo deve ter no máximo 2MB.'); return }
+                      setLogoFile(f)
+                      const reader = new FileReader()
+                      reader.onload = ev => {
+                        const res = ev.target?.result as string
+                        setLogoPreview(res)
+                        setEmpresa(prev => ({ ...prev, catalogo_logo_url: res }))
+                      }
+                      reader.readAsDataURL(f)
+                    }} />
+                  </label>
+                  {logoPreview && (
+                    <button type="button" className="btn btn-ghost" style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem', color: 'var(--vermelho)' }}
+                      onClick={() => { setLogoFile(null); setLogoPreview(null); setEmpresa(prev => ({ ...prev, catalogo_logo_url: null })) }}>
+                      Remover
+                    </button>
+                  )}
+                </div>
+                <p style={{ fontSize: '0.7rem', color: 'var(--texto-desab)' }}>
+                  Formatos: JPG, PNG, WEBP. Máx 2MB. Aparecerá no cabeçalho do seu catálogo.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 
