@@ -220,6 +220,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
   const [headerInfo, setHeaderInfo] = useState({ inicial: 'U', nomeLoja: 'Carregando...', plano: 'start', papel: '' })
+  const [precisaTrocarSenha, setPrecisaTrocarSenha] = useState(false)
+  const [novaSenha, setNovaSenha] = useState('')
+  const [confirmarSenha, setConfirmarSenha] = useState('')
+  const [atualizandoSenha, setAtualizandoSenha] = useState(false)
+  const [erroSenha, setErroSenha] = useState('')
   const router = useRouter()
 
   useEffect(() => { setIsMounted(true) }, [])
@@ -231,6 +236,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return
       userId = user.id
+
+      if (user.user_metadata?.forcar_troca_senha === true) {
+        setPrecisaTrocarSenha(true)
+      }
 
       const { data: profile } = await supabase.from('profiles').select('nome, empresa_id, papel').eq('id', userId).single()
       if (profile?.empresa_id) {
@@ -283,6 +292,89 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--fundo)' }}>
+      {/* Modal de Troca de Senha Obrigatória no Primeiro Acesso */}
+      {precisaTrocarSenha && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1000,
+          background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '1rem'
+        }}>
+          <div className="card anim-pop" style={{ width: '100%', maxWidth: '380px', padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div style={{ textAlign: 'center' }}>
+              <span style={{ fontSize: '2rem', display: 'block', marginBottom: '0.5rem' }}>🔑</span>
+              <h2 style={{ fontSize: '1.2rem', fontWeight: 900, color: 'var(--verde)' }}>Primeiro Acesso</h2>
+              <p style={{ fontSize: '0.8rem', color: 'var(--texto-desab)', marginTop: '4px', lineHeight: '1.4' }}>
+                Para sua segurança, defina uma nova senha de acesso pessoal antes de continuar.
+              </p>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+              <div>
+                <label className="campo-label" style={{ fontSize: '0.78rem' }}>Nova Senha</label>
+                <input
+                  className="campo"
+                  type="password"
+                  value={novaSenha}
+                  onChange={e => setNovaSenha(e.target.value)}
+                  placeholder="Mínimo 6 caracteres"
+                  style={{ marginTop: '0.25rem', width: '100%' }}
+                />
+              </div>
+              
+              <div>
+                <label className="campo-label" style={{ fontSize: '0.78rem' }}>Confirmar Nova Senha</label>
+                <input
+                  className="campo"
+                  type="password"
+                  value={confirmarSenha}
+                  onChange={e => setConfirmarSenha(e.target.value)}
+                  placeholder="Repita a nova senha"
+                  style={{ marginTop: '0.25rem', width: '100%' }}
+                />
+              </div>
+              
+              {erroSenha && <div className="alerta alerta-perigo" style={{ fontSize: '0.78rem', padding: '0.5rem' }}>{erroSenha}</div>}
+              
+              <button
+                onClick={async () => {
+                  setErroSenha('')
+                  if (novaSenha.length < 6) {
+                    setErroSenha('A senha deve ter pelo menos 6 caracteres.')
+                    return
+                  }
+                  if (novaSenha !== confirmarSenha) {
+                    setErroSenha('As senhas não coincidem.')
+                    return
+                  }
+                  setAtualizandoSenha(true)
+                  try {
+                    const supabase = createClient()
+                    const { error } = await supabase.auth.updateUser({
+                      password: novaSenha,
+                      data: { forcar_troca_senha: false }
+                    })
+                    if (error) {
+                      setErroSenha('Erro ao atualizar: ' + error.message)
+                    } else {
+                      setPrecisaTrocarSenha(false)
+                    }
+                  } catch (err: any) {
+                    setErroSenha('Erro de conexão: ' + err.message)
+                  } finally {
+                    setAtualizandoSenha(false)
+                  }
+                }}
+                disabled={atualizandoSenha}
+                className="btn btn-primary"
+                style={{ width: '100%', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', fontWeight: 700 }}
+              >
+                {atualizandoSenha ? 'Salvando...' : 'Salvar Senha e Acessar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <Sidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}

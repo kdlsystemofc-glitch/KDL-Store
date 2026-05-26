@@ -3,12 +3,11 @@ import { toast } from 'react-hot-toast'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Save, Loader2, Copy, Check, Trash2, SnowflakeIcon, UserPlus, X } from 'lucide-react'
+import { ArrowLeft, Save, Loader2, Trash2, SnowflakeIcon, UserPlus, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
 
 type Usuario = { id:string; nome:string; papel:string; status:string; criado_em:string }
-type Convite  = { id:string; email:string; nome:string|null; papel:string; status:string; token:string; expira_em:string }
 
 const PAPEL_LABEL: Record<string,string> = { admin:'👑 Admin', vendedor:'🛒 Vendedor', estoquista:'📦 Estoquista' }
 const PAPEL_CLS:  Record<string,string>  = { admin:'status-alerta', vendedor:'status-ok', estoquista:'status-aviso' }
@@ -16,16 +15,15 @@ const PAPEL_CLS:  Record<string,string>  = { admin:'status-alerta', vendedor:'st
 export default function UsuariosPage() {
   const { empresaId } = useEmpresaId()
   const [usuarios,  setUsuarios]  = useState<Usuario[]>([])
-  const [convites,  setConvites]  = useState<Convite[]>([])
   const [loading,   setLoading]   = useState(true)
   const [meuId,     setMeuId]     = useState<string|null>(null)
   const [modal,     setModal]     = useState(false)
   const [salvando,  setSalvando]  = useState<string|null>(null)
-  const [copiado,   setCopiado]   = useState<string|null>(null)
 
-  // Campos do convite
+  // Campos de cadastro de usuário
   const [cNome,  setCNome]  = useState('')
   const [cEmail, setCEmail] = useState('')
+  const [cSenha, setCSenha] = useState('')
   const [cPapel, setCPapel] = useState<'vendedor'|'estoquista'|'admin'>('vendedor')
   const [criando,setCriando]= useState(false)
 
@@ -36,13 +34,11 @@ export default function UsuariosPage() {
     const supabase = createClient()
     const results = await Promise.allSettled([
       supabase.from('profiles').select('id,nome,papel,status,criado_em').eq('empresa_id', eid).order('criado_em'),
-      supabase.auth.getUser(),
-      supabase.from('convites').select('id,email,nome,papel,status,token,expira_em').eq('empresa_id', eid).order('criado_em', { ascending: false }),
+      supabase.auth.getUser()
     ])
     const getRes = (i: number): any => results[i].status === 'fulfilled' ? (results[i] as PromiseFulfilledResult<any>).value || {} : {}
     const { data: users }   = getRes(0)
     const { data: userObj } = getRes(1)
-    const { data: convs }   = getRes(2)
     const user = userObj?.user
     setMeuId(user?.id || null)
 
@@ -59,29 +55,25 @@ export default function UsuariosPage() {
       papel: MAP_DB_TO_UI[u.papel] || u.papel
     }))
 
-    const mappedConvs = (convs || [])
-      .filter((c: any) => c.status === 'pendente')
-      .map((c: any) => ({
-        ...c,
-        papel: MAP_DB_TO_UI[c.papel] || c.papel
-      }))
-
     setUsuarios(mappedUsers)
-    setConvites(mappedConvs)
     setLoading(false)
   }
 
-  async function criarConvite() {
-    if (!cEmail.trim() || !empresaId) return
+  async function criarUsuario() {
+    if (!cNome.trim()) { toast.error('Informe o nome completo.'); return }
+    if (!cEmail.trim()) { toast.error('Informe o e-mail.'); return }
+    if (cSenha.length < 6) { toast.error('A senha deve ter pelo menos 6 caracteres.'); return }
+    if (!empresaId) return
     setCriando(true)
     
     try {
-      const res = await fetch('/api/convite', {
+      const res = await fetch('/api/usuario/criar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: cEmail.trim(),
           nome: cNome.trim(),
+          senha: cSenha,
           papel: cPapel,
           empresaId
         })
@@ -91,31 +83,20 @@ export default function UsuariosPage() {
       setCriando(false)
       
       if (!res.ok) {
-        toast.error(json.error || 'Erro ao enviar convite')
+        toast.error(json.error || 'Erro ao cadastrar usuário')
         return
       }
 
-      // Mapeia papel do banco para a UI antes de adicionar ao estado
-      const MAP_DB_TO_UI: Record<string, string> = {
-        admin: 'admin', operador: 'vendedor', visualizador: 'estoquista',
-        vendedor: 'vendedor', estoquista: 'estoquista',
-      }
-      const conviteMapeado = {
-        ...json.convite,
-        papel: MAP_DB_TO_UI[json.convite.papel] || json.convite.papel,
-      }
-
-      setConvites(prev => [conviteMapeado, ...prev])
-      setModal(false); setCNome(''); setCEmail(''); setCPapel('vendedor')
-
-      if (json.emailSent === false) {
-        toast.success('Convite gerado! E-mail não enviado (usuário já cadastrado). Copie o link manualmente.')
-      } else {
-        toast.success('Convite gerado e e-mail enviado com sucesso!')
-      }
+      toast.success('Usuário cadastrado com sucesso!')
+      setModal(false)
+      setCNome('')
+      setCEmail('')
+      setCSenha('')
+      setCPapel('vendedor')
+      carregar(empresaId)
     } catch (err: any) {
       setCriando(false)
-      toast.error('Erro de conexão ao convidar: ' + err.message)
+      toast.error('Erro de conexão ao cadastrar: ' + err.message)
     }
   }
 
@@ -157,18 +138,6 @@ export default function UsuariosPage() {
     setSalvando(null)
   }
 
-  async function cancelarConvite(cid: string) {
-    await createClient().from('convites').update({ status: 'cancelado' }).eq('id', cid)
-    setConvites(prev => prev.filter(c => c.id !== cid))
-  }
-
-  function copiarLink(token: string) {
-    const url = `${window.location.origin}/convite?token=${token}`
-    navigator.clipboard.writeText(url)
-    setCopiado(token)
-    setTimeout(() => setCopiado(null), 2500)
-  }
-
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
 
   return (
@@ -185,12 +154,16 @@ export default function UsuariosPage() {
             </div>
             <div style={{ display:'flex', flexDirection:'column', gap:'0.75rem' }}>
               <div>
-                <label className="campo-label">Nome (opcional)</label>
+                <label className="campo-label">Nome Completo <span style={{ color:'var(--vermelho)' }}>*</span></label>
                 <input className="campo" style={{ marginTop:'0.375rem' }} value={cNome} onChange={e=>setCNome(e.target.value)} placeholder="Ex: João da Silva"/>
               </div>
               <div>
                 <label className="campo-label">E-mail <span style={{ color:'var(--vermelho)' }}>*</span></label>
                 <input className="campo" type="email" style={{ marginTop:'0.375rem' }} value={cEmail} onChange={e=>setCEmail(e.target.value)} placeholder="joao@exemplo.com"/>
+              </div>
+              <div>
+                <label className="campo-label">Senha Temporária <span style={{ color:'var(--vermelho)' }}>*</span></label>
+                <input className="campo" type="password" style={{ marginTop:'0.375rem' }} value={cSenha} onChange={e=>setCSenha(e.target.value)} placeholder="Mínimo 6 caracteres"/>
               </div>
               <div>
                 <label className="campo-label">Papel no sistema</label>
@@ -211,10 +184,10 @@ export default function UsuariosPage() {
             </div>
             <div style={{ display:'flex', gap:'0.5rem', marginTop:'1.25rem', justifyContent:'flex-end' }}>
               <button onClick={() => setModal(false)} className="btn btn-ghost">Cancelar</button>
-              <button onClick={criarConvite} disabled={!cEmail.trim() || criando} className="btn btn-primary"
+              <button onClick={criarUsuario} disabled={!cEmail.trim() || !cNome.trim() || cSenha.length < 6 || criando} className="btn btn-primary"
                 style={{ display:'flex', alignItems:'center', gap:'0.375rem' }}>
                 {criando ? <Loader2 size={14} style={{ animation:'spin 1s linear infinite' }}/> : <UserPlus size={14}/>}
-                Gerar Link de Acesso
+                🔓 Cadastrar e Ativar
               </button>
             </div>
           </div>
@@ -228,41 +201,9 @@ export default function UsuariosPage() {
         </div>
         <button className="btn btn-primary" onClick={() => setModal(true)}
           style={{ display:'flex', alignItems:'center', gap:'0.375rem' }}>
-          <UserPlus size={14}/> Convidar Usuário
+          <UserPlus size={14}/> Novo Colaborador
         </button>
       </div>
-
-      {/* Convites pendentes */}
-      {convites.length > 0 && (
-        <div className="card" style={{ padding:'0', overflow:'hidden' }}>
-          <div className="sec-header"><span>📨 Convites Pendentes ({convites.length})</span></div>
-          <div style={{ padding:'0.875rem', display:'flex', flexDirection:'column', gap:'0.625rem' }}>
-            {convites.map(c => (
-              <div key={c.id} style={{ display:'flex', alignItems:'center', gap:'0.75rem', padding:'0.625rem', background:'var(--surface-alt)', borderRadius:'var(--radius-sm)', border:'1px solid var(--borda-leve)' }}>
-                <div style={{ flex:1, minWidth:0 }}>
-                  <p style={{ fontWeight:700, fontSize:'0.875rem' }}>{c.email}</p>
-                  <p style={{ fontSize:'0.72rem', color:'var(--texto-desab)', marginTop:'1px' }}>
-                    {PAPEL_LABEL[c.papel]} · Expira em {new Date(c.expira_em).toLocaleDateString('pt-BR')}
-                  </p>
-                </div>
-                <div style={{ display:'flex', gap:'0.375rem', flexShrink:0 }}>
-                  <button onClick={() => copiarLink(c.token)} className="btn btn-secondary"
-                    style={{ fontSize:'0.72rem', padding:'0.25rem 0.625rem', display:'flex', alignItems:'center', gap:'0.25rem' }}>
-                    {copiado===c.token ? <><Check size={12}/> Copiado!</> : <><Copy size={12}/> Copiar link</>}
-                  </button>
-                  <button onClick={() => cancelarConvite(c.id)} className="btn btn-secondary"
-                    style={{ fontSize:'0.72rem', padding:'0.25rem 0.5rem', color:'var(--vermelho)' }}>
-                    <X size={12}/>
-                  </button>
-                </div>
-              </div>
-            ))}
-            <p style={{ fontSize:'0.75rem', color:'var(--texto-desab)' }}>
-              💡 Copie o link e envie para o usuário via WhatsApp ou e-mail. O acesso é liberado após o primeiro login.
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* Lista de usuários */}
       {loading ? (
