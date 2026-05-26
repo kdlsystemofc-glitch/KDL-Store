@@ -115,17 +115,18 @@ export default function CatalogoPage() {
         setSalvandoCores(false)
         return
       }
-      const ext = logoFile.name.split('.').pop()
-      const path = `${empresaId}/logo-${Date.now()}-${Math.random().toString(36).substring(2)}.${ext}`
-      const supabase = createClient()
-      const { error: upErr } = await supabase.storage.from('produtos').upload(path, logoFile, { upsert: true })
-      if (upErr) {
-        toast.error('Erro no upload da imagem: ' + upErr.message)
+      // Upload via server-side API route (uses service role — bypasses RLS and auto-creates bucket)
+      const fd = new FormData()
+      fd.append('file', logoFile)
+      fd.append('empresaId', empresaId)
+      const res = await fetch('/api/upload-logo', { method: 'POST', body: fd })
+      const json = await res.json()
+      if (!res.ok) {
+        toast.error('Erro no upload da imagem: ' + (json.error ?? res.statusText))
         setSalvandoCores(false)
         return
       }
-      const { data: urlData } = supabase.storage.from('produtos').getPublicUrl(path)
-      logoUrl = urlData.publicUrl
+      logoUrl = json.url as string
       setEmpresa(prev => ({ ...prev, catalogo_logo_url: logoUrl }))
     }
 
