@@ -4,9 +4,15 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // ── 1. Rotas 100% públicas (sem auth) ──
-  const publicRoutes = ['/', '/login', '/cadastro', '/redefinir-senha', '/garantia', '/landing', '/landing.html']
+  const publicRoutes = ['/', '/login', '/cadastro', '/redefinir-senha', '/garantia', '/landing', '/landing.html', '/convite']
   const isPublic = publicRoutes.some(r => pathname === r || (r !== '/' && r !== '/landing.html' && pathname.startsWith(r)))
   if (isPublic) return NextResponse.next()
+
+  // ── Exceções públicas específicas para APIs de convite ──
+  const isPublicInviteApi =
+    (pathname === '/api/convite' && request.method === 'GET') ||
+    (pathname === '/api/convite/aceitar' && request.method === 'POST')
+  if (isPublicInviteApi) return NextResponse.next()
 
   // ── 2. Se Supabase não configurado → dev mode, tudo passa ──
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
