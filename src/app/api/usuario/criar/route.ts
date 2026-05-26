@@ -1,5 +1,15 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/server'
+
+// Validação de senha forte
+function validarSenhaForte(senha: string): string | null {
+  if (senha.length < 8) return 'A senha deve ter pelo menos 8 caracteres.'
+  if (!/[A-Z]/.test(senha)) return 'A senha deve conter pelo menos uma letra maiúscula.'
+  if (!/[0-9]/.test(senha)) return 'A senha deve conter pelo menos um número.'
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(senha)) return 'A senha deve conter pelo menos um caractere especial.'
+  return null
+}
 
 export async function POST(request: Request) {
   try {
@@ -9,23 +19,41 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Nome, e-mail, senha e empresaId são obrigatórios' }, { status: 400 })
     }
 
-    if (senha.length < 6) {
-      return NextResponse.json({ error: 'A senha deve ter pelo menos 6 caracteres' }, { status: 400 })
+    // Validar senha forte
+    const erroSenha = validarSenhaForte(senha)
+    if (erroSenha) {
+      return NextResponse.json({ error: erroSenha }, { status: 400 })
+    }
+
+    // Verificar se quem está chamando é admin da empresa
+    const supabase = await createClient()
+    const { data: { user: caller } } = await supabase.auth.getUser()
+    if (!caller) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
     }
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
     if (!supabaseUrl || !supabaseServiceKey) {
-      return NextResponse.json({ error: 'Configuração SUPABASE_SERVICE_ROLE_KEY ausente no servidor' }, { status: 500 })
+      return NextResponse.json({ error: 'Configuração do servidor ausente' }, { status: 500 })
     }
 
-    // Cliente admin para ignorar RLS e usar a auth.admin API
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+    const supabaseAdmin = createAdminClient(supabaseUrl, supabaseServiceKey, {
       auth: { autoRefreshToken: false, persistSession: false }
     })
 
-    // 1. Obter o plano ativo da empresa
+    // Verificar se o chamador é admin da empresa
+    const { data: callerProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('papel, empresa_id')
+      .eq('id', caller.id)
+      .single()
+
+    if (!callerProfile || callerProfile.empresa_id !== empresaId || callerProfile.papel !== 'admin') {
+      return NextResponse.json({ error: 'Apenas administradores podem criar usuários.' }, { status: 403 })
+    }
+
+    // Verificar limite do plano
     const { data: sub } = await supabaseAdmin
       .from('subscriptions')
       .select('plano')
@@ -34,7 +62,6 @@ export async function POST(request: Request) {
 
     const plano = sub?.plano || 'start'
 
-    // 2. Contar usuários ativos associados à empresa no profiles
     const { count, error: countError } = await supabaseAdmin
       .from('profiles')
       .select('id', { count: 'exact', head: true })
@@ -50,73 +77,63 @@ export async function POST(request: Request) {
 
     if (currentUsers >= limit) {
       return NextResponse.json({
-        error: `O seu plano atual (${plano === 'pro' ? 'Pro' : 'Start'}) permite no máximo ${limit} usuário(s). Faça o upgrade do plano para adicionar mais colaboradores.`
+        error: `Seu plano ${plano === 'pro' ? 'Pro' : 'Start'} permite no máximo ${limit} usuário(s) além do administrador. Faça upgrade para adicionar mais colaboradores.`
       }, { status: 403 })
     }
 
-    // Mapeia papel da UI para o banco de dados
-    const MAP_PAPEL_TO_DB: Record<string, string> = {
+    // Mapear papel
+    const MAP_PAPEL: Record<string, string> = {
       admin: 'admin',
       vendedor: 'operador',
       estoquista: 'visualizador',
       operador: 'operador',
       visualizador: 'visualizador',
     }
-    const dbPapel = MAP_PAPEL_TO_DB[papel] || 'operador'
+    const dbPapel = MAP_PAPEL[papel] || 'operador'
 
-    // Gera token único para que o trigger associe corretamente o profile
-    const token = [...Array(64)].map(() => Math.floor(Math.random() * 16).toString(16)).join('')
-
-    // 3. Inserir convite temporário no banco de dados (pendente)
-    const { error: dbError } = await supabaseAdmin
-      .from('convites')
-      .insert({
-        empresa_id: empresaId,
-        email: email.trim().toLowerCase(),
-        nome: nome.trim(),
-        papel: dbPapel,
-        token: token,
-        status: 'pendente',
-      })
-
-    if (dbError) {
-      return NextResponse.json({ error: 'Erro ao registrar usuário no banco: ' + dbError.message }, { status: 500 })
-    }
-
-    // 4. Criar o usuário diretamente no Supabase Auth com senha temporária
-    const { data: inviteData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+    // Criar usuário diretamente no Supabase Auth
+    const { data: newUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: email.trim().toLowerCase(),
       password: senha,
-      email_confirm: true, // E-mail já confirmado
+      email_confirm: true,
       user_metadata: {
-        invite_token: token,
         nome: nome.trim(),
-        forcar_troca_senha: true, // Força a redefinição de senha no primeiro login
+        forcar_troca_senha: true,
       }
     })
 
     if (authError) {
-      // Remove o convite temporário criado
-      await supabaseAdmin.from('convites').delete().eq('token', token)
-
       const msg = authError.message.toLowerCase()
       if (msg.includes('already') || msg.includes('exists')) {
         return NextResponse.json({ error: 'Este e-mail já está cadastrado no sistema.' }, { status: 400 })
       }
-      return NextResponse.json({ error: 'Erro ao criar conta de usuário: ' + authError.message }, { status: 500 })
+      return NextResponse.json({ error: 'Erro ao criar conta: ' + authError.message }, { status: 500 })
     }
 
-    // Atualiza o convite com o ID do usuário criado
-    const authUserId = inviteData?.user?.id ?? null
-    if (authUserId) {
-      await supabaseAdmin
-        .from('convites')
-        .update({ auth_user_id: authUserId })
-        .eq('token', token)
+    const authUserId = newUser?.user?.id
+    if (!authUserId) {
+      return NextResponse.json({ error: 'Erro inesperado ao obter ID do usuário criado.' }, { status: 500 })
     }
 
-    return NextResponse.json({ success: true, user: inviteData.user })
-  } catch (err: any) {
-    return NextResponse.json({ error: 'Erro interno do servidor: ' + err.message }, { status: 500 })
+    // Upsert no profile associando à empresa
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .upsert({
+        id: authUserId,
+        empresa_id: empresaId,
+        nome: nome.trim(),
+        papel: dbPapel,
+        status: 'ativo',
+      }, { onConflict: 'id' })
+
+    if (profileError) {
+      // Tentar reverter: deletar o user do auth
+      await supabaseAdmin.auth.admin.deleteUser(authUserId)
+      return NextResponse.json({ error: 'Erro ao criar perfil do usuário: ' + profileError.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (err: unknown) {
+    return NextResponse.json({ error: 'Erro interno: ' + (err instanceof Error ? err.message : String(err)) }, { status: 500 })
   }
 }

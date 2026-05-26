@@ -216,13 +216,24 @@ function Sidebar({
   )
 }
 
+function avaliarSenhaForte(s: string) {
+  return {
+    min8: s.length >= 8,
+    maiuscula: /[A-Z]/.test(s),
+    numero: /[0-9]/.test(s),
+    especial: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(s),
+  }
+}
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
   const [headerInfo, setHeaderInfo] = useState({ inicial: 'U', nomeLoja: 'Carregando...', plano: 'start', papel: '' })
   const [precisaTrocarSenha, setPrecisaTrocarSenha] = useState(false)
   const [novaSenha, setNovaSenha] = useState('')
+  const [verNovaSenha, setVerNovaSenha] = useState(false)
   const [confirmarSenha, setConfirmarSenha] = useState('')
+  const [verConfirmarSenha, setVerConfirmarSenha] = useState(false)
   const [atualizandoSenha, setAtualizandoSenha] = useState(false)
   const [erroSenha, setErroSenha] = useState('')
   const router = useRouter()
@@ -300,53 +311,95 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           padding: '1rem'
         }}>
-          <div className="card anim-pop" style={{ width: '100%', maxWidth: '380px', padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div className="card anim-pop" style={{ width: '100%', maxWidth: '420px', padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ textAlign: 'center' }}>
-              <span style={{ fontSize: '2rem', display: 'block', marginBottom: '0.5rem' }}>🔑</span>
-              <h2 style={{ fontSize: '1.2rem', fontWeight: 900, color: 'var(--verde)' }}>Primeiro Acesso</h2>
-              <p style={{ fontSize: '0.8rem', color: 'var(--texto-desab)', marginTop: '4px', lineHeight: '1.4' }}>
-                Para sua segurança, defina uma nova senha de acesso pessoal antes de continuar.
+              <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: '0.5rem' }}>🔑</span>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--verde)' }}>Primeiro Acesso</h2>
+              <p style={{ fontSize: '0.8rem', color: 'var(--texto-desab)', marginTop: '6px', lineHeight: '1.5' }}>
+                Por segurança, crie uma senha pessoal forte antes de continuar.
               </p>
             </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {/* Nova senha */}
               <div>
-                <label className="campo-label" style={{ fontSize: '0.78rem' }}>Nova Senha</label>
-                <input
-                  className="campo"
-                  type="password"
-                  value={novaSenha}
-                  onChange={e => setNovaSenha(e.target.value)}
-                  placeholder="Mínimo 6 caracteres"
-                  style={{ marginTop: '0.25rem', width: '100%' }}
-                />
+                <label className="campo-label" style={{ fontSize: '0.78rem' }}>Nova Senha <span style={{ color: 'var(--vermelho)' }}>*</span></label>
+                <div style={{ position: 'relative', marginTop: '0.25rem' }}>
+                  <input
+                    className="campo"
+                    type={verNovaSenha ? 'text' : 'password'}
+                    value={novaSenha}
+                    onChange={e => { setNovaSenha(e.target.value); setErroSenha('') }}
+                    placeholder="Crie uma senha forte"
+                    style={{ width: '100%', paddingRight: '2.5rem' }}
+                    autoComplete="new-password"
+                  />
+                  <button type="button" onClick={() => setVerNovaSenha(v => !v)}
+                    style={{ position: 'absolute', right: '0.625rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--texto-desab)', padding: 0 }}>
+                    {verNovaSenha ? '🙈' : '👁️'}
+                  </button>
+                </div>
+                {/* Indicadores de força */}
+                {novaSenha && (() => {
+                  const r = avaliarSenhaForte(novaSenha)
+                  const itens = [
+                    { ok: r.min8, txt: 'Mínimo 8 caracteres' },
+                    { ok: r.maiuscula, txt: 'Letra maiúscula' },
+                    { ok: r.numero, txt: 'Número' },
+                    { ok: r.especial, txt: 'Caractere especial' },
+                  ]
+                  return (
+                    <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      {itens.map(it => (
+                        <div key={it.txt} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.72rem' }}>
+                          <span style={{ color: it.ok ? 'var(--verde)' : 'var(--vermelho)' }}>{it.ok ? '✓' : '✗'}</span>
+                          <span style={{ color: it.ok ? 'var(--verde)' : 'var(--texto-desab)' }}>{it.txt}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })()}
               </div>
-              
+
+              {/* Confirmar senha */}
               <div>
-                <label className="campo-label" style={{ fontSize: '0.78rem' }}>Confirmar Nova Senha</label>
-                <input
-                  className="campo"
-                  type="password"
-                  value={confirmarSenha}
-                  onChange={e => setConfirmarSenha(e.target.value)}
-                  placeholder="Repita a nova senha"
-                  style={{ marginTop: '0.25rem', width: '100%' }}
-                />
+                <label className="campo-label" style={{ fontSize: '0.78rem' }}>Confirmar Senha <span style={{ color: 'var(--vermelho)' }}>*</span></label>
+                <div style={{ position: 'relative', marginTop: '0.25rem' }}>
+                  <input
+                    className="campo"
+                    type={verConfirmarSenha ? 'text' : 'password'}
+                    value={confirmarSenha}
+                    onChange={e => { setConfirmarSenha(e.target.value); setErroSenha('') }}
+                    placeholder="Repita a nova senha"
+                    style={{ width: '100%', paddingRight: '2.5rem' }}
+                    autoComplete="new-password"
+                  />
+                  <button type="button" onClick={() => setVerConfirmarSenha(v => !v)}
+                    style={{ position: 'absolute', right: '0.625rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--texto-desab)', padding: 0 }}>
+                    {verConfirmarSenha ? '🙈' : '👁️'}
+                  </button>
+                </div>
+                {confirmarSenha && novaSenha !== confirmarSenha && (
+                  <p style={{ fontSize: '0.72rem', color: 'var(--vermelho)', marginTop: '0.25rem' }}>✗ As senhas não coincidem</p>
+                )}
+                {confirmarSenha && novaSenha === confirmarSenha && (() => { const r = avaliarSenhaForte(novaSenha); return r.min8 && r.maiuscula && r.numero && r.especial })() && (
+                  <p style={{ fontSize: '0.72rem', color: 'var(--verde)', marginTop: '0.25rem' }}>✓ Perfeito!</p>
+                )}
               </div>
-              
-              {erroSenha && <div className="alerta alerta-perigo" style={{ fontSize: '0.78rem', padding: '0.5rem' }}>{erroSenha}</div>}
-              
+
+              {erroSenha && (
+                <div className="alerta alerta-perigo" style={{ fontSize: '0.78rem', padding: '0.5rem' }}>{erroSenha}</div>
+              )}
+
               <button
                 onClick={async () => {
                   setErroSenha('')
-                  if (novaSenha.length < 6) {
-                    setErroSenha('A senha deve ter pelo menos 6 caracteres.')
-                    return
-                  }
-                  if (novaSenha !== confirmarSenha) {
-                    setErroSenha('As senhas não coincidem.')
-                    return
-                  }
+                  const r = avaliarSenhaForte(novaSenha)
+                  if (!r.min8) { setErroSenha('Mínimo 8 caracteres.'); return }
+                  if (!r.maiuscula) { setErroSenha('Inclua ao menos uma letra maiúscula.'); return }
+                  if (!r.numero) { setErroSenha('Inclua ao menos um número.'); return }
+                  if (!r.especial) { setErroSenha('Inclua ao menos um caractere especial (!@#...).'); return }
+                  if (novaSenha !== confirmarSenha) { setErroSenha('As senhas não coincidem.'); return }
                   setAtualizandoSenha(true)
                   try {
                     const supabase = createClient()
@@ -359,17 +412,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     } else {
                       setPrecisaTrocarSenha(false)
                     }
-                  } catch (err: any) {
-                    setErroSenha('Erro de conexão: ' + err.message)
+                  } catch (err: unknown) {
+                    setErroSenha('Erro de conexão: ' + (err instanceof Error ? err.message : ''))
                   } finally {
                     setAtualizandoSenha(false)
                   }
                 }}
                 disabled={atualizandoSenha}
                 className="btn btn-primary"
-                style={{ width: '100%', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', fontWeight: 700 }}
+                style={{ width: '100%', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}
               >
-                {atualizandoSenha ? 'Salvando...' : 'Salvar Senha e Acessar'}
+                {atualizandoSenha ? '⏳ Salvando...' : '🔐 Salvar Senha e Entrar'}
               </button>
             </div>
           </div>

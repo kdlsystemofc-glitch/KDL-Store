@@ -1,122 +1,392 @@
 'use client'
 import { toast } from 'react-hot-toast'
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { ArrowLeft, Save, Loader2, Trash2, SnowflakeIcon, UserPlus, X } from 'lucide-react'
+import {
+  UserPlus, X, Loader2, Trash2, Lock, Users,
+  ShieldCheck, Eye, EyeOff, CheckCircle2, XCircle, RefreshCw,
+  Snowflake, Play
+} from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
 
-type Usuario = { id:string; nome:string; papel:string; status:string; criado_em:string }
+/* ─── Tipos ─────────────────────────────────────────── */
+type Usuario = {
+  id: string
+  nome: string
+  papel: string
+  status: string
+  criado_em: string
+}
 
-const PAPEL_LABEL: Record<string,string> = { admin:'👑 Admin', vendedor:'🛒 Vendedor', estoquista:'📦 Estoquista' }
-const PAPEL_CLS:  Record<string,string>  = { admin:'status-alerta', vendedor:'status-ok', estoquista:'status-aviso' }
+/* ─── Constantes ─────────────────────────────────────── */
+const PAPEL_LABEL: Record<string, { label: string; emoji: string; desc: string }> = {
+  admin:      { label: 'Admin',      emoji: '👑', desc: 'Acesso total ao sistema' },
+  vendedor:   { label: 'Vendedor',   emoji: '🛒', desc: 'Vendas, clientes e produtos' },
+  estoquista: { label: 'Estoquista', emoji: '📦', desc: 'Estoque e produtos, sem financeiro' },
+}
 
+const MAP_DB_TO_UI: Record<string, string> = {
+  admin: 'admin', operador: 'vendedor', visualizador: 'estoquista',
+  vendedor: 'vendedor', estoquista: 'estoquista',
+}
+
+const MAP_UI_TO_DB: Record<string, string> = {
+  admin: 'admin', vendedor: 'operador', estoquista: 'visualizador',
+}
+
+/* ─── Validação de senha ─────────────────────────────── */
+function avaliarSenha(senha: string) {
+  return {
+    min8:     senha.length >= 8,
+    maiuscula: /[A-Z]/.test(senha),
+    numero:   /[0-9]/.test(senha),
+    especial: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(senha),
+  }
+}
+
+function SenhaIndicador({ senha }: { senha: string }) {
+  const r = avaliarSenha(senha)
+  const itens = [
+    { ok: r.min8,      txt: 'Mínimo 8 caracteres' },
+    { ok: r.maiuscula, txt: 'Letra maiúscula' },
+    { ok: r.numero,    txt: 'Número' },
+    { ok: r.especial,  txt: 'Caractere especial (!@#...)' },
+  ]
+  if (!senha) return null
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginTop: '0.5rem' }}>
+      {itens.map(item => (
+        <div key={item.txt} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.72rem' }}>
+          {item.ok
+            ? <CheckCircle2 size={12} color="var(--verde)" />
+            : <XCircle size={12} color="var(--vermelho)" />}
+          <span style={{ color: item.ok ? 'var(--verde)' : 'var(--texto-desab)' }}>{item.txt}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function senhaValida(senha: string) {
+  const r = avaliarSenha(senha)
+  return r.min8 && r.maiuscula && r.numero && r.especial
+}
+
+/* ─── Campo de senha com olho ─────────────────────────── */
+function CampoSenha({
+  value, onChange, placeholder = 'Nova senha segura', label, required,
+}: {
+  value: string; onChange: (v: string) => void; placeholder?: string; label: string; required?: boolean
+}) {
+  const [ver, setVer] = useState(false)
+  return (
+    <div>
+      <label className="campo-label">
+        {label} {required && <span style={{ color: 'var(--vermelho)' }}>*</span>}
+      </label>
+      <div style={{ position: 'relative', marginTop: '0.375rem' }}>
+        <input
+          className="campo"
+          type={ver ? 'text' : 'password'}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder={placeholder}
+          style={{ paddingRight: '2.5rem', width: '100%' }}
+          autoComplete="new-password"
+        />
+        <button
+          type="button"
+          onClick={() => setVer(v => !v)}
+          style={{
+            position: 'absolute', right: '0.625rem', top: '50%', transform: 'translateY(-50%)',
+            background: 'none', border: 'none', cursor: 'pointer', color: 'var(--texto-desab)', padding: 0,
+          }}
+        >
+          {ver ? <EyeOff size={15} /> : <Eye size={15} />}
+        </button>
+      </div>
+      <SenhaIndicador senha={value} />
+    </div>
+  )
+}
+
+/* ─── Modal Criar Usuário ─────────────────────────────── */
+function ModalCriar({
+  onClose, onSuccess, empresaId, plano, totalUsuarios,
+}: {
+  onClose: () => void; onSuccess: () => void; empresaId: string; plano: string; totalUsuarios: number
+}) {
+  const [nome, setNome] = useState('')
+  const [email, setEmail] = useState('')
+  const [senha, setSenha] = useState('')
+  const [papel, setPapel] = useState<'vendedor' | 'estoquista' | 'admin'>('vendedor')
+  const [criando, setCriando] = useState(false)
+  const limit = plano === 'pro' ? 5 : 1
+  const atingiuLimite = totalUsuarios >= limit
+
+  async function criar() {
+    if (!nome.trim()) { toast.error('Informe o nome.'); return }
+    if (!email.trim()) { toast.error('Informe o e-mail.'); return }
+    if (!senhaValida(senha)) { toast.error('Senha não atende os requisitos de segurança.'); return }
+    setCriando(true)
+    try {
+      const res = await fetch('/api/usuario/criar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), nome: nome.trim(), senha, papel, empresaId }),
+      })
+      const json = await res.json()
+      if (!res.ok) { toast.error(json.error || 'Erro ao cadastrar'); return }
+      toast.success('Usuário cadastrado com sucesso!')
+      onSuccess()
+    } catch (err: unknown) {
+      toast.error('Erro de conexão: ' + (err instanceof Error ? err.message : ''))
+    } finally { setCriando(false) }
+  }
+
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div className="card anim-pop" style={{ width: '100%', maxWidth: '460px', padding: '1.75rem', maxHeight: '90vh', overflowY: 'auto' }}>
+        {/* Cabeçalho */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ width: 36, height: 36, borderRadius: '10px', background: 'var(--verde-claro)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <UserPlus size={18} color="var(--verde)" />
+            </div>
+            <div>
+              <p style={{ fontWeight: 900, fontSize: '1rem' }}>Novo Colaborador</p>
+              <p style={{ fontSize: '0.72rem', color: 'var(--texto-desab)' }}>{totalUsuarios}/{limit} usuário{limit > 1 ? 's' : ''} usado{limit > 1 ? 's' : ''}</p>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--texto-desab)', padding: '4px' }}>
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Alerta de limite */}
+        {atingiuLimite && (
+          <div className="alerta alerta-aviso" style={{ marginBottom: '1rem', fontSize: '0.8rem' }}>
+            ⚠️ Limite do plano {plano === 'pro' ? 'Pro' : 'Start'} atingido ({limit} usuário{limit > 1 ? 's' : ''}). Faça upgrade para adicionar mais.
+          </div>
+        )}
+
+        {!atingiuLimite && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div>
+              <label className="campo-label">Nome Completo <span style={{ color: 'var(--vermelho)' }}>*</span></label>
+              <input className="campo" style={{ marginTop: '0.375rem' }} value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex: Maria Souza" />
+            </div>
+            <div>
+              <label className="campo-label">E-mail <span style={{ color: 'var(--vermelho)' }}>*</span></label>
+              <input className="campo" type="email" style={{ marginTop: '0.375rem' }} value={email} onChange={e => setEmail(e.target.value)} placeholder="colaborador@exemplo.com" />
+            </div>
+
+            <CampoSenha label="Senha Temporária" required value={senha} onChange={setSenha} placeholder="Crie uma senha forte" />
+
+            {/* Selector de papel */}
+            <div>
+              <label className="campo-label">Papel no sistema</label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', marginTop: '0.375rem' }}>
+                {(['vendedor', 'estoquista', 'admin'] as const).map(p => {
+                  const info = PAPEL_LABEL[p]
+                  const ativo = papel === p
+                  return (
+                    <button key={p} type="button" onClick={() => setPapel(p)}
+                      style={{
+                        padding: '0.625rem 0.25rem', border: `2px solid ${ativo ? 'var(--verde)' : 'var(--borda)'}`,
+                        borderRadius: 'var(--radius-sm)', background: ativo ? 'var(--verde-claro)' : 'var(--surface)',
+                        cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center', transition: 'all 0.12s',
+                      }}>
+                      <p style={{ fontSize: '1rem', marginBottom: '2px' }}>{info.emoji}</p>
+                      <p style={{ fontSize: '0.75rem', fontWeight: 800, color: ativo ? 'var(--verde-esc)' : 'var(--texto)' }}>{info.label}</p>
+                    </button>
+                  )
+                })}
+              </div>
+              <p style={{ fontSize: '0.72rem', color: 'var(--texto-desab)', marginTop: '0.375rem' }}>
+                {PAPEL_LABEL[papel].desc}
+              </p>
+            </div>
+
+            {/* Aviso de primeiro login */}
+            <div style={{ background: 'rgba(0,191,165,0.08)', border: '1px solid rgba(0,191,165,0.2)', borderRadius: '8px', padding: '0.625rem 0.75rem', fontSize: '0.75rem', color: 'var(--verde)', display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
+              <ShieldCheck size={14} style={{ flexShrink: 0, marginTop: '1px' }} />
+              <span>No primeiro acesso, o colaborador será obrigado a criar uma nova senha pessoal.</span>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+              <button onClick={onClose} className="btn btn-ghost">Cancelar</button>
+              <button
+                onClick={criar}
+                disabled={!email.trim() || !nome.trim() || !senhaValida(senha) || criando}
+                className="btn btn-primary"
+                style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}
+              >
+                {criando ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <UserPlus size={14} />}
+                Cadastrar e Ativar
+              </button>
+            </div>
+          </div>
+        )}
+
+        {atingiuLimite && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+            <button onClick={onClose} className="btn btn-ghost">Fechar</button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ─── Modal Reset de Senha ───────────────────────────── */
+function ModalResetSenha({
+  usuario, onClose, onSuccess, empresaId,
+}: {
+  usuario: Usuario; onClose: () => void; onSuccess: () => void; empresaId: string
+}) {
+  const [senha, setSenha] = useState('')
+  const [confirmSenha, setConfirmSenha] = useState('')
+  const [resetando, setResetando] = useState(false)
+  const [verConfirm, setVerConfirm] = useState(false)
+
+  async function resetar() {
+    if (!senhaValida(senha)) { toast.error('Senha não atende os requisitos.'); return }
+    if (senha !== confirmSenha) { toast.error('As senhas não coincidem.'); return }
+    setResetando(true)
+    try {
+      const res = await fetch('/api/usuario/resetar-senha', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ usuarioId: usuario.id, novaSenha: senha, empresaId }),
+      })
+      const json = await res.json()
+      if (!res.ok) { toast.error(json.error || 'Erro ao resetar senha'); return }
+      toast.success(`Senha de ${usuario.nome} redefinida! Eles precisarão criar uma nova senha no próximo login.`)
+      onSuccess()
+    } catch (err: unknown) {
+      toast.error('Erro: ' + (err instanceof Error ? err.message : ''))
+    } finally { setResetando(false) }
+  }
+
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div className="card anim-pop" style={{ width: '100%', maxWidth: '420px', padding: '1.75rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ width: 36, height: 36, borderRadius: '10px', background: 'rgba(251,191,36,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Lock size={18} color="#fbbf24" />
+            </div>
+            <div>
+              <p style={{ fontWeight: 900, fontSize: '1rem' }}>Redefinir Senha</p>
+              <p style={{ fontSize: '0.72rem', color: 'var(--texto-desab)' }}>{usuario.nome}</p>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--texto-desab)' }}>
+            <X size={18} />
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <CampoSenha label="Nova Senha Temporária" required value={senha} onChange={setSenha} />
+
+          <div>
+            <label className="campo-label">Confirmar Senha <span style={{ color: 'var(--vermelho)' }}>*</span></label>
+            <div style={{ position: 'relative', marginTop: '0.375rem' }}>
+              <input
+                className="campo"
+                type={verConfirm ? 'text' : 'password'}
+                value={confirmSenha}
+                onChange={e => setConfirmSenha(e.target.value)}
+                placeholder="Repita a nova senha"
+                style={{ paddingRight: '2.5rem', width: '100%' }}
+                autoComplete="new-password"
+              />
+              <button type="button" onClick={() => setVerConfirm(v => !v)}
+                style={{ position: 'absolute', right: '0.625rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--texto-desab)', padding: 0 }}>
+                {verConfirm ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
+            {confirmSenha && senha !== confirmSenha && (
+              <p style={{ fontSize: '0.72rem', color: 'var(--vermelho)', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                <XCircle size={11} /> As senhas não coincidem
+              </p>
+            )}
+            {confirmSenha && senha === confirmSenha && senhaValida(senha) && (
+              <p style={{ fontSize: '0.72rem', color: 'var(--verde)', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                <CheckCircle2 size={11} /> Senhas coincidem
+              </p>
+            )}
+          </div>
+
+          <div style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.2)', borderRadius: '8px', padding: '0.625rem 0.75rem', fontSize: '0.75rem', color: '#b45309', display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
+            <RefreshCw size={13} style={{ flexShrink: 0, marginTop: '1px' }} />
+            <span>O colaborador será obrigado a criar uma nova senha pessoal no próximo login.</span>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+            <button onClick={onClose} className="btn btn-ghost">Cancelar</button>
+            <button
+              onClick={resetar}
+              disabled={!senhaValida(senha) || senha !== confirmSenha || resetando}
+              className="btn btn-primary"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', background: '#fbbf24', color: '#78350f' }}
+            >
+              {resetando ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Lock size={14} />}
+              Redefinir Senha
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ─── Página Principal ──────────────────────────────── */
 export default function UsuariosPage() {
   const { empresaId } = useEmpresaId()
-  const [usuarios,  setUsuarios]  = useState<Usuario[]>([])
-  const [loading,   setLoading]   = useState(true)
-  const [meuId,     setMeuId]     = useState<string|null>(null)
-  const [modal,     setModal]     = useState(false)
-  const [salvando,  setSalvando]  = useState<string|null>(null)
-
-  // Campos de cadastro de usuário
-  const [cNome,  setCNome]  = useState('')
-  const [cEmail, setCEmail] = useState('')
-  const [cSenha, setCSenha] = useState('')
-  const [cPapel, setCPapel] = useState<'vendedor'|'estoquista'|'admin'>('vendedor')
-  const [criando,setCriando]= useState(false)
+  const [usuarios, setUsuarios] = useState<Usuario[]>([])
+  const [loading, setLoading] = useState(true)
+  const [meuId, setMeuId] = useState<string | null>(null)
+  const [plano, setPlano] = useState('start')
+  const [modalCriar, setModalCriar] = useState(false)
+  const [modalReset, setModalReset] = useState<Usuario | null>(null)
+  const [salvando, setSalvando] = useState<string | null>(null)
 
   useEffect(() => { if (empresaId) carregar(empresaId) }, [empresaId])
 
   async function carregar(eid: string) {
     setLoading(true)
     const supabase = createClient()
-    const results = await Promise.allSettled([
+    const [profilesRes, userRes, subRes] = await Promise.all([
       supabase.from('profiles').select('id,nome,papel,status,criado_em').eq('empresa_id', eid).order('criado_em'),
-      supabase.auth.getUser()
+      supabase.auth.getUser(),
+      supabase.from('subscriptions').select('plano').eq('empresa_id', eid).maybeSingle(),
     ])
-    const getRes = (i: number): any => results[i].status === 'fulfilled' ? (results[i] as PromiseFulfilledResult<any>).value || {} : {}
-    const { data: users }   = getRes(0)
-    const { data: userObj } = getRes(1)
-    const user = userObj?.user
-    setMeuId(user?.id || null)
-
-    const MAP_DB_TO_UI: Record<string, string> = {
-      admin: 'admin',
-      operador: 'vendedor',
-      visualizador: 'estoquista',
-      vendedor: 'vendedor',
-      estoquista: 'estoquista'
-    }
-
-    const mappedUsers = (users || []).map((u: any) => ({
-      ...u,
-      papel: MAP_DB_TO_UI[u.papel] || u.papel
-    }))
-
-    setUsuarios(mappedUsers)
+    setMeuId(userRes.data.user?.id || null)
+    setPlano(subRes.data?.plano || 'start')
+    setUsuarios(
+      (profilesRes.data || []).map((u: Record<string, unknown>) => ({
+        ...u,
+        papel: MAP_DB_TO_UI[u.papel as string] || (u.papel as string),
+      })) as Usuario[]
+    )
     setLoading(false)
   }
 
-  async function criarUsuario() {
-    if (!cNome.trim()) { toast.error('Informe o nome completo.'); return }
-    if (!cEmail.trim()) { toast.error('Informe o e-mail.'); return }
-    if (cSenha.length < 6) { toast.error('A senha deve ter pelo menos 6 caracteres.'); return }
-    if (!empresaId) return
-    setCriando(true)
-    
-    try {
-      const res = await fetch('/api/usuario/criar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: cEmail.trim(),
-          nome: cNome.trim(),
-          senha: cSenha,
-          papel: cPapel,
-          empresaId
-        })
-      })
-      
-      const json = await res.json()
-      setCriando(false)
-      
-      if (!res.ok) {
-        toast.error(json.error || 'Erro ao cadastrar usuário')
-        return
-      }
-
-      toast.success('Usuário cadastrado com sucesso!')
-      setModal(false)
-      setCNome('')
-      setCEmail('')
-      setCSenha('')
-      setCPapel('vendedor')
-      carregar(empresaId)
-    } catch (err: any) {
-      setCriando(false)
-      toast.error('Erro de conexão ao cadastrar: ' + err.message)
-    }
-  }
-
-  async function alterarPapel(uid: string, papel: string) {
+  async function alterarPapel(uid: string, novoPapel: string) {
     if (uid === meuId) return
     setSalvando(uid + '-papel')
-    
-    // Mapeia papel da UI para o banco de dados
-    const MAP_UI_TO_DB: Record<string, string> = {
-      admin: 'admin',
-      vendedor: 'operador',
-      estoquista: 'visualizador',
-      operador: 'operador',
-      visualizador: 'visualizador'
-    }
-    const dbPapel = MAP_UI_TO_DB[papel] || 'operador'
-
-    await createClient().from('profiles').update({ papel: dbPapel }).eq('id', uid)
-    setUsuarios(prev => prev.map(u => u.id===uid ? {...u, papel} : u))
+    await createClient().from('profiles').update({ papel: MAP_UI_TO_DB[novoPapel] || 'operador' }).eq('id', uid)
+    setUsuarios(prev => prev.map(u => u.id === uid ? { ...u, papel: novoPapel } : u))
     setSalvando(null)
+    toast.success('Papel atualizado.')
   }
 
   async function toggleFreeze(uid: string, statusAtual: string) {
@@ -124,170 +394,236 @@ export default function UsuariosPage() {
     const novoStatus = statusAtual === 'ativo' ? 'congelado' : 'ativo'
     setSalvando(uid + '-freeze')
     await createClient().from('profiles').update({ status: novoStatus }).eq('id', uid)
-    setUsuarios(prev => prev.map(u => u.id===uid ? {...u, status: novoStatus} : u))
+    setUsuarios(prev => prev.map(u => u.id === uid ? { ...u, status: novoStatus } : u))
     setSalvando(null)
+    toast.success(novoStatus === 'congelado' ? 'Acesso congelado.' : 'Acesso reativado.')
   }
 
-  async function excluirUsuario(uid: string, nome: string) {
+  async function excluir(uid: string, nome: string) {
     if (uid === meuId) return
-    if (!confirm(`Excluir "${nome}"? O usuário perderá acesso imediatamente.`)) return
+    if (!confirm(`Excluir "${nome}"? O usuário perderá o acesso imediatamente.`)) return
     setSalvando(uid + '-del')
-    // Soft delete: remove empresa_id e muda status
     await createClient().from('profiles').update({ empresa_id: null, status: 'excluido' }).eq('id', uid)
     setUsuarios(prev => prev.filter(u => u.id !== uid))
     setSalvando(null)
+    toast.success(`${nome} foi removido.`)
   }
 
-  const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
+  const totalAtivos = usuarios.filter(u => u.status !== 'excluido').length
+  const limit = plano === 'pro' ? 5 : 1
 
   return (
-    <div className="anim-fade" style={{ display:'flex', flexDirection:'column', gap:'1rem', maxWidth:'780px' }}>
+    <div className="anim-fade" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', maxWidth: '820px' }}>
 
-      {/* Modal criar convite */}
-      {modal && (
-        <div style={{ position:'fixed', inset:0, zIndex:100, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center' }}
-          onClick={e => { if(e.target===e.currentTarget) setModal(false) }}>
-          <div className="card anim-pop" style={{ width:'100%', maxWidth:'440px', padding:'1.5rem' }}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1.25rem' }}>
-              <p style={{ fontWeight:900, fontSize:'1rem' }}>👤 Convidar Usuário</p>
-              <button onClick={() => setModal(false)} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--texto-desab)' }}><X size={18}/></button>
-            </div>
-            <div style={{ display:'flex', flexDirection:'column', gap:'0.75rem' }}>
-              <div>
-                <label className="campo-label">Nome Completo <span style={{ color:'var(--vermelho)' }}>*</span></label>
-                <input className="campo" style={{ marginTop:'0.375rem' }} value={cNome} onChange={e=>setCNome(e.target.value)} placeholder="Ex: João da Silva"/>
-              </div>
-              <div>
-                <label className="campo-label">E-mail <span style={{ color:'var(--vermelho)' }}>*</span></label>
-                <input className="campo" type="email" style={{ marginTop:'0.375rem' }} value={cEmail} onChange={e=>setCEmail(e.target.value)} placeholder="joao@exemplo.com"/>
-              </div>
-              <div>
-                <label className="campo-label">Senha Temporária <span style={{ color:'var(--vermelho)' }}>*</span></label>
-                <input className="campo" type="password" style={{ marginTop:'0.375rem' }} value={cSenha} onChange={e=>setCSenha(e.target.value)} placeholder="Mínimo 6 caracteres"/>
-              </div>
-              <div>
-                <label className="campo-label">Papel no sistema</label>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'0.375rem', marginTop:'0.375rem' }}>
-                  {(['vendedor','estoquista','admin'] as const).map(p => (
-                    <button key={p} onClick={() => setCPapel(p)} type="button"
-                      style={{ padding:'0.5rem 0.25rem', border:`2px solid ${cPapel===p?'var(--verde)':'var(--borda)'}`, borderRadius:'var(--radius-sm)',
-                        background: cPapel===p ? 'var(--verde-claro)' : 'var(--surface)', cursor:'pointer', fontWeight:700,
-                        fontSize:'0.78rem', fontFamily:'inherit', color: cPapel===p ? 'var(--verde-esc)' : 'var(--texto-sec)' }}>
-                      {PAPEL_LABEL[p]}
-                    </button>
-                  ))}
-                </div>
-                <p style={{ fontSize:'0.72rem', color:'var(--texto-desab)', marginTop:'0.375rem' }}>
-                  {cPapel==='admin'?'Acesso total ao sistema.':cPapel==='vendedor'?'Pode vender, ver clientes e produtos.':'Acesso ao estoque, sem vendas.'}
-                </p>
-              </div>
-            </div>
-            <div style={{ display:'flex', gap:'0.5rem', marginTop:'1.25rem', justifyContent:'flex-end' }}>
-              <button onClick={() => setModal(false)} className="btn btn-ghost">Cancelar</button>
-              <button onClick={criarUsuario} disabled={!cEmail.trim() || !cNome.trim() || cSenha.length < 6 || criando} className="btn btn-primary"
-                style={{ display:'flex', alignItems:'center', gap:'0.375rem' }}>
-                {criando ? <Loader2 size={14} style={{ animation:'spin 1s linear infinite' }}/> : <UserPlus size={14}/>}
-                🔓 Cadastrar e Ativar
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Modais */}
+      {modalCriar && empresaId && (
+        <ModalCriar
+          onClose={() => setModalCriar(false)}
+          onSuccess={() => { setModalCriar(false); if (empresaId) carregar(empresaId) }}
+          empresaId={empresaId}
+          plano={plano}
+          totalUsuarios={totalAtivos}
+        />
+      )}
+      {modalReset && empresaId && (
+        <ModalResetSenha
+          usuario={modalReset}
+          onClose={() => setModalReset(null)}
+          onSuccess={() => setModalReset(null)}
+          empresaId={empresaId}
+        />
       )}
 
+      {/* Header da página */}
       <div className="pg-header">
         <div>
           <h1 className="pg-titulo">👥 Usuários & Acessos</h1>
-          <p className="pg-sub">{usuarios.length} usuário(s) ativo(s) na empresa</p>
+          <p className="pg-sub">{totalAtivos} / {limit} colaborador{limit > 1 ? 'es' : ''} — Plano {plano === 'pro' ? 'Pro' : 'Start'}</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setModal(true)}
-          style={{ display:'flex', alignItems:'center', gap:'0.375rem' }}>
-          <UserPlus size={14}/> Novo Colaborador
+        <button
+          className="btn btn-primary"
+          onClick={() => setModalCriar(true)}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}
+        >
+          <UserPlus size={14} /> Novo Colaborador
         </button>
+      </div>
+
+      {/* Barra de capacidade */}
+      <div className="card" style={{ padding: '0.875rem 1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+          <span style={{ fontSize: '0.8rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+            <Users size={14} /> Capacidade do Plano
+          </span>
+          <span style={{ fontSize: '0.78rem', color: totalAtivos >= limit ? 'var(--vermelho)' : 'var(--verde)', fontWeight: 700 }}>
+            {totalAtivos}/{limit}
+          </span>
+        </div>
+        <div style={{ height: '6px', background: 'var(--borda)', borderRadius: '99px', overflow: 'hidden' }}>
+          <div style={{
+            height: '100%', borderRadius: '99px', transition: 'width 0.5s ease',
+            width: `${Math.min((totalAtivos / limit) * 100, 100)}%`,
+            background: totalAtivos >= limit ? 'var(--vermelho)' : 'var(--verde)',
+          }} />
+        </div>
+        {totalAtivos >= limit && (
+          <p style={{ fontSize: '0.72rem', color: 'var(--vermelho)', marginTop: '0.375rem' }}>
+            Limite atingido. <a href="/configuracoes/planos" style={{ color: 'var(--verde)', fontWeight: 700 }}>Fazer upgrade →</a>
+          </p>
+        )}
       </div>
 
       {/* Lista de usuários */}
       {loading ? (
-        <div style={{ display:'flex', justifyContent:'center', padding:'2rem', gap:'0.75rem', color:'var(--texto-desab)' }}>
-          <Loader2 size={18} style={{ animation:'spin 1s linear infinite' }}/> Carregando...
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem', color: 'var(--texto-desab)', gap: '0.75rem' }}>
+          <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> Carregando...
+        </div>
+      ) : usuarios.length === 0 ? (
+        <div className="card" style={{ padding: '3rem', textAlign: 'center' }}>
+          <Users size={32} style={{ opacity: 0.3, margin: '0 auto 0.75rem' }} />
+          <p style={{ color: 'var(--texto-desab)' }}>Nenhum colaborador cadastrado ainda.</p>
         </div>
       ) : (
-        <div className="tabela-wrap">
-          <table className="tabela">
-            <thead>
-              <tr style={{ background:'#364a60' }}>
-                <th>Usuário</th>
-                <th>Papel</th>
-                <th style={{ textAlign:'center' }}>Status</th>
-                <th>Membro desde</th>
-                <th style={{ textAlign:'center' }}>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {usuarios.map(u => (
-                <tr key={u.id} style={{ opacity: u.status==='congelado' ? 0.6 : 1 }}>
-                  <td>
-                    <p style={{ fontWeight:700 }}>{u.nome}</p>
-                    {u.id===meuId && <span style={{ fontSize:'0.7rem', color:'var(--verde)', fontWeight:700 }}>← você</span>}
-                  </td>
-                  <td>
-                    <select
-                      className="campo"
-                      style={{ width:'auto', fontSize:'0.78rem', padding:'0.2rem 0.4rem' }}
-                      value={u.papel}
-                      disabled={u.id===meuId || salvando===u.id+'-papel'}
-                      onChange={e => alterarPapel(u.id, e.target.value)}>
-                      <option value="admin">👑 Admin</option>
-                      <option value="vendedor">🛒 Vendedor</option>
-                      <option value="estoquista">📦 Estoquista</option>
-                    </select>
-                  </td>
-                  <td style={{ textAlign:'center' }}>
-                    <span className={u.status==='ativo'?'status-ok':u.status==='congelado'?'status-info':'status-neutro'}
-                      style={{ fontSize:'0.78rem' }}>
-                      {u.status==='ativo'?'● Ativo':u.status==='congelado'?'❄️ Congelado':'○ Inativo'}
-                    </span>
-                  </td>
-                  <td style={{ fontSize:'0.82rem', color:'var(--texto-desab)' }}>
-                    {new Date(u.criado_em).toLocaleDateString('pt-BR')}
-                  </td>
-                  <td style={{ textAlign:'center' }}>
-                    {u.id === meuId ? (
-                      <span style={{ fontSize:'0.72rem', color:'var(--texto-desab)' }}>—</span>
-                    ) : (
-                      <div style={{ display:'flex', gap:'0.25rem', justifyContent:'center' }}>
-                        <button
-                          onClick={() => toggleFreeze(u.id, u.status)}
-                          disabled={salvando===u.id+'-freeze'}
-                          className="btn btn-secondary"
-                          title={u.status==='ativo'?'Congelar acesso':'Descongelar'}
-                          style={{ fontSize:'0.72rem', padding:'0.25rem 0.5rem' }}>
-                          {salvando===u.id+'-freeze' ? <Loader2 size={11} style={{ animation:'spin 1s linear infinite' }}/>
-                            : u.status==='ativo' ? '❄️' : '✅'}
-                        </button>
-                        <button
-                          onClick={() => excluirUsuario(u.id, u.nome)}
-                          disabled={salvando===u.id+'-del'}
-                          className="btn btn-secondary"
-                          title="Excluir usuário"
-                          style={{ fontSize:'0.72rem', padding:'0.25rem 0.5rem', color:'var(--vermelho)' }}>
-                          {salvando===u.id+'-del' ? <Loader2 size={11} style={{ animation:'spin 1s linear infinite' }}/> : <Trash2 size={12}/>}
-                        </button>
-                      </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+          {usuarios.map(u => {
+            const eVoce = u.id === meuId
+            const congelado = u.status === 'congelado'
+            const papelInfo = PAPEL_LABEL[u.papel] || PAPEL_LABEL.vendedor
+
+            return (
+              <div key={u.id} className="card" style={{
+                padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap',
+                opacity: congelado ? 0.65 : 1,
+                border: eVoce ? '1px solid rgba(0,191,165,0.3)' : undefined,
+                transition: 'opacity 0.2s',
+              }}>
+                {/* Avatar */}
+                <div style={{
+                  width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
+                  background: eVoce ? 'var(--verde)' : congelado ? 'var(--borda)' : 'var(--roxo-escuro)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: '#fff', fontWeight: 900, fontSize: '0.9rem',
+                }}>
+                  {u.nome.charAt(0).toUpperCase()}
+                </div>
+
+                {/* Info */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <p style={{ fontWeight: 800, fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {u.nome}
+                    </p>
+                    {eVoce && (
+                      <span style={{ fontSize: '0.65rem', background: 'var(--verde-claro)', color: 'var(--verde)', padding: '1px 6px', borderRadius: '99px', fontWeight: 800 }}>
+                        VOCÊ
+                      </span>
                     )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    {congelado && (
+                      <span style={{ fontSize: '0.65rem', background: 'rgba(100,149,237,0.15)', color: '#6495ed', padding: '1px 6px', borderRadius: '99px', fontWeight: 800 }}>
+                        ❄️ CONGELADO
+                      </span>
+                    )}
+                  </div>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--texto-desab)', marginTop: '1px' }}>
+                    {papelInfo.emoji} {papelInfo.label} · Desde {new Date(u.criado_em).toLocaleDateString('pt-BR')}
+                  </p>
+                </div>
+
+                {/* Selector de papel */}
+                {!eVoce && (
+                  <select
+                    className="campo"
+                    value={u.papel}
+                    disabled={salvando === u.id + '-papel'}
+                    onChange={e => alterarPapel(u.id, e.target.value)}
+                    style={{ width: 'auto', fontSize: '0.78rem', padding: '0.3rem 0.5rem', minWidth: '120px' }}
+                  >
+                    <option value="admin">👑 Admin</option>
+                    <option value="vendedor">🛒 Vendedor</option>
+                    <option value="estoquista">📦 Estoquista</option>
+                  </select>
+                )}
+
+                {/* Ações */}
+                {!eVoce && (
+                  <div style={{ display: 'flex', gap: '0.375rem', flexShrink: 0 }}>
+                    {/* Congelar/Descongelar */}
+                    <button
+                      onClick={() => toggleFreeze(u.id, u.status)}
+                      disabled={salvando === u.id + '-freeze'}
+                      className="btn btn-secondary"
+                      title={congelado ? 'Descongelar acesso' : 'Congelar acesso'}
+                      style={{ padding: '0.375rem 0.625rem', fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                    >
+                      {salvando === u.id + '-freeze'
+                        ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} />
+                        : congelado ? <Play size={12} /> : <Snowflake size={12} />}
+                      <span className="hidden sm:inline">{congelado ? 'Ativar' : 'Congelar'}</span>
+                    </button>
+
+                    {/* Reset senha */}
+                    <button
+                      onClick={() => setModalReset(u)}
+                      className="btn btn-secondary"
+                      title="Redefinir senha"
+                      style={{ padding: '0.375rem 0.625rem', fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                    >
+                      <Lock size={12} />
+                      <span className="hidden sm:inline">Senha</span>
+                    </button>
+
+                    {/* Excluir */}
+                    <button
+                      onClick={() => excluir(u.id, u.nome)}
+                      disabled={salvando === u.id + '-del'}
+                      className="btn btn-secondary"
+                      title="Remover usuário"
+                      style={{ padding: '0.375rem 0.625rem', fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--vermelho)' }}
+                    >
+                      {salvando === u.id + '-del'
+                        ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} />
+                        : <Trash2 size={12} />}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
 
-      <div className="card" style={{ padding:'0.875rem' }}>
-        <p style={{ fontWeight:800, marginBottom:'0.375rem' }}>ℹ️ Sobre os papéis</p>
-        <div style={{ display:'flex', flexDirection:'column', gap:'0.25rem', fontSize:'0.82rem', color:'var(--texto-sec)' }}>
-          <p><strong>👑 Admin</strong> — Acesso total: vendas, produtos, financeiro, configurações e usuários</p>
-          <p><strong>🛒 Vendedor</strong> — Pode fazer vendas, ver clientes e produtos, lançar OS</p>
-          <p><strong>📦 Estoquista</strong> — Acesso ao estoque e produtos, sem módulo financeiro</p>
+      {/* Legenda de papéis */}
+      <div className="card" style={{ padding: '1rem 1.25rem' }}>
+        <p style={{ fontWeight: 800, marginBottom: '0.75rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+          <ShieldCheck size={15} /> Papéis e Permissões
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.625rem' }}>
+          {Object.entries(PAPEL_LABEL).map(([key, info]) => (
+            <div key={key} style={{ background: 'var(--fundo)', borderRadius: '8px', padding: '0.625rem 0.75rem' }}>
+              <p style={{ fontWeight: 800, fontSize: '0.82rem', marginBottom: '2px' }}>{info.emoji} {info.label}</p>
+              <p style={{ fontSize: '0.72rem', color: 'var(--texto-desab)' }}>{info.desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Requisitos de senha */}
+      <div className="card" style={{ padding: '1rem 1.25rem' }}>
+        <p style={{ fontWeight: 800, marginBottom: '0.75rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+          <Lock size={15} /> Política de Senhas
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.375rem', fontSize: '0.78rem', color: 'var(--texto-sec)' }}>
+          {[
+            'Mínimo 8 caracteres',
+            'Ao menos 1 letra maiúscula',
+            'Ao menos 1 número',
+            'Ao menos 1 caractere especial',
+          ].map(req => (
+            <div key={req} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+              <CheckCircle2 size={12} color="var(--verde)" />
+              {req}
+            </div>
+          ))}
         </div>
       </div>
     </div>

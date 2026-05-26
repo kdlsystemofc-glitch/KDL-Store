@@ -4,7 +4,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // ── 1. Rotas 100% públicas (sem auth) ──
-  const publicRoutes = ['/', '/login', '/cadastro', '/redefinir-senha', '/garantia', '/landing', '/landing.html', '/convite']
+  const publicRoutes = ['/', '/login', '/cadastro', '/redefinir-senha', '/garantia', '/landing', '/landing.html', '/convite', '/loja']
   const isPublic = publicRoutes.some(r => pathname === r || (r !== '/' && r !== '/landing.html' && pathname.startsWith(r)))
   if (isPublic) return NextResponse.next()
 
