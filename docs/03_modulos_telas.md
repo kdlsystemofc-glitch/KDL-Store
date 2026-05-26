@@ -457,7 +457,8 @@ O layout de configurações (`configuracoes/layout.tsx`) exibe um menu horizonta
 - **Busca e Filtro por Categoria**: Navegação instantânea e responsiva.
 
 ### Painel Administrativo do Catálogo (`/catalogo`)
-- **Configuração de Identidade Visual**: Lojista escolhe cores primária/secundária, paletas prontas, templates de layout, fontes e links de imagem.
+- **Configuração de Identidade Visual**: Lojista escolhe cores primária/secundária, paletas prontas, templates de layout, fontes e realiza o upload da logomarca.
+- **Upload Seguro de Logomarca**: Upload processado via rota de API server-side (`POST /api/upload-logo`), que faz uso seguro da service role key para criar o bucket `logos` dinamicamente se necessário e salvar a imagem sem expor credenciais sensíveis ou depender de políticas RLS do cliente.
 - **Preview em Tempo Real**: Janela interativa reproduzindo fielmente o catálogo para experimentação instantânea de cores, layouts e fontes antes de salvar.
 - **Compartilhamento**: Geração de QR Code e links de cópia rápida ou compartilhamento direto via WhatsApp.
 - **Tabela de Visibilidade**: Ativação inline de visibilidade pública, destaques e tipo de tabela de preço (Varejo/Atacado/VIP/Ocultar) por produto.

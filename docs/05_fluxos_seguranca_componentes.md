@@ -169,6 +169,17 @@ Implementado via componente `<ProOnly>` e filtro no sidebar:
 - Sistema verifica fiados em aberto antes de criar novo
 - Bloqueia a finalização com mensagem: "Cliente já possui fiado em aberto"
 
+### Upload de Imagens (Service Role via API Route)
+- **Rota**: `POST /api/upload-logo` (`src/app/api/upload-logo/route.ts`)
+- **Cliente**: `createAdminClient()` (`src/lib/supabase/admin.ts`) usando `SUPABASE_SERVICE_ROLE_KEY`
+- **Fluxo**:
+  1. Browser envia `multipart/form-data` para a rota Next.js
+  2. A rota valida a sessão do usuário (anon key via cookies)
+  3. Usa a **service role** para criar o bucket `logos` se não existir
+  4. Faz o upload e retorna a URL pública
+- **Por que não usar o cliente browser direto?** O bucket precisa de permissão de `service_role` para ser criado e a política RLS de INSERT pode não estar configurada para o usuário anon; a rota server-side evita expor a service role key ao browser
+- **Variável necessária**: `SUPABASE_SERVICE_ROLE_KEY` no `.env.local` (nunca prefixar com `NEXT_PUBLIC_`)
+
 ---
 
 ## 5.9 Componentes Reutilizáveis
@@ -317,6 +328,10 @@ rewrites: [
 ---
 
 ## 5.13 Changelog Vivo
+
+### v1.7.0 — 2026-05-26
+- ✅ **Fix: Upload de Logo via API Server-Side**: O upload da logomarca do catálogo foi migrado de chamada direta ao Supabase Storage no browser para uma rota Next.js server-side (`POST /api/upload-logo`). A rota usa a `SUPABASE_SERVICE_ROLE_KEY` para criar automaticamente o bucket `logos` se não existir e realizar o upload sem depender de políticas RLS do cliente, eliminando o erro *"Bucket not found"*.
+- ✅ **Admin Client**: Criado `src/lib/supabase/admin.ts` com `createAdminClient()` para uso exclusivo em rotas de servidor.
 
 ### v1.6.0 — 2026-05-26
 - ✅ **Renovação Visual do Catálogo**: Lançamento de 3 templates de design premium (*Grid Moderno*, *Minimalista Clean*, *Luxo Escuro*).
