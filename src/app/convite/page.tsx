@@ -20,30 +20,30 @@ export default function ConvitePage() {
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get('token') || ''
     setToken(t)
-    if (!t) { setInvalid(true); setStep('form'); return }
 
-    createClient()
-      .from('convites')
-      .select('email,nome,papel')
-      .eq('token', t)
-      .eq('status', 'pendente')
-      .gt('expira_em', new Date().toISOString())
-      .single()
-      .then(({ data, error }) => {
-        if (error || !data) { setInvalid(true); setStep('form') }
-        else {
-          const MAP_DB_TO_UI: Record<string, string> = {
-            admin: 'admin',
-            operador: 'vendedor',
-            visualizador: 'estoquista',
-            vendedor: 'vendedor',
-            estoquista: 'estoquista'
-          }
-          const uiPapel = MAP_DB_TO_UI[data.papel] || data.papel
-          setConvite({ ...data, papel: uiPapel });
-          setNome(data.nome || '');
+    if (!t) {
+      setInvalid(true)
+      setStep('form')
+      return
+    }
+
+    // Valida o token via API server-side (service role bypassa o RLS).
+    // Necessário porque o usuário convidado ainda não tem sessão/profile.
+    fetch(`/api/convite?token=${encodeURIComponent(t)}`)
+      .then(async (res) => {
+        const json = await res.json()
+        if (!res.ok || !json.convite) {
+          setInvalid(true)
+          setStep('form')
+        } else {
+          setConvite(json.convite)
+          setNome(json.convite.nome || '')
           setStep('form')
         }
+      })
+      .catch(() => {
+        setInvalid(true)
+        setStep('form')
       })
   }, [])
 
@@ -54,29 +54,70 @@ export default function ConvitePage() {
     if (senha !== confirm)         { setErro('As senhas não coincidem.'); return }
     if (!convite)                  { setErro('Convite inválido.'); return }
     setSalvando(true)
+
     const supabase = createClient()
+
+    // Verifica se o usuário já está autenticado (veio pelo link do e-mail Supabase)
+    const { data: { session } } = await supabase.auth.getSession()
+
+    if (session?.user) {
+      // Usuário já autenticado via magic link do e-mail — atualiza o nome e redireciona
+      await supabase.auth.updateUser({ data: { nome: nome.trim() } })
+      setStep('success')
+      setTimeout(() => router.push('/dashboard'), 2500)
+      return
+    }
+
+    // Fluxo de link copiado (sem autenticação prévia): tenta criar conta
     const { data, error } = await supabase.auth.signUp({
       email:    convite.email,
       password: senha,
-      options:  { data: { convite_token: token, nome: nome.trim() } }
+      options:  { data: { invite_token: token, nome: nome.trim() } }  // CHAVE CORRETA: invite_token
     })
-    if (error) { setErro(error.message); setSalvando(false); return }
-    // Trigger handle_new_user já cria o profile com empresa_id e papel corretos
+
+    if (error) {
+      // E-mail já cadastrado no Supabase (de um convite anterior)
+      if (error.message.toLowerCase().includes('already registered') ||
+          error.message.toLowerCase().includes('already been registered')) {
+        setErro(
+          'Este e-mail já possui uma conta. Use o link enviado por e-mail ou faça login normalmente.'
+        )
+      } else {
+        setErro(error.message)
+      }
+      setSalvando(false)
+      return
+    }
+
+    if (!data.session) {
+      // Supabase pediu confirmação por e-mail (autoconfirm desativado)
+      setErro(
+        'Verifique seu e-mail e clique no link de confirmação para ativar sua conta.'
+      )
+      setSalvando(false)
+      return
+    }
+
     setStep('success')
-    setTimeout(() => router.push('/dashboard'), 3000)
+    setTimeout(() => router.push('/dashboard'), 2500)
   }
 
   const PAPEL_DESC: Record<string,string> = {
-    admin:'Administrador — acesso total', vendedor:'Vendedor — vendas e clientes', estoquista:'Estoquista — produtos e estoque'
+    admin:      'Administrador — acesso total',
+    vendedor:   'Vendedor — vendas e clientes',
+    estoquista: 'Estoquista — produtos e estoque',
   }
 
   return (
     <div style={{ minHeight:'100vh', background:'var(--fundo)', display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' }}>
       <div style={{ width:'100%', maxWidth:'420px' }}>
 
-        {/* Logo */}
+        {/* Logo KDL Store */}
         <div style={{ textAlign:'center', marginBottom:'1.5rem' }}>
-          <p style={{ fontSize:'1.5rem', fontWeight:900, color:'var(--verde)', letterSpacing:'-0.02em' }}>NexoCommerce</p>
+          <Link href="/" style={{ textDecoration:'none', display:'inline-flex', alignItems:'baseline', gap:'2px', justifyContent:'center' }}>
+            <span style={{ color:'var(--verde)', fontWeight:900, fontSize:'1.8rem', fontFamily:"'Nunito', sans-serif", fontStyle:'italic' }}>K</span>
+            <span style={{ color:'var(--texto)', fontWeight:700, fontSize:'1.1rem', fontFamily:"'Nunito', sans-serif" }}>DL Store</span>
+          </Link>
           <p style={{ fontSize:'0.85rem', color:'var(--texto-desab)', marginTop:'4px' }}>Sistema de Gestão para Lojas</p>
         </div>
 

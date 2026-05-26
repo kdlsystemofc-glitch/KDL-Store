@@ -94,10 +94,25 @@ export default function UsuariosPage() {
         toast.error(json.error || 'Erro ao enviar convite')
         return
       }
-      
-      setConvites(prev => [json.convite, ...prev])
+
+      // Mapeia papel do banco para a UI antes de adicionar ao estado
+      const MAP_DB_TO_UI: Record<string, string> = {
+        admin: 'admin', operador: 'vendedor', visualizador: 'estoquista',
+        vendedor: 'vendedor', estoquista: 'estoquista',
+      }
+      const conviteMapeado = {
+        ...json.convite,
+        papel: MAP_DB_TO_UI[json.convite.papel] || json.convite.papel,
+      }
+
+      setConvites(prev => [conviteMapeado, ...prev])
       setModal(false); setCNome(''); setCEmail(''); setCPapel('vendedor')
-      toast.success('Convite gerado e e-mail enviado com sucesso!')
+
+      if (json.emailSent === false) {
+        toast.success('Convite gerado! E-mail não enviado (usuário já cadastrado). Copie o link manualmente.')
+      } else {
+        toast.success('Convite gerado e e-mail enviado com sucesso!')
+      }
     } catch (err: any) {
       setCriando(false)
       toast.error('Erro de conexão ao convidar: ' + err.message)

@@ -657,6 +657,12 @@ DROP POLICY IF EXISTS "convites_minha_empresa" ON convites;
 CREATE POLICY "convites_minha_empresa" ON convites
   FOR ALL USING (empresa_id = minha_empresa_id());
 
+-- Permite SELECT público de convites PENDENTES para validação de token
+-- (usuário convidado ainda não tem sessão/profile no momento da aceitação)
+DROP POLICY IF EXISTS "convites_validacao_token" ON convites;
+CREATE POLICY "convites_validacao_token" ON convites
+  FOR SELECT USING (status = 'pendente' AND expira_em > NOW());
+
 -- ── categorias_produto ──
 DROP POLICY IF EXISTS "cat_minha_empresa" ON categorias_produto;
 CREATE POLICY "cat_minha_empresa" ON categorias_produto
