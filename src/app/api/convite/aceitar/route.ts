@@ -46,9 +46,9 @@ export async function POST(request: Request) {
     // ── 1. Valida o convite ──────────────────────────────────────────────────
     const { data: convite, error: conviteErr } = await admin
       .from('convites')
-      .select('id, email, nome, papel, empresa_id, auth_user_id')
+      .select('id, email, nome, papel, empresa_id, auth_user_id, status')
       .eq('token', token)
-      .eq('status', 'pendente')
+      .in('status', ['pendente', 'aceito'])
       .gt('expira_em', new Date().toISOString())
       .single()
 
@@ -59,6 +59,13 @@ export async function POST(request: Request) {
       )
     }
 
+    if (convite.status === 'aceito' && !convite.auth_user_id) {
+      return NextResponse.json(
+        { error: 'Este convite já foi aceito' },
+        { status: 400 }
+      )
+    }
+
     const email    = convite.email as string
     const nomeFinal = nome.trim() || (convite.nome as string | null) || email.split('@')[0]
 
@@ -66,12 +73,21 @@ export async function POST(request: Request) {
     let userId: string | null = (convite.auth_user_id as string | null) || null
 
     if (userId) {
+      // Verifica se o convite já foi de fato finalizado pelo convidado
+      const { data: authUser, error: getErr } = await admin.auth.admin.getUserById(userId)
+      if (!getErr && authUser?.user?.user_metadata?.invite_accepted === true) {
+        return NextResponse.json(
+          { error: 'Este convite já foi aceito' },
+          { status: 400 }
+        )
+      }
+
       // O usuário já existe no Supabase Auth porque o convite o pré-registrou.
       // Atualiza a senha e os metadados diretamente via Admin API.
       const { error: updateErr } = await admin.auth.admin.updateUserById(userId, {
         password: senha,
         email_confirm: true, // Garante que o e-mail está confirmado ao aceitar
-        user_metadata: { nome: nomeFinal, invite_token: token },
+        user_metadata: { nome: nomeFinal, invite_token: token, invite_accepted: true },
       })
 
       if (updateErr) {
@@ -89,6 +105,7 @@ export async function POST(request: Request) {
         user_metadata: {
           invite_token: token,
           nome: nomeFinal,
+          invite_accepted: true,
         },
       })
 
@@ -125,7 +142,7 @@ export async function POST(request: Request) {
         const { error: updateErr } = await admin.auth.admin.updateUserById(userId, {
           password: senha,
           email_confirm: true,
-          user_metadata: { nome: nomeFinal, invite_token: token },
+          user_metadata: { nome: nomeFinal, invite_token: token, invite_accepted: true },
         })
 
         if (updateErr) {

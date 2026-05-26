@@ -112,14 +112,27 @@ export async function GET(request: Request) {
 
     const { data, error } = await supabaseAdmin
       .from('convites')
-      .select('email, nome, papel')
+      .select('email, nome, papel, auth_user_id, status')
       .eq('token', token)
-      .eq('status', 'pendente')
+      .in('status', ['pendente', 'aceito'])
       .gt('expira_em', new Date().toISOString())
       .single()
 
     if (error || !data) {
       return NextResponse.json({ error: 'Convite inválido ou expirado' }, { status: 404 })
+    }
+
+    // Se já foi aceito no banco e não tem auth_user_id associado, bloqueia
+    if (data.status === 'aceito' && !data.auth_user_id) {
+      return NextResponse.json({ error: 'Este convite já foi aceito' }, { status: 404 })
+    }
+
+    // Se tem auth_user_id, verifica no Supabase Auth se a senha já foi definida (convite finalizado)
+    if (data.auth_user_id) {
+      const { data: authUser, error: authErr } = await supabaseAdmin.auth.admin.getUserById(data.auth_user_id)
+      if (!authErr && authUser?.user?.user_metadata?.invite_accepted === true) {
+        return NextResponse.json({ error: 'Este convite já foi aceito' }, { status: 400 })
+      }
     }
 
     // Mapeia papel do banco para a UI
@@ -130,7 +143,7 @@ export async function GET(request: Request) {
     }
     const uiPapel = MAP_DB_TO_UI[data.papel] || data.papel
 
-    return NextResponse.json({ convite: { ...data, papel: uiPapel } })
+    return NextResponse.json({ convite: { email: data.email, nome: data.nome, papel: uiPapel } })
   } catch (err: any) {
     return NextResponse.json({ error: 'Erro interno: ' + err.message }, { status: 500 })
   }
