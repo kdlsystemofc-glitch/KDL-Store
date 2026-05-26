@@ -28,7 +28,6 @@ export default function ConvitePage() {
     }
 
     // Valida o token via API server-side (service role bypassa o RLS).
-    // Necessário porque o usuário convidado ainda não tem sessão/profile.
     fetch(`/api/convite?token=${encodeURIComponent(t)}`)
       .then(async (res) => {
         const json = await res.json()
@@ -49,50 +48,52 @@ export default function ConvitePage() {
 
   async function criarConta() {
     setErro('')
-    if (!nome.trim())             { setErro('Informe seu nome.'); return }
-    if (senha.length < 6)         { setErro('A senha deve ter pelo menos 6 caracteres.'); return }
-    if (senha !== confirm)         { setErro('As senhas não coincidem.'); return }
-    if (!convite)                  { setErro('Convite inválido.'); return }
+    if (!nome.trim())    { setErro('Informe seu nome.'); return }
+    if (senha.length < 6){ setErro('A senha deve ter pelo menos 6 caracteres.'); return }
+    if (senha !== confirm){ setErro('As senhas não coincidem.'); return }
+    if (!convite)        { setErro('Convite inválido.'); return }
     setSalvando(true)
 
     const supabase = createClient()
 
-    // Verifica se o usuário já está autenticado (veio pelo link do e-mail Supabase)
+    // ── Verifica se já há sessão ativa (veio pelo link de e-mail do Supabase) ──
     const { data: { session } } = await supabase.auth.getSession()
-
     if (session?.user) {
-      // Usuário já autenticado via magic link do e-mail — atualiza o nome e redireciona
+      // Atualiza nome e redireciona
       await supabase.auth.updateUser({ data: { nome: nome.trim() } })
       setStep('success')
       setTimeout(() => router.push('/dashboard'), 2500)
       return
     }
 
-    // Fluxo de link copiado (sem autenticação prévia): tenta criar conta
-    const { data, error } = await supabase.auth.signUp({
-      email:    convite.email,
-      password: senha,
-      options:  { data: { invite_token: token, nome: nome.trim() } }  // CHAVE CORRETA: invite_token
+    // ── Chama o endpoint server-side que cria/atualiza o usuário ──────────────
+    // Usa Admin API: define a senha, garante o profile e marca convite como aceito.
+    // Não usa signUp() no cliente porque o e-mail pode já existir no Supabase
+    // (criado por inviteUserByEmail), e o signUp() nesses casos ignora a senha.
+    const res = await fetch('/api/convite/aceitar', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ token, nome: nome.trim(), senha }),
     })
 
-    if (error) {
-      // E-mail já cadastrado no Supabase (de um convite anterior)
-      if (error.message.toLowerCase().includes('already registered') ||
-          error.message.toLowerCase().includes('already been registered')) {
-        setErro(
-          'Este e-mail já possui uma conta. Use o link enviado por e-mail ou faça login normalmente.'
-        )
-      } else {
-        setErro(error.message)
-      }
+    const json = await res.json()
+
+    if (!res.ok) {
+      setErro(json.error || 'Erro ao criar conta. Tente novamente.')
       setSalvando(false)
       return
     }
 
-    if (!data.session) {
-      // Supabase pediu confirmação por e-mail (autoconfirm desativado)
+    // ── Faz login com a senha recém-definida ─────────────────────────────────
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email:    convite.email,
+      password: senha,
+    })
+
+    if (signInError) {
       setErro(
-        'Verifique seu e-mail e clique no link de confirmação para ativar sua conta.'
+        'Sua conta foi criada! Porém não foi possível entrar automaticamente. ' +
+        'Acesse /login com seu e-mail e a senha que você acabou de criar.'
       )
       setSalvando(false)
       return
@@ -106,6 +107,8 @@ export default function ConvitePage() {
     admin:      'Administrador — acesso total',
     vendedor:   'Vendedor — vendas e clientes',
     estoquista: 'Estoquista — produtos e estoque',
+    operador:   'Vendedor — vendas e clientes',
+    visualizador:'Estoquista — produtos e estoque',
   }
 
   return (

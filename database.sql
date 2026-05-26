@@ -493,6 +493,21 @@ CREATE TRIGGER on_auth_user_created
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 -- =============================================================
+-- FUNÇÃO HELPER: localiza auth.users.id pelo e-mail
+-- Usada pelo endpoint /api/convite/aceitar quando o e-mail já existe
+-- no Supabase Auth (criado por inviteUserByEmail) e precisamos atualizar
+-- a senha via Admin API sem depender do SDK que não tem getUserByEmail.
+-- =============================================================
+CREATE OR REPLACE FUNCTION public.get_auth_user_id_by_email(p_email TEXT)
+RETURNS UUID
+LANGUAGE SQL
+SECURITY DEFINER
+SET search_path = auth, public
+AS $$
+  SELECT id FROM auth.users WHERE email = p_email LIMIT 1;
+$$;
+
+-- =============================================================
 -- TRIGGER: atualizar ultima_compra do cliente ao fechar venda
 -- =============================================================
 CREATE OR REPLACE FUNCTION atualizar_ultima_compra()
