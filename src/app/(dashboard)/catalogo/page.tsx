@@ -20,6 +20,7 @@ type EmpresaInfo = {
   catalogo_cor_primaria: string | null; catalogo_cor_secundaria: string | null; catalogo_descricao: string | null
   catalogo_template: string | null; catalogo_fonte: string | null; catalogo_logo_url: string | null
   catalogo_mostrar_carrinho: boolean | null
+  catalogo_formas_envio: string | null
 }
 
 const PALETAS = [
@@ -61,7 +62,8 @@ export default function CatalogoPage() {
   const [empresa, setEmpresa] = useState<EmpresaInfo>({
     nome: '', telefone: null, cidade: null, slug: null,
     catalogo_cor_primaria: '#6C63FF', catalogo_cor_secundaria: '#00BFA5', catalogo_descricao: null,
-    catalogo_template: 'moderno', catalogo_fonte: 'Inter', catalogo_logo_url: null, catalogo_mostrar_carrinho: true
+    catalogo_template: 'moderno', catalogo_fonte: 'Inter', catalogo_logo_url: null, catalogo_mostrar_carrinho: true,
+    catalogo_formas_envio: null
   })
   const [loading, setLoading] = useState(true)
   const [salvando, setSalvando] = useState<string | null>(null)
@@ -79,7 +81,7 @@ export default function CatalogoPage() {
         .select('id,nome,categoria,preco_varejo,preco_atacado,preco_vip,ativo_catalogo,destaque,preco_catalogo')
         .eq('empresa_id', eid).eq('ativo', true).order('nome'),
       supabase.from('empresas')
-        .select('nome,telefone,cidade,slug,catalogo_cor_primaria,catalogo_cor_secundaria,catalogo_descricao,catalogo_template,catalogo_fonte,catalogo_logo_url,catalogo_mostrar_carrinho')
+        .select('nome,telefone,cidade,slug,catalogo_cor_primaria,catalogo_cor_secundaria,catalogo_descricao,catalogo_template,catalogo_fonte,catalogo_logo_url,catalogo_mostrar_carrinho,catalogo_formas_envio')
         .eq('id', eid).single(),
     ])
     setProdutos(prods || [])
@@ -95,7 +97,8 @@ export default function CatalogoPage() {
         catalogo_template: emp.catalogo_template || 'moderno',
         catalogo_fonte: emp.catalogo_fonte || 'Inter',
         catalogo_logo_url: emp.catalogo_logo_url,
-        catalogo_mostrar_carrinho: emp.catalogo_mostrar_carrinho !== false
+        catalogo_mostrar_carrinho: emp.catalogo_mostrar_carrinho !== false,
+        catalogo_formas_envio: emp.catalogo_formas_envio
       })
       if (emp.catalogo_logo_url) {
         setLogoPreview(emp.catalogo_logo_url)

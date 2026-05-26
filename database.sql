@@ -79,6 +79,14 @@ CREATE TABLE IF NOT EXISTS empresas (
   slug                        TEXT UNIQUE,
   plano                       tipo_plano NOT NULL DEFAULT 'start',
   crm_prazo_inatividade_dias  INT NOT NULL DEFAULT 60,
+  catalogo_cor_primaria       TEXT DEFAULT '#6C63FF',
+  catalogo_cor_secundaria     TEXT DEFAULT '#00BFA5',
+  catalogo_descricao          TEXT,
+  catalogo_template           TEXT DEFAULT 'moderno',
+  catalogo_fonte              TEXT DEFAULT 'Inter',
+  catalogo_logo_url           TEXT,
+  catalogo_mostrar_carrinho   BOOLEAN DEFAULT TRUE,
+  catalogo_formas_envio       TEXT,
   criado_em                   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

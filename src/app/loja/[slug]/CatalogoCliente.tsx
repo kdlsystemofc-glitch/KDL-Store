@@ -1,5 +1,5 @@
 'use client'
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback, memo } from 'react'
 
 type Produto = {
   id: string
@@ -28,6 +28,7 @@ type Empresa = {
   catalogo_fonte: string | null
   catalogo_logo_url: string | null
   catalogo_mostrar_carrinho: boolean
+  catalogo_formas_envio: string | null
 }
 
 type ItemCarrinho = {
@@ -86,10 +87,32 @@ export default function CatalogoCliente({
   const [detalheQtd, setDetalheQtd] = useState(1)
   const [toasts, setToasts] = useState<LocalToast[]>([])
   
+  // Custom delivery options list
+  const formasEnvio = useMemo(() => {
+    if (!empresa.catalogo_formas_envio || !empresa.catalogo_formas_envio.trim()) {
+      return [
+        { id: 'retirar', label: 'Retirar na Loja' },
+        { id: 'entrega', label: 'Entrega a Domicílio' },
+        { id: 'combinar', label: 'A Combinar com o Vendedor' }
+      ]
+    }
+    return empresa.catalogo_formas_envio.split(',').map((item, idx) => {
+      const trimmed = item.trim()
+      return { id: `opcao_${idx}`, label: trimmed }
+    })
+  }, [empresa.catalogo_formas_envio])
+
   // Checkout form states
   const [nomeCliente, setNomeCliente] = useState('')
-  const [formaEntrega, setFormaEntrega] = useState('retirar')
+  const [formaEntrega, setFormaEntrega] = useState('')
   const [obsPedido, setObsPedido] = useState('')
+
+  // Set default shipping method once list is loaded
+  useEffect(() => {
+    if (formasEnvio.length > 0 && !formaEntrega) {
+      setFormaEntrega(formasEnvio[0].label)
+    }
+  }, [formasEnvio, formaEntrega])
 
   const cor1 = empresa.catalogo_cor_primaria || '#6C63FF'
   const cor2 = empresa.catalogo_cor_secundaria || '#00BFA5'
@@ -115,23 +138,23 @@ export default function CatalogoCliente({
   }, [whatsappNumber])
 
   // Save cart to localStorage
-  const atualizarCarrinho = (novo: ItemCarrinho[]) => {
+  const atualizarCarrinho = useCallback((novo: ItemCarrinho[]) => {
     setCarrinho(novo)
     try {
       localStorage.setItem(`kdl_cart_${whatsappNumber}`, JSON.stringify(novo))
     } catch (e) {
       console.error(e)
     }
-  }
+  }, [whatsappNumber])
 
   // Toast helper
-  const showToast = (mensagem: string, tipo: 'sucesso' | 'info' = 'sucesso') => {
+  const showToast = useCallback((mensagem: string, tipo: 'sucesso' | 'info' = 'sucesso') => {
     const id = Date.now()
     setToasts(prev => [...prev, { id, mensagem, tipo }])
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id))
     }, 3000)
-  }
+  }, [])
 
   const categorias = useMemo(() => {
     const set = new Set<string>()
@@ -139,7 +162,8 @@ export default function CatalogoCliente({
     return Array.from(set).sort()
   }, [produtos])
 
-  const destaques = produtos.filter(p => p.destaque)
+  const destaques = useMemo(() => produtos.filter(p => p.destaque), [produtos])
+  
   const produtosFiltrados = useMemo(() => {
     return produtos.filter(p => {
       const matchCat = !categoriaAtiva || p.categoria === categoriaAtiva
@@ -149,7 +173,7 @@ export default function CatalogoCliente({
   }, [produtos, categoriaAtiva, busca])
 
   // Cart actions
-  const adicionarAoCarrinho = (p: Produto, qtd: number) => {
+  const adicionarAoCarrinho = useCallback((p: Produto, qtd: number) => {
     const preco = getPreco(p)
     if (preco === null) return
 
@@ -162,9 +186,13 @@ export default function CatalogoCliente({
     }
     atualizarCarrinho(novoCarrinho)
     showToast(`Adicionado: ${qtd}x ${p.nome}`)
-  }
+  }, [carrinho, atualizarCarrinho, showToast])
 
-  const alterarQuantidade = (produtoId: string, delta: number) => {
+  const handleAdicionarCarrinhoCard = useCallback((p: Produto) => {
+    adicionarAoCarrinho(p, 1)
+  }, [adicionarAoCarrinho])
+
+  const alterarQuantidade = useCallback((produtoId: string, delta: number) => {
     const index = carrinho.findIndex(item => item.produto.id === produtoId)
     if (index === -1) return
     let novoCarrinho = [...carrinho]
@@ -176,13 +204,13 @@ export default function CatalogoCliente({
       novoCarrinho[index].quantidade = novaQtd
     }
     atualizarCarrinho(novoCarrinho)
-  }
+  }, [carrinho, atualizarCarrinho, showToast])
 
-  const removerDoCarrinho = (produtoId: string) => {
+  const removerDoCarrinho = useCallback((produtoId: string) => {
     const novoCarrinho = carrinho.filter(item => item.produto.id !== produtoId)
     atualizarCarrinho(novoCarrinho)
     showToast('Produto removido do carrinho', 'info')
-  }
+  }, [carrinho, atualizarCarrinho, showToast])
 
   const totalItens = useMemo(() => carrinho.reduce((sum, item) => sum + item.quantidade, 0), [carrinho])
   const valorTotal = useMemo(() => {
@@ -200,7 +228,7 @@ export default function CatalogoCliente({
     return "'Inter', sans-serif"
   }
 
-  const handleEnviarPedido = () => {
+  const handleEnviarPedido = useCallback(() => {
     if (carrinho.length === 0) return
     
     let msg = `Olá! Gostaria de fazer um pedido pelo catálogo:\n\n`
@@ -218,8 +246,7 @@ export default function CatalogoCliente({
       msg += `*👤 Nome do Cliente:* ${nomeCliente.trim()}\n`
     }
     
-    const entregaLabel = formaEntrega === 'retirar' ? 'Retirar na Loja' : formaEntrega === 'entrega' ? 'Entrega a Domicílio' : 'A Combinar'
-    msg += `*📍 Forma de Envio:* ${entregaLabel}\n`
+    msg += `*📍 Forma de Envio:* ${formaEntrega}\n`
 
     if (obsPedido.trim()) {
       msg += `*💬 Observações:* ${obsPedido.trim()}\n`
@@ -228,13 +255,13 @@ export default function CatalogoCliente({
     const waText = encodeURIComponent(msg)
     window.open(`https://wa.me/55${whatsappNumber}?text=${waText}`, '_blank')
     
-    // Optional: clear cart on checkout
+    // Clear cart on checkout
     atualizarCarrinho([])
     setCarrinhoAberto(false)
     setNomeCliente('')
     setObsPedido('')
     showToast('Pedido enviado com sucesso!', 'sucesso')
-  }
+  }, [carrinho, valorTotal, nomeCliente, formaEntrega, obsPedido, whatsappNumber, atualizarCarrinho, showToast])
 
   return (
     <>
@@ -261,7 +288,7 @@ export default function CatalogoCliente({
         /* ──── THEMES ──── */
         
         /* MODERN THEME */
-        body.theme-moderno {
+        .theme-moderno {
           background: #f4f5f7;
           color: #1f2937;
         }
@@ -279,7 +306,7 @@ export default function CatalogoCliente({
         }
 
         /* MINIMALIST THEME */
-        body.theme-minimalista {
+        .theme-minimalista {
           background: #fafafa;
           color: #111;
         }
@@ -343,7 +370,7 @@ export default function CatalogoCliente({
         }
 
         /* DARK LUXURY THEME */
-        body.theme-luxo_escuro {
+        .theme-luxo_escuro {
           background: #090a0f;
           color: #f3f4f6;
         }
@@ -421,11 +448,7 @@ export default function CatalogoCliente({
           overflow: hidden;
         }
         .hero-banner {
-          position: absolute;
-          inset: 0;
-          z-index: 0;
-          opacity: 0.35;
-          filter: blur(8px) brightness(0.7);
+          display: none; /* Removed stretched blurry logo background for high-end aesthetics */
         }
         .hero-banner img {
           width: 100%;
@@ -434,21 +457,32 @@ export default function CatalogoCliente({
         }
         .hero-content { position: relative; z-index: 1; }
         .hero-logo-img {
-          width: 80px; height: 80px; border-radius: 24px;
-          object-fit: cover;
-          border: 3px solid rgba(255,255,255,0.3);
-          box-shadow: 0 8px 30px rgba(0,0,0,0.15);
-          margin-bottom: 1.25rem;
+          width: 110px;
+          height: 110px;
+          border-radius: 20px; /* Rounded square — fits any logo shape */
+          object-fit: contain;
+          background: rgba(255,255,255,0.95);
+          padding: 10px;
+          border: 2px solid rgba(255,255,255,0.7);
+          box-shadow: 0 12px 30px rgba(0,0,0,0.18), 0 4px 10px rgba(0,0,0,0.08);
+          margin: 0 auto 1.25rem;
+          display: block;
+          transition: transform 0.3s ease;
+        }
+        .hero-logo-img:hover {
+          transform: scale(1.05);
         }
         .hero-logo-placeholder {
-          width: 80px; height: 80px; border-radius: 24px;
+          width: 90px;
+          height: 90px;
+          border-radius: 50%;
           background: rgba(255,255,255,0.18);
           backdrop-filter: blur(10px);
           border: 2px solid rgba(255,255,255,0.3);
           display: flex; align-items: center; justify-content: center;
           margin: 0 auto 1.25rem;
-          font-size: 2.2rem;
-          box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+          font-size: 2.5rem;
+          box-shadow: 0 10px 25px rgba(0,0,0,0.12);
         }
         .hero-nome {
           font-size: clamp(2rem, 6vw, 3.2rem);
@@ -456,6 +490,8 @@ export default function CatalogoCliente({
           letter-spacing: -0.03em;
           line-height: 1.1;
           margin-bottom: 0.75rem;
+          color: #ffffff !important; /* Force high-contrast white to avoid camouflage */
+          text-shadow: 0 2px 10px rgba(0,0,0,0.15); /* Premium soft drop shadow */
         }
         .hero-desc {
           font-size: 1.05rem;
@@ -747,8 +783,10 @@ export default function CatalogoCliente({
         }
         
         .drawer-body {
-          flex: 1; overflow-y: auto; padding: 1.5rem;
+          flex: 1; overflow-y: scroll; padding: 1.5rem;
           display: flex; flex-direction: column; gap: 1.25rem;
+          /* overflow-y: scroll ensures scrollbar space is always reserved,
+             preventing layout shift when content grows */
         }
         .cart-item {
           display: flex; gap: 1rem; align-items: center;
@@ -940,7 +978,7 @@ export default function CatalogoCliente({
         ))}
       </div>
 
-      <body className={`theme-${template}`}>
+      <div className={`theme-${template}`} style={{ minHeight: '100vh' }}>
         {/* HERO */}
         <div className="hero">
           {empresa.catalogo_logo_url && (
@@ -1042,7 +1080,7 @@ export default function CatalogoCliente({
                     key={p.id}
                     produto={p}
                     onVerDetalhes={setProdutoDetalhado}
-                    onAdicionarCarrinho={(prod) => adicionarAoCarrinho(prod, 1)}
+                    onAdicionarCarrinho={handleAdicionarCarrinhoCard}
                     mostrarCarrinho={mostrarCarrinho}
                     whatsappNumber={whatsappNumber}
                     delay={i * 50}
@@ -1073,7 +1111,7 @@ export default function CatalogoCliente({
                       key={p.id}
                       produto={p}
                       onVerDetalhes={setProdutoDetalhado}
-                      onAdicionarCarrinho={(prod) => adicionarAoCarrinho(prod, 1)}
+                      onAdicionarCarrinho={handleAdicionarCarrinhoCard}
                       mostrarCarrinho={mostrarCarrinho}
                       whatsappNumber={whatsappNumber}
                       delay={i * 40}
@@ -1168,9 +1206,11 @@ export default function CatalogoCliente({
                       value={formaEntrega}
                       onChange={e => setFormaEntrega(e.target.value)}
                     >
-                      <option value="retirar">Retirar na Loja</option>
-                      <option value="entrega">Entrega a Domicílio</option>
-                      <option value="combinar">A Combinar com o Vendedor</option>
+                      {formasEnvio.map(opt => (
+                        <option key={opt.id} value={opt.label}>
+                          {opt.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div>
@@ -1188,17 +1228,16 @@ export default function CatalogoCliente({
             )}
           </div>
 
-          {carrinho.length > 0 && (
-            <div className="drawer-footer">
-              <div className="total-row">
-                <span>Subtotal:</span>
-                <span style={{ color: 'var(--c1)' }}>{formatBRL(valorTotal)}</span>
-              </div>
-              <button className="btn-enviar-pedido" onClick={handleEnviarPedido}>
-                💬 Enviar Pedido pelo WhatsApp
-              </button>
+          {/* Footer is always in the DOM — display:none avoids layout shift when cart fills up */}
+          <div className="drawer-footer" style={{ display: carrinho.length > 0 ? 'flex' : 'none' }}>
+            <div className="total-row">
+              <span>Subtotal:</span>
+              <span style={{ color: 'var(--c1)' }}>{formatBRL(valorTotal)}</span>
             </div>
-          )}
+            <button className="btn-enviar-pedido" onClick={handleEnviarPedido}>
+              💬 Enviar Pedido pelo WhatsApp
+            </button>
+          </div>
         </div>
 
         {/* PRODUCT DETAILS MODAL */}
@@ -1292,12 +1331,12 @@ export default function CatalogoCliente({
             </a>
           </p>
         </footer>
-      </body>
+      </div>
     </>
   )
 }
 
-function ProdutoCard({
+const ProdutoCard = memo(function ProdutoCard({
   produto: p,
   onVerDetalhes,
   onAdicionarCarrinho,
@@ -1371,4 +1410,4 @@ function ProdutoCard({
       </div>
     </div>
   )
-}
+})
