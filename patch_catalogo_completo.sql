@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════
--- SCRIPT DE MIGRAÇÃO COMPLETO: Catálogo & Storage Bucket
+-- SCRIPT DE MIGRAÇÃO COMPLETO: Catálogo & Storage Bucket (V4)
 -- Execute em: Supabase > SQL Editor > Run
 -- ═══════════════════════════════════════════════════════
 
@@ -7,10 +7,9 @@
 -- 1. CRIAÇÃO E CONFIGURAÇÃO DO BUCKET DE STORAGE
 -- ─────────────────────────────────────────────
 
--- Garante que o bucket 'produtos' exista e seja público
-INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-VALUES ('produtos', 'produtos', true, 5242880, ARRAY['image/jpeg', 'image/png', 'image/webp'])
-ON CONFLICT (id) DO NOTHING;
+-- Garante que o bucket 'produtos' exista usando a função oficial do Supabase
+-- Se o bucket já existir, a função não gerará erro
+SELECT storage.create_bucket('produtos', 'produtos', true);
 
 -- Habilita políticas de leitura pública para o bucket 'produtos'
 DROP POLICY IF EXISTS "Leitura Pública de Imagens" ON storage.objects;
