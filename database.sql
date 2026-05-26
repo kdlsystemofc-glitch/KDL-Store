@@ -121,16 +121,19 @@ CREATE INDEX IF NOT EXISTS idx_sub_stripe_sub ON subscriptions(stripe_subscripti
 -- TABELA: convites (convidar usuários para a empresa)
 -- ─────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS convites (
-  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  empresa_id  UUID NOT NULL REFERENCES empresas(id) ON DELETE CASCADE,
-  email       TEXT NOT NULL,
-  nome        TEXT,
-  papel       papel_usuario  NOT NULL DEFAULT 'operador',
-  status      status_convite NOT NULL DEFAULT 'pendente',
-  token       TEXT UNIQUE DEFAULT encode(gen_random_bytes(32), 'hex'),
-  expira_em   TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '7 days'),
-  criado_em   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  empresa_id   UUID NOT NULL REFERENCES empresas(id) ON DELETE CASCADE,
+  email        TEXT NOT NULL,
+  nome         TEXT,
+  papel        papel_usuario  NOT NULL DEFAULT 'operador',
+  status       status_convite NOT NULL DEFAULT 'pendente',
+  token        TEXT UNIQUE DEFAULT encode(gen_random_bytes(32), 'hex'),
+  auth_user_id UUID,           -- ID do usuário criado no Supabase Auth via inviteUserByEmail
+  expira_em    TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '7 days'),
+  criado_em    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+-- Adiciona coluna em tabelas já existentes (idempotente)
+ALTER TABLE convites ADD COLUMN IF NOT EXISTS auth_user_id UUID;
 
 -- ─────────────────────────────────────────────
 -- TABELA: categorias_produto

@@ -59,11 +59,17 @@ export default function ConvitePage() {
     // ── Verifica se já há sessão ativa (veio pelo link de e-mail do Supabase) ──
     const { data: { session } } = await supabase.auth.getSession()
     if (session?.user) {
-      // Atualiza nome e redireciona
-      await supabase.auth.updateUser({ data: { nome: nome.trim() } })
-      setStep('success')
-      setTimeout(() => router.push('/dashboard'), 2500)
-      return
+      if (session.user.email?.toLowerCase() === convite?.email?.toLowerCase()) {
+        // Atualiza nome e redireciona
+        await supabase.auth.updateUser({ data: { nome: nome.trim() } })
+        setStep('success')
+        setTimeout(() => router.push('/dashboard'), 2500)
+        return
+      } else {
+        // Sessão ativa pertence a OUTRO usuário (e.g., admin).
+        // Desloga para evitar misturar contas.
+        await supabase.auth.signOut()
+      }
     }
 
     // ── Chama o endpoint server-side que cria/atualiza o usuário ──────────────

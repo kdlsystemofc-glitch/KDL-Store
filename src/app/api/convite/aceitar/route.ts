@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     // ── 1. Valida o convite ──────────────────────────────────────────────────
     const { data: convite, error: conviteErr } = await admin
       .from('convites')
-      .select('id, email, nome, papel, empresa_id')
+      .select('id, email, nome, papel, empresa_id, auth_user_id')
       .eq('token', token)
       .eq('status', 'pendente')
       .gt('expira_em', new Date().toISOString())
@@ -62,56 +62,15 @@ export async function POST(request: Request) {
     const email    = convite.email as string
     const nomeFinal = nome.trim() || (convite.nome as string | null) || email.split('@')[0]
 
-    // ── 2. Tenta criar usuário novo (Admin API, e-mail já confirmado) ─────────
-    let userId: string | null = null
+    // ── 2. Define/Atualiza a senha do usuário ───────────────────────────────
+    let userId: string | null = (convite.auth_user_id as string | null) || null
 
-    const { data: created, error: createErr } = await admin.auth.admin.createUser({
-      email,
-      password: senha,
-      email_confirm: true,          // não exige confirmação por e-mail
-      user_metadata: {
-        invite_token: token,        // para o trigger handle_new_user (belt-and-suspenders)
-        nome: nomeFinal,
-      },
-    })
-
-    if (!createErr && created?.user) {
-      // Usuário novo criado com sucesso — o trigger handle_new_user vai criar o profile.
-      // Fazemos upsert como garantia caso o trigger falhe silenciosamente.
-      userId = created.user.id
-
-    } else if (createErr) {
-      const msg = createErr.message?.toLowerCase() ?? ''
-      const jaExiste =
-        msg.includes('already been registered') ||
-        msg.includes('already registered') ||
-        msg.includes('user already exists') ||
-        msg.includes('duplicate')
-
-      if (!jaExiste) {
-        // Erro inesperado na criação
-        return NextResponse.json(
-          { error: 'Erro ao criar conta: ' + createErr.message },
-          { status: 500 }
-        )
-      }
-
-      // ── 2b. E-mail já existe → localiza o ID via função helper ─────────────
-      const { data: existingId, error: rpcErr } = await admin
-        .rpc('get_auth_user_id_by_email', { p_email: email })
-
-      if (rpcErr || !existingId) {
-        return NextResponse.json(
-          { error: 'Erro ao localizar usuário existente no banco. Execute o SQL do database.sql para criar a função get_auth_user_id_by_email.' },
-          { status: 500 }
-        )
-      }
-
-      userId = existingId as string
-
-      // Atualiza a senha e os metadados do usuário existente
+    if (userId) {
+      // O usuário já existe no Supabase Auth porque o convite o pré-registrou.
+      // Atualiza a senha e os metadados diretamente via Admin API.
       const { error: updateErr } = await admin.auth.admin.updateUserById(userId, {
         password: senha,
+        email_confirm: true, // Garante que o e-mail está confirmado ao aceitar
         user_metadata: { nome: nomeFinal, invite_token: token },
       })
 
@@ -120,6 +79,61 @@ export async function POST(request: Request) {
           { error: 'Erro ao atualizar senha: ' + updateErr.message },
           { status: 500 }
         )
+      }
+    } else {
+      // Caso não tenha auth_user_id (convite legado ou fallback), tentamos criar ou achar por e-mail:
+      const { data: created, error: createErr } = await admin.auth.admin.createUser({
+        email,
+        password: senha,
+        email_confirm: true,
+        user_metadata: {
+          invite_token: token,
+          nome: nomeFinal,
+        },
+      })
+
+      if (!createErr && created?.user) {
+        userId = created.user.id
+      } else if (createErr) {
+        const msg = createErr.message?.toLowerCase() ?? ''
+        const jaExiste =
+          msg.includes('already been registered') ||
+          msg.includes('already registered') ||
+          msg.includes('user already exists') ||
+          msg.includes('duplicate')
+
+        if (!jaExiste) {
+          return NextResponse.json(
+            { error: 'Erro ao criar conta: ' + createErr.message },
+            { status: 500 }
+          )
+        }
+
+        // E-mail já existe → localiza o ID via função helper
+        const { data: existingId, error: rpcErr } = await admin
+          .rpc('get_auth_user_id_by_email', { p_email: email })
+
+        if (rpcErr || !existingId) {
+          return NextResponse.json(
+            { error: 'Erro ao localizar usuário existente no banco. Execute o SQL do database.sql para criar a função get_auth_user_id_by_email.' },
+            { status: 500 }
+          )
+        }
+
+        userId = existingId as string
+
+        const { error: updateErr } = await admin.auth.admin.updateUserById(userId, {
+          password: senha,
+          email_confirm: true,
+          user_metadata: { nome: nomeFinal, invite_token: token },
+        })
+
+        if (updateErr) {
+          return NextResponse.json(
+            { error: 'Erro ao atualizar senha: ' + updateErr.message },
+            { status: 500 }
+          )
+        }
       }
     }
 

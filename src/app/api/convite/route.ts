@@ -52,13 +52,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Erro ao registrar convite no banco: ' + dbError.message }, { status: 500 })
     }
 
-    // 2. Tentar enviar e-mail via Supabase Auth (falha silenciosa se usuário já existe)
+    // 2. Tentar enviar e-mail via Supabase Auth e capturar o auth_user_id gerado
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-    const { error: authError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+    const { data: inviteData, error: authError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
       email.trim().toLowerCase(),
       {
         data: {
-          invite_token: token,      // IMPORTANTE: trigger lê 'invite_token'
+          invite_token: token,      // trigger on_auth_user_created lê 'invite_token'
           empresa_id: empresaId,
           papel: dbPapel,
           nome: nome?.trim() || null,
@@ -67,11 +67,20 @@ export async function POST(request: Request) {
       }
     )
 
-    // Se falhou (ex: usuário já existe), o convite no banco continua válido.
-    // O admin pode copiar o link e enviar manualmente via WhatsApp/etc.
+    // Se o Supabase criou/encontrou o usuário, guarda o ID no convite.
+    // Isso permite que /api/convite/aceitar atualize a senha diretamente
+    // via Admin API sem depender de nenhuma função RPC auxiliar.
+    const authUserId = inviteData?.user?.id ?? null
+    if (authUserId) {
+      await supabaseAdmin
+        .from('convites')
+        .update({ auth_user_id: authUserId })
+        .eq('id', conviteData.id)
+    }
+
     const emailSent = !authError
 
-    return NextResponse.json({ success: true, convite: conviteData, emailSent })
+    return NextResponse.json({ success: true, convite: { ...conviteData, auth_user_id: authUserId }, emailSent })
   } catch (err: any) {
     return NextResponse.json({ error: 'Erro interno do servidor: ' + err.message }, { status: 500 })
   }
