@@ -1,5 +1,5 @@
 'use client'
-import { useState, useMemo, useEffect, useCallback, memo } from 'react'
+import { useState, useMemo, useEffect, useCallback, memo, useRef } from 'react'
 
 type Produto = {
   id: string
@@ -86,6 +86,7 @@ export default function CatalogoCliente({
   const [produtoDetalhado, setProdutoDetalhado] = useState<Produto | null>(null)
   const [detalheQtd, setDetalheQtd] = useState(1)
   const [toasts, setToasts] = useState<LocalToast[]>([])
+  const catsRef = useRef<HTMLDivElement>(null)
   
   // Custom delivery options list
   const formasEnvio = useMemo(() => {
@@ -262,6 +263,35 @@ export default function CatalogoCliente({
     setObsPedido('')
     showToast('Pedido enviado com sucesso!', 'sucesso')
   }, [carrinho, valorTotal, nomeCliente, formaEntrega, obsPedido, whatsappNumber, atualizarCarrinho, showToast])
+
+  // Drag-scroll de categorias com o mouse no Desktop
+  const [isGrabbing, setIsGrabbing] = useState(false)
+  const startX = useRef(0)
+  const scrollLeft = useRef(0)
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsGrabbing(true)
+    startX.current = e.pageX - (catsRef.current?.offsetLeft || 0)
+    scrollLeft.current = catsRef.current?.scrollLeft || 0
+  }
+
+  const handleMouseLeave = () => {
+    setIsGrabbing(false)
+  }
+
+  const handleMouseUp = () => {
+    setIsGrabbing(false)
+  }
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isGrabbing) return
+    e.preventDefault()
+    const x = e.pageX - (catsRef.current?.offsetLeft || 0)
+    const walk = (x - startX.current) * 1.5
+    if (catsRef.current) {
+      catsRef.current.scrollLeft = scrollLeft.current - walk
+    }
+  }
 
   return (
     <>
@@ -555,9 +585,22 @@ export default function CatalogoCliente({
         .search-input:focus { border-color: var(--c1); box-shadow: 0 0 0 3px rgba(var(--c1-rgb), 0.15); }
         .cats-wrap {
           display: flex; gap: 0.45rem; overflow-x: auto; padding-bottom: 2px;
-          scrollbar-width: none;
+          scrollbar-width: none; flex: 1; min-width: 0;
         }
         .cats-wrap::-webkit-scrollbar { display: none; }
+        /* Botões de navegação das categorias */
+        .cats-scroll-btn {
+          flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%;
+          border: 1.5px solid #e5e7eb; background: #fff; font-size: 1.15rem;
+          font-weight: 900; cursor: pointer; display: flex; align-items: center;
+          justify-content: center; color: #6b7280; transition: all 0.2s;
+          line-height: 1; padding: 0; user-select: none;
+        }
+        .cats-scroll-btn:hover { border-color: var(--c1); color: var(--c1); background: rgba(var(--c1-rgb), 0.06); }
+        .theme-luxo_escuro .cats-scroll-btn {
+          background: #14151f; border-color: rgba(255,255,255,0.1); color: #9ca3af;
+        }
+        .theme-minimalista .cats-scroll-btn { border-radius: 0; }
         .cat-pill {
           white-space: nowrap;
           padding: 0.45rem 1rem;
@@ -1014,7 +1057,7 @@ export default function CatalogoCliente({
               )}
               {empresa.instagram && (
                 <a
-                  href={`https://instagram.com/${empresa.instagram}`}
+                  href={`https://www.instagram.com/${empresa.instagram.replace('@', '')}/`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hero-chip"
@@ -1047,22 +1090,42 @@ export default function CatalogoCliente({
               />
             </div>
             {categorias.length > 0 && (
-              <div className="cats-wrap">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', minWidth: 0, flex: 1 }}>
                 <button
-                  className={`cat-pill${!categoriaAtiva ? ' ativa' : ''}`}
-                  onClick={() => setCategoriaAtiva(null)}
+                  className="cats-scroll-btn"
+                  onClick={() => catsRef.current?.scrollBy({ left: -220, behavior: 'smooth' })}
+                  aria-label="Categorias anteriores"
+                >&#8249;</button>
+                <div
+                  className="cats-wrap"
+                  ref={catsRef}
+                  onMouseDown={handleMouseDown}
+                  onMouseLeave={handleMouseLeave}
+                  onMouseUp={handleMouseUp}
+                  onMouseMove={handleMouseMove}
+                  style={{ cursor: isGrabbing ? 'grabbing' : 'grab', userSelect: 'none' }}
                 >
-                  Todos
-                </button>
-                {categorias.map(cat => (
                   <button
-                    key={cat}
-                    className={`cat-pill${categoriaAtiva === cat ? ' ativa' : ''}`}
-                    onClick={() => setCategoriaAtiva(cat === categoriaAtiva ? null : cat)}
+                    className={`cat-pill${!categoriaAtiva ? ' ativa' : ''}`}
+                    onClick={() => setCategoriaAtiva(null)}
                   >
-                    {cat}
+                    Todos
                   </button>
-                ))}
+                  {categorias.map(cat => (
+                    <button
+                      key={cat}
+                      className={`cat-pill${categoriaAtiva === cat ? ' ativa' : ''}`}
+                      onClick={() => setCategoriaAtiva(cat === categoriaAtiva ? null : cat)}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  className="cats-scroll-btn"
+                  onClick={() => catsRef.current?.scrollBy({ left: 220, behavior: 'smooth' })}
+                  aria-label="Próximas categorias"
+                >&#8250;</button>
               </div>
             )}
           </div>

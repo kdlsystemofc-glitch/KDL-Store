@@ -408,19 +408,32 @@ export default function NovaPdvPage() {
               <input
                 id="pdv-cliente"
                 className="campo"
-                placeholder="Nome do cliente..."
+                placeholder="Nome ou busca..."
                 value={cliente}
                 autoComplete="off"
+                onFocus={() => {
+                  // Mostra todos os clientes ao focar (mesmo sem digitar)
+                  if (clienteSugs.length === 0) {
+                    const q = cliente.toLowerCase()
+                    const filtrados = q.length >= 2
+                      ? clientesDB.filter(c => c.nome.toLowerCase().includes(q))
+                      : clientesDB
+                    setClienteSugs(filtrados.slice(0, 8))
+                  }
+                }}
+                onBlur={() => {
+                  // Fecha sugestões com delay para permitir clique
+                  setTimeout(() => setClienteSugs([]), 180)
+                }}
                 onChange={e => {
                   const v = e.target.value
                   setCliente(v)
-                  setClienteId(null) // reseta link quando digita manualmente
-                  if (v.length >= 2) {
-                    const q = v.toLowerCase()
-                    setClienteSugs(clientesDB.filter(c => c.nome.toLowerCase().includes(q)).slice(0, 6))
-                  } else {
-                    setClienteSugs([])
-                  }
+                  setClienteId(null)
+                  const q = v.toLowerCase()
+                  const filtrados = q.length >= 1
+                    ? clientesDB.filter(c => c.nome.toLowerCase().includes(q))
+                    : clientesDB
+                  setClienteSugs(filtrados.slice(0, 8))
                 }}
               />
               {/* Dropdown de sugestões */}
@@ -455,7 +468,15 @@ export default function NovaPdvPage() {
               </div>
             )}
             <div style={{display:'flex',gap:'0.375rem',marginTop:'0.375rem'}}>
-              <button className="btn btn-secondary" style={{fontSize:'0.72rem',flex:1}} onClick={()=>{setCliente('Anônimo');setClienteId(null);setClienteSugs([])}} disabled={pagamento==='Fiado'}>Anônimo</button>
+              <button
+                className="btn btn-secondary"
+                style={{fontSize:'0.72rem',flex:1}}
+                onClick={() => { setCliente(''); setClienteId(null); setClienteSugs([]) }}
+                disabled={pagamento==='Fiado'}
+                title="Limpa o campo e registra a venda sem vincular cliente"
+              >
+                Sem cliente
+              </button>
             </div>
           </div>
 

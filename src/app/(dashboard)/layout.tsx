@@ -240,6 +240,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => { setIsMounted(true) }, [])
 
+  // Atalho global F2 → Nova Venda
+  useEffect(() => {
+    const handleF2 = (e: KeyboardEvent) => {
+      if (e.key === 'F2') {
+        e.preventDefault()
+        router.push('/vendas/nova')
+      }
+    }
+    window.addEventListener('keydown', handleF2)
+    return () => window.removeEventListener('keydown', handleF2)
+  }, [router])
+
   /* Realtime: detecta congelamento ou exclusão */
   useEffect(() => {
     const supabase = createClient()

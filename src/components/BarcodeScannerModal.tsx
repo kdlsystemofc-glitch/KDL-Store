@@ -7,6 +7,9 @@ export function BarcodeScannerModal({ onScan, onClose }: { onScan: (code: string
   const videoRef = useRef<HTMLVideoElement>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  // Guardar onScan em ref para não re-executar o effect quando o callback muda
+  const onScanRef = useRef(onScan)
+  useEffect(() => { onScanRef.current = onScan }, [onScan])
 
   useEffect(() => {
     let reader = new BrowserMultiFormatReader()
@@ -29,16 +32,16 @@ export function BarcodeScannerModal({ onScan, onClose }: { onScan: (code: string
         setLoading(false)
         reader.decodeFromVideoDevice(deviceId, videoRef.current, (result, err) => {
           if (result) {
-            onScan(result.getText())
+            onScanRef.current(result.getText())
             reader.reset()
           }
           if (err && !(err instanceof NotFoundException)) {
             if (process.env.NODE_ENV !== 'production') console.error(err)
           }
         })
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (mounted) {
-          setError('Erro ao acessar a câmera: ' + err.message)
+          setError('Erro ao acessar a câmera: ' + (err instanceof Error ? err.message : String(err)))
           setLoading(false)
         }
       }
@@ -50,7 +53,7 @@ export function BarcodeScannerModal({ onScan, onClose }: { onScan: (code: string
       mounted = false
       reader.reset()
     }
-  }, [onScan])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps — onScan acessado via ref
 
   return (
     <div style={{ position:'fixed', inset:0, zIndex:10000, background:'rgba(0,0,0,0.85)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'1rem' }}>

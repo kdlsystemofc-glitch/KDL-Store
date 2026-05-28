@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { stripe } from '@/lib/stripe'
+
 
 export async function POST(request: Request) {
   try {
@@ -41,8 +43,9 @@ export async function POST(request: Request) {
       })
       customerId = customer.id
 
-      // Salvar customerId no banco
-      await supabase
+      // Salvar customerId no banco usando Admin Client para fins de segurança (bypassa RLS)
+      const supabaseAdmin = createAdminClient()
+      await supabaseAdmin
         .from('subscriptions')
         .update({ stripe_customer_id: customerId })
         .eq('empresa_id', empresaId)

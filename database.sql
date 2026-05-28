@@ -676,7 +676,7 @@ CREATE POLICY "profile_minha_empresa" ON profiles
 -- ── subscriptions ──
 DROP POLICY IF EXISTS "sub_minha_empresa" ON subscriptions;
 CREATE POLICY "sub_minha_empresa" ON subscriptions
-  FOR ALL USING (empresa_id = minha_empresa_id());
+  FOR SELECT USING (empresa_id = minha_empresa_id());
 
 -- ── convites ──
 DROP POLICY IF EXISTS "convites_minha_empresa" ON convites;
@@ -845,7 +845,8 @@ BEGIN
     INSERT INTO estoque_movimentacoes (
       empresa_id, produto_id, tipo, quantidade, obs
     ) VALUES (
-      p_empresa_id, v_produto_id, CASE WHEN v_brinde THEN 'brinde'::tipo_movimentacao ELSE 'venda'::tipo_movimentacao END, -v_quantidade, 'Venda registrada via Checkout'
+      -- CORRIGIDO: 'venda' não existe no enum tipo_movimentacao. Saída de estoque por venda = 'saida'
+      p_empresa_id, v_produto_id, CASE WHEN v_brinde THEN 'brinde'::tipo_movimentacao ELSE 'saida'::tipo_movimentacao END, -v_quantidade, 'Venda registrada via Checkout'
     );
 
     v_tem_garantia := COALESCE((v_item_json->>'tem_garantia')::BOOLEAN, FALSE);
@@ -879,3 +880,50 @@ BEGIN
   RETURN v_venda_id;
 END;
 $$;
+
+-- ═══════════════════════════════════════════════════════════════════
+-- SEGURANÇA E PROTEÇÃO CONTRA FRAUDES DE ASSINATURA/PLANO (Risco 3)
+-- ═══════════════════════════════════════════════════════════════════
+
+-- Impede que usuários normais façam alterações diretas em campos de faturamento (plano, status) via cliente/API não-admin
+CREATE OR REPLACE FUNCTION check_security_billing_fields()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Se o papel de autenticação for diferente de 'service_role', bloqueia alteração de dados de assinatura/planos
+  IF auth.role() <> 'service_role' THEN
+    -- Na tabela empresas, o plano não pode ser alterado por usuários normais
+    IF TG_TABLE_NAME = 'empresas' THEN
+      IF OLD.plano IS DISTINCT FROM NEW.plano THEN
+        RAISE EXCEPTION 'Apenas o gateway de pagamento (Stripe) pode alterar o plano da empresa diretamente.';
+      END IF;
+    END IF;
+
+    -- Na tabela subscriptions, nenhum campo crítico de faturamento pode ser alterado por usuários normais
+    IF TG_TABLE_NAME = 'subscriptions' THEN
+      IF OLD.plano IS DISTINCT FROM NEW.plano OR
+         OLD.status IS DISTINCT FROM NEW.status OR
+         OLD.stripe_subscription_id IS DISTINCT FROM NEW.stripe_subscription_id OR
+         OLD.stripe_customer_id IS DISTINCT FROM NEW.stripe_customer_id OR
+         OLD.stripe_price_id IS DISTINCT FROM NEW.stripe_price_id THEN
+        RAISE EXCEPTION 'Apenas o sistema de cobrança (Stripe) pode gerenciar as informações da assinatura.';
+      END IF;
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Associa o gatilho à tabela empresas
+DROP TRIGGER IF EXISTS trg_proteger_plano_empresa ON empresas;
+CREATE TRIGGER trg_proteger_plano_empresa
+  BEFORE UPDATE ON empresas
+  FOR EACH ROW
+  EXECUTE FUNCTION check_security_billing_fields();
+
+-- Associa o gatilho à tabela subscriptions
+DROP TRIGGER IF EXISTS trg_proteger_sub_campos ON subscriptions;
+CREATE TRIGGER trg_proteger_sub_campos
+  BEFORE UPDATE ON subscriptions
+  FOR EACH ROW
+  EXECUTE FUNCTION check_security_billing_fields();
+
