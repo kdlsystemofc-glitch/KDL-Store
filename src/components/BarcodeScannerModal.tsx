@@ -29,6 +29,17 @@ export function BarcodeScannerModal({ onScan, onClose }: { onScan: (code: string
         const deviceId = backCamera ? backCamera.deviceId : videoInputDevices[0].deviceId
 
         if (!mounted || !videoRef.current) return
+
+        // Monkeypatch para silenciar avisos de "already playing" e erros de autoplay
+        const video = videoRef.current
+        const originalPlay = video.play
+        video.play = function() {
+          if (!video.paused) return Promise.resolve()
+          return originalPlay.apply(this, arguments as any).catch(err => {
+            if (err.name !== 'AbortError') console.warn('Play error:', err)
+          })
+        }
+
         setLoading(false)
         reader.decodeFromVideoDevice(deviceId, videoRef.current, (result, err) => {
           if (result) {

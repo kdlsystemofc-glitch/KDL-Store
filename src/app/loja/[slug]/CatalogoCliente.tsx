@@ -168,7 +168,16 @@ export default function CatalogoCliente({
   const produtosFiltrados = useMemo(() => {
     return produtos.filter(p => {
       const matchCat = !categoriaAtiva || p.categoria === categoriaAtiva
-      const matchBusca = !busca || p.nome.toLowerCase().includes(busca.toLowerCase())
+      const matchBusca = (() => {
+        if (!busca) return true
+        const query = busca.toLowerCase().trim()
+        const words = query.split(/\s+/).filter(Boolean)
+        if (words.length === 0) return true
+        return words.every(word =>
+          p.nome.toLowerCase().includes(word) ||
+          (p.descricao || '').toLowerCase().includes(word)
+        )
+      })()
       return matchCat && matchBusca
     })
   }, [produtos, categoriaAtiva, busca])

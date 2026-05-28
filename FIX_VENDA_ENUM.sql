@@ -74,11 +74,11 @@ BEGIN
       
       INSERT INTO garantias (
         empresa_id, venda_id, produto_id, produto_nome, num_serie, cliente_nome, 
-        data_compra, data_vencimento, texto_garantia, status
+        data_compra, data_inicio, data_vencimento, data_fim, texto_garantia, status
       ) VALUES (
         p_empresa_id, v_venda_id, v_produto_id, v_item_json->>'produto_nome', v_item_json->>'num_serie',
         COALESCE(p_cliente_nome, 'Anônimo'),
-        CURRENT_DATE, v_venc_garantia, v_texto_garantia, 'ativa'
+        CURRENT_DATE, CURRENT_DATE, v_venc_garantia, v_venc_garantia, v_texto_garantia, 'ativa'
       );
     END IF;
 

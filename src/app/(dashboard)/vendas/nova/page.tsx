@@ -81,11 +81,19 @@ export default function NovaPdvPage() {
 
 
   const resultados = busca.length >= 1
-    ? catalogo.filter(p => 
-        p.nome.toLowerCase().includes(busca.toLowerCase()) || 
-        (p.sku||'').toLowerCase().includes(busca.toLowerCase()) ||
-        (p.ean||'').toLowerCase() === busca.toLowerCase()
-      )
+    ? catalogo.filter(p => {
+        const query = busca.toLowerCase().trim()
+        if (p.ean && p.ean.toLowerCase() === query) return true
+        if (p.sku && p.sku.toLowerCase() === query) return true
+
+        const words = query.split(/\s+/).filter(Boolean)
+        if (words.length === 0) return false
+
+        return words.every(word =>
+          p.nome.toLowerCase().includes(word) ||
+          (p.sku || '').toLowerCase().includes(word)
+        )
+      })
     : []
 
   function addItem(p: ProdDB) {
