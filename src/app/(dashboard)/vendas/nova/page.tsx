@@ -598,10 +598,8 @@ export default function NovaPdvPage() {
             <div style={{display:'flex',gap:'0.375rem',marginTop:'0.375rem'}}>
               <button
                 className="btn btn-secondary"
-                style={{fontSize:'0.72rem',flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:'0.25rem',
-                  color: !cliente && !clienteId ? 'var(--texto-desab)' : 'var(--texto)'}}
-                onMouseDown={e => {
-                  e.preventDefault() // evita conflito com onBlur do input
+                style={{fontSize:'0.72rem',flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:'0.25rem'}}
+                onClick={() => {
                   setCliente('')
                   setClienteId(null)
                   setClienteSugs([])
