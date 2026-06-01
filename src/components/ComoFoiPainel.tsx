@@ -5,7 +5,7 @@ import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
 import { Loader2, MessageCircle, X } from 'lucide-react'
 
-type Aba = 'ontem' | 'semana' | 'mes' | 'ano'
+type Aba = 'hoje' | 'ontem' | 'semana' | 'mes' | 'ano'
 interface Dados {
   faturamento: number; numVendas: number; despesas: number; lucro: number
   faturamentoPrev: number; numVendasPrev: number; melhorMes: boolean
@@ -19,12 +19,19 @@ const VAZIO: Dados = {
   listaVendas:[], listaDespesas:[]
 }
 const ABAS: { id: Aba; label: string }[] = [
-  { id:'ontem', label:'Ontem' }, { id:'semana', label:'Essa semana' },
-  { id:'mes',   label:'Esse mês' }, { id:'ano',  label:'Esse ano' },
+  { id:'hoje',  label:'Hoje 📅' }, { id:'ontem', label:'Ontem' },
+  { id:'semana', label:'Essa semana' }, { id:'mes',   label:'Esse mês' },
+  { id:'ano',  label:'Esse ano' },
 ]
 
 function getDates(aba: Aba) {
   const n = new Date()
+  if (aba === 'hoje') {
+    const hoje = new Date(n.getFullYear(), n.getMonth(), n.getDate())
+    const amanha = new Date(hoje); amanha.setDate(hoje.getDate()+1)
+    const ontem = new Date(hoje); ontem.setDate(hoje.getDate()-1)
+    return { i: hoje.toISOString(), f: amanha.toISOString(), pi: ontem.toISOString(), pf: hoje.toISOString() }
+  }
   if (aba === 'ontem') {
     const hoje = new Date(n.getFullYear(), n.getMonth(), n.getDate())
     const ontem = new Date(hoje); ontem.setDate(hoje.getDate()-1)
@@ -50,6 +57,7 @@ function getDates(aba: Aba) {
 }
 
 function getLabelPrev(aba: Aba) {
+  if (aba==='hoje') return 'ontem'
   if (aba==='ontem') return 'anteontem'
   if (aba==='semana') return 'semana passada'
   if (aba==='mes') return 'mês passado'
@@ -62,23 +70,25 @@ function gerarFrase(d: Dados, aba: Aba): string | null {
   const margem = d.faturamento > 0 ? d.lucro / d.faturamento : 0
   if (margem < 0.15 && d.despesas > 0) return 'Você vendeu bem mas os custos pesaram. Revise as despesas.'
   if (d.faturamentoPrev > 0 && d.faturamento < d.faturamentoPrev * 0.8) {
-    if (aba==='ontem') return 'Dia fraco. Amanhã é uma nova chance.'
+    if (aba==='hoje' || aba==='ontem') return 'Dia fraco. Amanhã é uma nova chance.'
     if (aba==='semana') return 'Semana abaixo da média. Ainda dá tempo de recuperar.'
     return 'Período abaixo do esperado. Analise o que pode melhorar.'
   }
-  if (d.lucro > 0 && d.faturamento >= d.faturamentoPrev) return aba==='ontem'?'Dia lucrativo. Continue assim.':'Resultado positivo. Continue assim.'
+  if (d.lucro > 0 && d.faturamento >= d.faturamentoPrev) return (aba==='hoje' || aba==='ontem')?'Dia lucrativo. Continue assim.':'Resultado positivo. Continue assim.'
   if (d.lucro > 0) return 'Resultado positivo no período.'
   return null
 }
 
 function gerarMsgWA(d: Dados, aba: Aba): string {
   const n = new Date()
-  const labelData = aba==='ontem'
+  const labelData = aba==='hoje'
+    ? n.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})
+    : aba==='ontem'
     ? new Date(n.getFullYear(),n.getMonth(),n.getDate()-1).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})
     : aba==='semana' ? 'semana atual'
     : aba==='mes' ? n.toLocaleDateString('pt-BR',{month:'long',year:'numeric'})
     : String(n.getFullYear())
-  const labelAba = aba==='ontem'?'ontem':aba==='semana'?'essa semana':aba==='mes'?'esse mês':'esse ano'
+  const labelAba = aba==='hoje'?'hoje':aba==='ontem'?'ontem':aba==='semana'?'essa semana':aba==='mes'?'esse mês':'esse ano'
   const ticket = d.numVendas > 0 ? d.faturamento/d.numVendas : 0
   const frase = gerarFrase(d, aba)
   let msg = `📊 NexoCommerce — Resumo de ${labelAba} (${labelData})\n\n`
@@ -96,7 +106,7 @@ function gerarMsgWA(d: Dados, aba: Aba): string {
 
 export function ComoFoiPainel() {
   const { empresaId } = useEmpresaId()
-  const [aba,     setAba]     = useState<Aba>('ontem')
+  const [aba,     setAba]     = useState<Aba>('hoje')
   const [loading, setLoading] = useState(true)
   const [dados,   setDados]   = useState<Dados>(VAZIO)
   const cacheRef = useRef({} as Partial<Record<Aba,Dados>>)
@@ -236,7 +246,7 @@ export function ComoFoiPainel() {
               onMouseOut={(e) => e.currentTarget.style.transform = 'translate(0px, 0px)'}
             >
               <p style={{fontSize:'0.85rem',fontWeight:800,color:'var(--verde-esc)',marginBottom:'0.25rem',textTransform:'uppercase',letterSpacing:'0.06em'}}>
-                Faturamento {aba==='ontem'?'de ontem':aba==='semana'?'da semana':aba==='mes'?'do mês':'do ano'} <span style={{fontSize:'0.7rem',opacity:0.7}}>(Clique para ver detalhes)</span>
+                Faturamento {aba==='hoje'?'de hoje':aba==='ontem'?'de ontem':aba==='semana'?'da semana':aba==='mes'?'do mês':'do ano'} <span style={{fontSize:'0.7rem',opacity:0.7}}>(Clique para ver detalhes)</span>
               </p>
               <p style={{fontWeight:900,fontSize:'3rem',color:'var(--verde-esc)',fontFamily:'monospace',lineHeight:1,textShadow:'1px 1px 0px rgba(0,0,0,0.1)'}}>
                 {formatCurrency(dados.faturamento)}

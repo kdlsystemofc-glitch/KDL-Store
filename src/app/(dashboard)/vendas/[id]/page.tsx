@@ -9,7 +9,7 @@ import { ArrowLeft, Printer, X, Loader2, Package, Wrench } from 'lucide-react'
 import { AdminOnly } from '@/components/AdminOnly'
 import { OperadorOnly } from '@/components/OperadorOnly'
 
-type Venda    = { id:string; numero:number; cliente_nome:string|null; forma_pagamento:string; subtotal:number; desconto:number; total:number; status:string; criado_em:string; motivo_cancelamento?:string }
+type Venda    = { id:string; numero:number; cliente_nome:string|null; forma_pagamento:string; subtotal:number; desconto:number; total:number; status:string; criado_em:string; motivo_cancelamento?:string; registrado_nome?:string|null; cliente_id?:string|null }
 type Item     = { id:string; produto_id:string; produto_nome:string; quantidade:number; preco_unitario:number; brinde:boolean; num_serie:string|null }
 type Fornecedor = { id:string; nome:string; telefone:string|null }
 
@@ -28,6 +28,9 @@ export default function VendaReciboPage() {
   const [fornSel,     setFornSel]     = useState('')
   const [fornItem,    setFornItem]    = useState('')
   const [salvandoForn,setSalvandoForn]= useState(false)
+  const [fornCusto,   setFornCusto]   = useState('')
+  const [fornQty,     setFornQty]     = useState('1')
+  const [fornGarantia,setFornGarantia]= useState(false)
 
   // Modal Abrir OS
   const [showOS,    setShowOS]    = useState(false)
@@ -37,6 +40,11 @@ export default function VendaReciboPage() {
   const [osObs,     setOsObs]     = useState('')
   const [salvandoOS,setSalvandoOS]= useState(false)
   const [osSucesso, setOsSucesso] = useState<string|null>(null)
+  const [osClienteTel,  setOsClienteTel]  = useState('')
+  const [osOrcamento,   setOsOrcamento]   = useState('')
+  const [osValorServico,setOsValorServico]= useState('')
+  const [osValorPecas,  setOsValorPecas]  = useState('')
+  const [osGarantia,    setOsGarantia]    = useState(false)
 
   // Modal Cancelar Venda
   const [showCanc,    setShowCanc]    = useState(false)
@@ -56,6 +64,15 @@ export default function VendaReciboPage() {
     })
   }, [id])
 
+  useEffect(() => {
+    if (showOS && venda?.cliente_id) {
+      createClient().from('clientes').select('telefone').eq('id', venda.cliente_id).single()
+        .then(({ data }) => {
+          if (data?.telefone) setOsClienteTel(data.telefone)
+        })
+    }
+  }, [showOS, venda])
+
   async function abrirModalForn() {
     setShowForn(true)
     if (!empresaId || fornecedores.length > 0) return
@@ -68,15 +85,19 @@ export default function VendaReciboPage() {
     setSalvandoForn(true)
     const forn = fornecedores.find(f => f.id === fornSel)
 
+    const finalCusto = fornGarantia ? 0 : (parseFloat(fornCusto) || 0)
+    const finalQty = parseFloat(fornQty) || 1
+
     // Salva pedido vinculado à venda
     await createClient().from('pedidos_fornecedor').insert({
       empresa_id:    empresaId,
       fornecedor_id: fornSel,
       produto:       fornItem.trim(),
-      quantidade:    1,
+      quantidade:    finalQty,
       status:        'aguardando',
       venda_id:      venda.id,
-      obs:           `Venda #${String(venda.numero).padStart(4,'0')} — ${venda.cliente_nome || 'Anônimo'}`,
+      total:         finalCusto,
+      obs:           `Venda #${String(venda.numero).padStart(4,'0')} — ${venda.cliente_nome || 'Anônimo'}${fornGarantia ? ' [GARANTIA]' : ''}`,
     })
 
     // Abre WhatsApp com contexto completo
@@ -85,7 +106,9 @@ export default function VendaReciboPage() {
       const msg = encodeURIComponent(
         `Olá ${forn.nome}! 👋\n\n` +
         `Preciso de um item com urgência para complementar uma venda que acabei de fechar:\n\n` +
-        `📦 *Item necessário:* ${fornItem.trim()}\n\n` +
+        `📦 *Item necessário:* ${fornItem.trim()}\n` +
+        `🔢 *Quantidade:* ${finalQty}\n` +
+        `💵 *Custo combinado:* ${fornGarantia ? 'Em garantia / Sem custo' : formatCurrency(finalCusto)}\n\n` +
         `🧾 *Contexto da venda:*\n` +
         `• Venda #${String(venda.numero).padStart(4,'0')}\n` +
         `• Cliente: ${venda.cliente_nome || 'Anônimo'}\n` +
@@ -99,6 +122,9 @@ export default function VendaReciboPage() {
     setShowForn(false)
     setFornItem('')
     setFornSel('')
+    setFornCusto('')
+    setFornQty('1')
+    setFornGarantia(false)
   }
 
   async function abrirOS() {
@@ -107,17 +133,30 @@ export default function VendaReciboPage() {
     const { data } = await createClient().from('ordens_servico').insert({
       empresa_id:       empresaId,
       cliente_nome:     venda.cliente_nome || 'Anônimo',
+      cliente_tel:      osClienteTel.trim() || null,
       equipamento:      osEquip.trim(),
       defeito_relatado: osDefeito.trim() || null,
       tecnico:          osTecnico.trim() || null,
       observacoes:      osObs.trim() || null,
       venda_id:         venda.id,
-      status:           'aberta',
-    }).select('id').single()
+      status:           'aguardando',
+      orcamento:        osGarantia ? 0 : (parseFloat(osOrcamento) || null),
+      valor_servico:    osGarantia ? 0 : (parseFloat(osValorServico) || 0),
+      valor_pecas:      osGarantia ? 0 : (parseFloat(osValorPecas) || 0),
+    }).select('id, numero').single()
     setSalvandoOS(false)
     if (data) {
-      setOsSucesso(`OS criada com sucesso! Vinculada à Venda #${String(venda.numero).padStart(4,'0')}.`)
+      setOsSucesso(`OS #${String(data.numero).padStart(4,'0')} criada com sucesso! Vinculada à Venda #${String(venda.numero).padStart(4,'0')}.`)
       setShowOS(false)
+      setOsEquip('')
+      setOsDefeito('')
+      setOsTecnico('')
+      setOsObs('')
+      setOsClienteTel('')
+      setOsOrcamento('')
+      setOsValorServico('')
+      setOsValorPecas('')
+      setOsGarantia(false)
     }
   }
 
@@ -228,8 +267,22 @@ export default function VendaReciboPage() {
                 <input className="campo" style={{marginTop:'0.375rem'}} value={fornItem} onChange={e=>setFornItem(e.target.value)}
                   placeholder="Ex: Moldura para Palio 2010 preta"/>
               </div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.625rem'}}>
+                <div>
+                  <label className="campo-label">Quantidade</label>
+                  <input className="campo" type="number" style={{marginTop:'0.375rem'}} value={fornQty} onChange={e=>setFornQty(e.target.value)}/>
+                </div>
+                <div>
+                  <label className="campo-label">Custo Estimado (R$)</label>
+                  <input className="campo" type="number" step="0.01" style={{marginTop:'0.375rem'}} value={fornCusto} onChange={e=>setFornCusto(e.target.value)} placeholder="0,00" disabled={fornGarantia}/>
+                </div>
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:'0.5rem',marginTop:'0.25rem'}}>
+                <input type="checkbox" id="fornGarantia" checked={fornGarantia} onChange={e=>setFornGarantia(e.target.checked)}/>
+                <label htmlFor="fornGarantia" style={{fontWeight:600,cursor:'pointer'}}>Acionado em garantia (Custo zero)</label>
+              </div>
               <div className="alerta alerta-info" style={{fontSize:'0.78rem'}}>
-                💬 Será aberto o WhatsApp do fornecedor com a mensagem já preenchida, incluindo o contexto da venda.
+                💬 Será aberto o WhatsApp do fornecedor com a mensagem já preenchida, incluindo o custo e o contexto da venda.
               </div>
               <div style={{display:'flex',gap:'0.5rem',justifyContent:'flex-end'}}>
                 <button onClick={()=>setShowForn(false)} className="btn btn-ghost">Cancelar</button>
@@ -248,7 +301,7 @@ export default function VendaReciboPage() {
       {showOS && (
         <div style={{position:'fixed',inset:0,zIndex:100,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',justifyContent:'center',padding:'1rem'}}
           onClick={e=>{if(e.target===e.currentTarget)setShowOS(false)}}>
-          <div className="card anim-pop" style={{width:'100%',maxWidth:'480px',padding:0}}>
+          <div className="card anim-pop" style={{width:'100%',maxWidth:'540px',padding:0}}>
             <div style={{padding:'1.25rem',borderBottom:'1px solid var(--borda)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
               <div>
                 <p style={{fontWeight:900,fontSize:'1.1rem'}}>🔧 Abrir Ordem de Serviço</p>
@@ -257,10 +310,17 @@ export default function VendaReciboPage() {
               <button onClick={()=>setShowOS(false)} className="btn-icon"><X size={18}/></button>
             </div>
             <div style={{padding:'1.25rem',display:'flex',flexDirection:'column',gap:'0.75rem'}}>
-              <div>
-                <label className="campo-label">Cliente</label>
-                <input className="campo" value={venda.cliente_nome||''} readOnly
-                  style={{marginTop:'0.375rem',opacity:0.7,cursor:'not-allowed'}}/>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.625rem'}}>
+                <div>
+                  <label className="campo-label">Cliente</label>
+                  <input className="campo" value={venda.cliente_nome||'Consumidor Final'} readOnly
+                    style={{marginTop:'0.375rem',opacity:0.7,cursor:'not-allowed'}}/>
+                </div>
+                <div>
+                  <label className="campo-label">WhatsApp de Contato</label>
+                  <input className="campo" style={{marginTop:'0.375rem'}} value={osClienteTel} onChange={e=>setOsClienteTel(e.target.value)}
+                    placeholder="(00) 00000-0000"/>
+                </div>
               </div>
               <div>
                 <label className="campo-label">Equipamento / Produto *</label>
@@ -271,6 +331,24 @@ export default function VendaReciboPage() {
                 <label className="campo-label">Defeito / Serviço Solicitado</label>
                 <textarea className="campo" rows={2} style={{marginTop:'0.375rem',resize:'none'}} value={osDefeito} onChange={e=>setOsDefeito(e.target.value)}
                   placeholder="Ex: Instalação do equipamento no veículo"/>
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'0.625rem'}}>
+                <div>
+                  <label className="campo-label">Orçamento Total (R$)</label>
+                  <input className="campo" type="number" step="0.01" style={{marginTop:'0.375rem'}} value={osOrcamento} onChange={e=>setOsOrcamento(e.target.value)} placeholder="0,00" disabled={osGarantia}/>
+                </div>
+                <div>
+                  <label className="campo-label">Valor Serviço (R$)</label>
+                  <input className="campo" type="number" step="0.01" style={{marginTop:'0.375rem'}} value={osValorServico} onChange={e=>setOsValorServico(e.target.value)} placeholder="0,00" disabled={osGarantia}/>
+                </div>
+                <div>
+                  <label className="campo-label">Valor Peças (R$)</label>
+                  <input className="campo" type="number" step="0.01" style={{marginTop:'0.375rem'}} value={osValorPecas} onChange={e=>setOsValorPecas(e.target.value)} placeholder="0,00" disabled={osGarantia}/>
+                </div>
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:'0.5rem',marginTop:'0.25rem'}}>
+                <input type="checkbox" id="osGarantia" checked={osGarantia} onChange={e=>setOsGarantia(e.target.checked)}/>
+                <label htmlFor="osGarantia" style={{fontWeight:600,cursor:'pointer'}}>Serviço em Garantia (Sem custo)</label>
               </div>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.625rem'}}>
                 <div>
@@ -295,7 +373,7 @@ export default function VendaReciboPage() {
         </div>
       )}
 
-      <div className="pg-header">
+      <div className="pg-header no-print">
         <div style={{display:'flex',alignItems:'center',gap:'0.625rem'}}>
           <Link href="/vendas" className="btn btn-secondary" style={{padding:'0.4rem 0.625rem'}}><ArrowLeft size={15}/></Link>
           <div>
@@ -310,7 +388,7 @@ export default function VendaReciboPage() {
 
       {/* Sucesso OS */}
       {osSucesso && (
-        <div className="alerta alerta-ok" style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <div className="alerta alerta-ok no-print" style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
           <span>✅ {osSucesso}</span>
           <Link href="/ordens-de-servico" style={{fontWeight:700,color:'var(--verde)',fontSize:'0.82rem'}}>Ver OS →</Link>
         </div>
@@ -318,7 +396,7 @@ export default function VendaReciboPage() {
 
       {/* Botões de ação pós-venda */}
       <OperadorOnly>
-        <div style={{display:'flex',gap:'0.5rem',flexWrap:'wrap'}}>
+        <div style={{display:'flex',gap:'0.5rem',flexWrap:'wrap'}} className="no-print">
           <button onClick={abrirModalForn} disabled={venda.status === 'cancelada'} className="btn btn-secondary" style={{display:'flex',alignItems:'center',gap:'0.375rem',fontSize:'0.82rem'}}>
             <Package size={14}/> Acionar Fornecedor
           </button>
@@ -336,25 +414,28 @@ export default function VendaReciboPage() {
         </div>
       </OperadorOnly>
 
-      <div className="card" style={{padding:0,overflow:'hidden'}}>
+      <div className="card printable-receipt-card" style={{padding:0,overflow:'hidden'}}>
         <div style={{padding:'1.25rem',textAlign:'center',borderBottom:'2px dashed var(--borda)'}}>
           <p style={{fontWeight:900,fontSize:'1.25rem'}}>KDL Store</p>
           <p style={{color:'var(--texto-desab)',fontSize:'0.82rem'}}>Sistema de Gestão</p>
         </div>
 
         <div style={{padding:'1rem',display:'flex',flexDirection:'column',gap:'0.5rem',borderBottom:'1px solid var(--borda)'}}>
-          {[
-            {l:'Cliente',   v:venda.cliente_nome||'Anônimo'},
-            {l:'Pagamento', v:`${FORMA_ICON[venda.forma_pagamento]||''} ${venda.forma_pagamento}`},
-          ].map(r=>(
-            <div key={r.l} style={{display:'flex',justifyContent:'space-between'}}>
-              <span style={{color:'var(--texto-desab)',fontSize:'0.82rem'}}>{r.l}</span>
-              <span style={{fontWeight:700}}>{r.v}</span>
-            </div>
-          ))}
+          <div style={{display:'flex',justifyContent: 'space-between'}}>
+            <span style={{color:'var(--texto-sec)',fontSize:'0.82rem'}}>Cliente</span>
+            <span style={{fontWeight:800}}>{venda.cliente_nome || 'Consumidor Final (Anônimo)'}</span>
+          </div>
+          <div style={{display:'flex',justifyContent: 'space-between'}}>
+            <span style={{color:'var(--texto-sec)',fontSize:'0.82rem'}}>Operador</span>
+            <span style={{fontWeight:700}}>{venda.registrado_nome || 'Operador Padrão'}</span>
+          </div>
+          <div style={{display:'flex',justifyContent: 'space-between'}}>
+            <span style={{color:'var(--texto-sec)',fontSize:'0.82rem'}}>Pagamento</span>
+            <span style={{fontWeight:700}}>{`${FORMA_ICON[venda.forma_pagamento]||''} ${venda.forma_pagamento}`}</span>
+          </div>
           <div style={{display:'flex',justifyContent:'space-between'}}>
-            <span style={{color:'var(--texto-desab)',fontSize:'0.82rem'}}>Status</span>
-            <span className={venda.status==='concluida'?'status-ok':'status-neutro'} style={{fontSize:'0.82rem'}}>
+            <span style={{color:'var(--texto-sec)',fontSize:'0.82rem'}}>Status</span>
+            <span className={venda.status==='concluida'?'status-ok':'status-neutro'} style={{fontSize:'0.82rem',fontWeight:700}}>
               {venda.status==='concluida'?'● Concluída':'○ Cancelada'}
             </span>
           </div>
@@ -384,7 +465,7 @@ export default function VendaReciboPage() {
         <div style={{padding:'1rem',display:'flex',flexDirection:'column',gap:'0.375rem'}}>
           <div style={{display:'flex',justifyContent:'space-between'}}>
             <span style={{color:'var(--texto-sec)',fontSize:'0.875rem'}}>Subtotal</span>
-            <span style={{fontFamily:'monospace'}}>{formatCurrency(venda.subtotal)}</span>
+            <span style={{fontFamily:'monospace'}}>{formatCurrency(Number(venda.total) + Number(venda.desconto || 0))}</span>
           </div>
           {venda.desconto>0&&(
             <div style={{display:'flex',justifyContent:'space-between'}}>
@@ -404,7 +485,7 @@ export default function VendaReciboPage() {
         </div>
       </div>
 
-      <div style={{display:'flex',gap:'0.5rem',justifyContent:'center'}}>
+      <div style={{display:'flex',gap:'0.5rem',justifyContent:'center'}} className="no-print">
         <Link href="/vendas" className="btn btn-ghost">← Voltar</Link>
         <Link href="/vendas/nova" className="btn btn-primary">+ Nova Venda</Link>
       </div>

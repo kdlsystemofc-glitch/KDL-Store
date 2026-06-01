@@ -138,6 +138,45 @@ export default function DashboardPage() {
         </OperadorOnly>
       </div>
 
+      {/* ── RESUMO DO DIA E CAIXA ── */}
+      <div>
+        <p style={{fontSize:'0.72rem',fontWeight:700,color:'#555555',textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:'0.625rem'}}>Resumo do Dia & Caixa</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem', marginBottom: '0.5rem' }}>
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', borderLeft: '4px solid var(--verde)' }}>
+            <p style={{ fontSize: '0.72rem', color: '#555555', fontWeight: 700, textTransform: 'uppercase' }}>Faturamento de Hoje 📅</p>
+            <p style={{ fontSize: '1.75rem', fontWeight: 900, color: 'var(--verde)', fontFamily: 'monospace', marginTop: '0.25rem' }}>
+              {formatCurrency(kpis.faturamentoHoje)}
+            </p>
+            <p style={{ fontSize: '0.68rem', color: '#999999' }}>{kpis.vendasHoje} venda(s) registrada(s)</p>
+          </div>
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', borderLeft: '4px solid var(--azul)' }}>
+            <p style={{ fontSize: '0.72rem', color: '#555555', fontWeight: 700, textTransform: 'uppercase' }}>Ticket Médio de Hoje</p>
+            <p style={{ fontSize: '1.75rem', fontWeight: 900, color: 'var(--azul)', fontFamily: 'monospace', marginTop: '0.25rem' }}>
+              {formatCurrency(kpis.ticketMedio)}
+            </p>
+            <p style={{ fontSize: '0.68rem', color: '#999999' }}>média por cliente</p>
+          </div>
+          <div className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderLeft: '4px solid var(--amarelo)' }}>
+            <div>
+              <p style={{ fontSize: '0.72rem', color: '#555555', fontWeight: 700, textTransform: 'uppercase' }}>Controle de Caixa</p>
+              <p style={{ fontSize: '0.9rem', fontWeight: 700, color: '#111111', marginTop: '0.25rem' }}>Caixa do Dia</p>
+              <p style={{ fontSize: '0.68rem', color: '#999999' }}>{isPro ? 'relação de entradas e saídas' : 'Disponível no Plano Pro 🔒'}</p>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+              {isPro ? (
+                <Link href="/financeiro/fechamento" className="btn btn-primary" style={{ fontSize: '0.75rem', padding: '0.35rem 0.75rem', background: 'var(--amarelo)', borderColor: '#9a7007', boxShadow: '0 2px 0 #9a7007' }}>
+                  🔒 Fechar Caixa
+                </Link>
+              ) : (
+                <Link href="/assinar" className="btn btn-primary" style={{ fontSize: '0.75rem', padding: '0.35rem 0.75rem', background: 'var(--roxo)', borderColor: 'var(--roxo-escuro)', boxShadow: 'none' }}>
+                  ⚡ Upgrade Pro
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* ── PAINEL COMO FOI (apenas Pro) ── */}
       {isPro && <ComoFoiPainel />}
 

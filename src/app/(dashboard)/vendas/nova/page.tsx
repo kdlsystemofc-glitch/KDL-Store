@@ -46,6 +46,7 @@ export default function NovaPdvPage() {
   const [erro,        setErro]        = useState<string|null>(null)
   const [showModalCliente, setShowModalCliente] = useState(false)
   const [showScanner, setShowScanner] = useState(false)
+  const [nomeOperador, setNomeOperador] = useState('Operador')
   const hasCamera = useHasCamera()
 
   const carregar = useCallback(async (eid: string) => {
@@ -77,6 +78,16 @@ export default function NovaPdvPage() {
   }, [])
 
   useEffect(() => { if (empresaId) carregar(empresaId) }, [empresaId, carregar])
+
+  // Busca o nome do operador logado para registrar na venda
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      supabase.from('profiles').select('nome').eq('id', user.id).single()
+        .then(({ data: p }) => { if (p?.nome) setNomeOperador(p.nome) })
+    })
+  }, [])
 
 
 
@@ -181,7 +192,7 @@ export default function NovaPdvPage() {
       p_desconto: desconto,
       p_comissionado_id: null,
       p_comissionado_nome: null,
-      p_registrado_nome: 'Anônimo',
+      p_registrado_nome: nomeOperador,
       p_obs: null,
       p_itens: payloadItens,
       p_prazo_dias: prazoDias

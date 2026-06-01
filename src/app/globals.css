@@ -556,3 +556,44 @@ select.campo { cursor: pointer; }
   background: var(--borda-leve);
 }
 
+/* ── ESTILOS DE IMPRESSÃO (RECIBO) ── */
+@media print {
+  body, html, main {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Ocultar barra lateral, cabeçalho principal, rodapé e botões */
+  aside,
+  header,
+  nav,
+  iframe,
+  button,
+  .btn,
+  .no-print,
+  .pg-header,
+  .alerta,
+  div[style*="SubscriptionBanner"],
+  div[style*="justify-content:center"] {
+    display: none !important;
+  }
+
+  /* Ajustar o card do recibo para ocupar a largura total do papel */
+  .printable-receipt-card {
+    border: none !important;
+    box-shadow: none !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    position: absolute;
+    left: 0;
+    top: 0;
+  }
+}
+
