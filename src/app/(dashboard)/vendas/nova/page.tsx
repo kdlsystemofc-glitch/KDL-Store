@@ -4,8 +4,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
-import { X, Loader2, Plus, Camera } from 'lucide-react'
-import { FormCliente } from '@/components/FormCliente'
+import { X, Loader2, Plus, Camera, UserPlus, UserX } from 'lucide-react'
 import { BarcodeScannerModal, useHasCamera } from '@/components/BarcodeScannerModal'
 
 type ProdDB = { id:string; nome:string; sku:string|null; ean:string|null; preco_varejo:number; preco_atacado:number|null; preco_vip:number|null; preco_minimo:number|null; qtd_atual:number; tem_garantia:boolean; dias_garantia:number|null; texto_garantia:string|null }
@@ -52,6 +51,9 @@ export default function NovaPdvPage() {
   const [salvando,    setSalvando]    = useState(false)
   const [erro,        setErro]        = useState<string|null>(null)
   const [showModalCliente, setShowModalCliente] = useState(false)
+  const [showCadastroRapido, setShowCadastroRapido] = useState(false)
+  const [cadastroRapido, setCadastroRapido] = useState({ nome:'', cpf:'', telefone:'' })
+  const [salvandoCadastro, setSalvandoCadastro] = useState(false)
   const [showScanner, setShowScanner] = useState(false)
   const [nomeOperador, setNomeOperador] = useState('Operador')
   const [formas,      setFormas]      = useState<FormaPagto[]>(FALLBACK_FORMAS)
@@ -475,26 +477,72 @@ export default function NovaPdvPage() {
             </div>
           </div>
 
-          {/* Cliente com autocomplete — CL1+P1 */}
+          {/* Cliente com autocomplete */}
           <div className="card" style={{padding:'0.75rem',border:`1px solid ${pagamento==='Fiado'&&!cliente?'var(--vermelho)':'var(--borda)'}`,borderRadius:'var(--radius)'}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
               <label className="campo-label">
                 Cliente {pagamento==='Fiado'?<span style={{color:'var(--vermelho)',fontWeight:900}}>* obrigatório</span>:'(opcional)'}
               </label>
-              <button className="btn btn-secondary" style={{fontSize:'0.65rem',padding:'0.15rem 0.4rem',display:'flex',alignItems:'center',gap:'0.2rem'}} onClick={()=>setShowModalCliente(true)}>
-                <Plus size={10}/> Novo
+              <button
+                className={showCadastroRapido ? 'btn btn-primary' : 'btn btn-secondary'}
+                style={{fontSize:'0.62rem',padding:'0.15rem 0.45rem',display:'flex',alignItems:'center',gap:'0.2rem'}}
+                onClick={()=>setShowCadastroRapido(v=>!v)}>
+                <UserPlus size={11}/> {showCadastroRapido ? 'Cancelar' : 'Cadastro Rápido'}
               </button>
             </div>
-            {/* Autocomplete */}
-            <div style={{position:'relative',marginTop:'0.25rem'}}>
+
+            {/* Formulário de cadastro rápido inline */}
+            {showCadastroRapido && (
+              <div style={{marginTop:'0.625rem',padding:'0.75rem',background:'var(--surface-alt)',borderRadius:'var(--radius-sm)',border:'1px solid var(--borda)',display:'flex',flexDirection:'column',gap:'0.5rem'}}>
+                <p style={{fontSize:'0.7rem',fontWeight:700,color:'var(--verde)',textTransform:'uppercase',letterSpacing:'0.05em',marginBottom:'0.125rem'}}>⚡ Venda Rápida — Cadastro Simplificado</p>
+                <input className="campo" placeholder="Nome completo *" value={cadastroRapido.nome}
+                  onChange={e=>setCadastroRapido(f=>({...f,nome:e.target.value}))}
+                  style={{fontSize:'0.85rem'}}/>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.375rem'}}>
+                  <input className="campo" placeholder="CPF (opcional)" value={cadastroRapido.cpf}
+                    onChange={e=>setCadastroRapido(f=>({...f,cpf:e.target.value}))}
+                    style={{fontSize:'0.82rem',fontFamily:'monospace'}}/>
+                  <input className="campo" placeholder="Telefone (opcional)" value={cadastroRapido.telefone}
+                    onChange={e=>setCadastroRapido(f=>({...f,telefone:e.target.value}))}
+                    style={{fontSize:'0.82rem'}}/>
+                </div>
+                <button
+                  className="btn btn-primary"
+                  disabled={salvandoCadastro || !cadastroRapido.nome.trim()}
+                  style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'0.375rem',fontSize:'0.8rem'}}
+                  onClick={async () => {
+                    if (!cadastroRapido.nome.trim() || !empresaId) return
+                    setSalvandoCadastro(true)
+                    const supabase = createClient()
+                    const { data: novo, error } = await supabase.from('clientes').insert({
+                      empresa_id: empresaId,
+                      nome: cadastroRapido.nome.trim(),
+                      cpf: cadastroRapido.cpf || null,
+                      telefone: cadastroRapido.telefone || null,
+                      tipo: 'varejo',
+                    }).select('id,nome,tipo').single()
+                    setSalvandoCadastro(false)
+                    if (error || !novo) return
+                    setCliente(novo.nome)
+                    setClienteId(novo.id)
+                    setShowCadastroRapido(false)
+                    setCadastroRapido({ nome:'', cpf:'', telefone:'' })
+                    carregar(empresaId)
+                  }}>
+                  {salvandoCadastro ? <><Loader2 size={13} style={{animation:'spin 1s linear infinite'}}/>Salvando...</> : '✓ Cadastrar e Selecionar'}
+                </button>
+              </div>
+            )}
+
+            {/* Autocomplete de busca */}
+            <div style={{position:'relative',marginTop:'0.375rem'}}>
               <input
                 id="pdv-cliente"
                 className="campo"
-                placeholder="Nome ou busca..."
+                placeholder="Buscar cliente cadastrado..."
                 value={cliente}
                 autoComplete="off"
                 onFocus={() => {
-                  // Mostra todos os clientes ao focar (mesmo sem digitar)
                   if (clienteSugs.length === 0) {
                     const q = cliente.toLowerCase()
                     const filtrados = q.length >= 2
@@ -503,10 +551,7 @@ export default function NovaPdvPage() {
                     setClienteSugs(filtrados.slice(0, 8))
                   }
                 }}
-                onBlur={() => {
-                  // Fecha sugestões com delay para permitir clique
-                  setTimeout(() => setClienteSugs([]), 180)
-                }}
+                onBlur={() => setTimeout(() => setClienteSugs([]), 180)}
                 onChange={e => {
                   const v = e.target.value
                   setCliente(v)
@@ -518,7 +563,6 @@ export default function NovaPdvPage() {
                   setClienteSugs(filtrados.slice(0, 8))
                 }}
               />
-              {/* Dropdown de sugestões */}
               {clienteSugs.length > 0 && (
                 <div style={{position:'absolute',top:'100%',left:0,right:0,zIndex:50,background:'var(--fundo-painel)',border:'1px solid var(--verde)',borderTop:'none',maxHeight:'180px',overflowY:'auto'}}>
                   {clienteSugs.map(c => (
@@ -526,11 +570,11 @@ export default function NovaPdvPage() {
                       style={{width:'100%',textAlign:'left',padding:'0.4rem 0.625rem',background:'none',border:'none',cursor:'pointer',borderBottom:'1px solid var(--borda-leve)',fontFamily:'inherit'}}
                       onMouseEnter={e=>(e.currentTarget.style.background='var(--surface-alt)')}
                       onMouseLeave={e=>(e.currentTarget.style.background='none')}
-                      onClick={() => {
+                      onMouseDown={e => {
+                        e.preventDefault() // evita que o onBlur do input feche o dropdown antes do clique
                         setCliente(c.nome)
                         setClienteId(c.id)
                         setClienteSugs([])
-                        // Ajusta tabela de preço automaticamente se cliente tem tipo definido
                         if (c.tipo === 'atacado' || c.tipo === 'vip') {
                           setTipoCliente(c.tipo as TipoCliente)
                           setItens(prev => prev.map(i => i.brinde ? i : {...i, precoUsado: getPreco(i.produto, c.tipo as TipoCliente)}))
@@ -543,27 +587,33 @@ export default function NovaPdvPage() {
                 </div>
               )}
             </div>
-            {/* Badge de cliente vinculado */}
+
             {clienteId && (
               <div style={{marginTop:'0.375rem',fontSize:'0.65rem',color:'var(--verde)',fontWeight:700,letterSpacing:'0.04em'}}>
                 ● CLIENTE VINCULADO — HISTÓRICO SERÁ ATUALIZADO
               </div>
             )}
+
+            {/* Botão Sem Cliente */}
             <div style={{display:'flex',gap:'0.375rem',marginTop:'0.375rem'}}>
               <button
                 className="btn btn-secondary"
-                style={{fontSize:'0.72rem',flex:1}}
-                onClick={() => {
+                style={{fontSize:'0.72rem',flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:'0.25rem',
+                  color: !cliente && !clienteId ? 'var(--texto-desab)' : 'var(--texto)'}}
+                onMouseDown={e => {
+                  e.preventDefault() // evita conflito com onBlur do input
                   setCliente('')
                   setClienteId(null)
                   setClienteSugs([])
+                  setShowCadastroRapido(false)
+                  setCadastroRapido({ nome:'', cpf:'', telefone:'' })
                   setTipoCliente('varejo')
                   setItens(prev => prev.map(i => i.brinde ? i : {...i, precoUsado: getPreco(i.produto, 'varejo')}))
                 }}
                 disabled={pagamento==='Fiado'}
-                title="Limpa o campo e registra a venda sem vincular cliente"
+                title="Registrar venda sem vincular cliente"
               >
-                Sem cliente
+                <UserX size={12}/> Sem cliente
               </button>
             </div>
           </div>
@@ -720,36 +770,7 @@ export default function NovaPdvPage() {
         </div>
       </div>
 
-      {showModalCliente && (
-        <div style={{ position:'fixed', inset:0, zIndex:100, background:'rgba(0,0,0,0.88)', display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' }}
-          onClick={e=>{if(e.target===e.currentTarget)setShowModalCliente(false)}}>
-          <div className="anim-pop" style={{ width:'100%', maxWidth:'580px', maxHeight:'90vh', overflowY:'auto', background:'var(--surface)', border:'1px solid var(--borda-forte)', borderRadius:'2px' }}>
-            <div style={{ padding:'0.75rem 1rem', borderBottom:'2px solid var(--verde)', display:'flex', justifyContent:'space-between', alignItems:'center', position:'sticky', top:0, background:'var(--fundo-painel)', zIndex:10 }}>
-              <div>
-                <p style={{ fontSize:'0.78rem', fontWeight:700, color:'var(--verde)', textTransform:'uppercase', letterSpacing:'0.06em' }}>CADASTRAR NOVO CLIENTE</p>
-                <p style={{ fontSize:'0.65rem', color:'var(--texto-desab)' }}>Preencha os dados do cliente</p>
-              </div>
-              <button onClick={()=>setShowModalCliente(false)} className="btn-icon"><X size={16}/></button>
-            </div>
-            <div style={{ padding:'1rem' }}>
-              <FormCliente onSuccess={(newClient) => {
-                setShowModalCliente(false)
-                if (newClient) {
-                  setCliente(newClient.nome)
-                  setClienteId(newClient.id)
-                  // Recarrega lista de clientes e ajusta tabela de preço automaticamente
-                  if (empresaId) carregar(empresaId)
-                  const tipo = newClient.tipo as 'varejo'|'atacado'|'vip'
-                  if (tipo === 'atacado' || tipo === 'vip') {
-                    setTipoCliente(tipo)
-                    setItens(prev => prev.map(i => i.brinde ? i : {...i, precoUsado: getPreco(i.produto, tipo)}))
-                  }
-                }
-              }} onCancel={() => setShowModalCliente(false)} />
-            </div>
-          </div>
-        </div>
-      )}
+
 
       {showScanner && (
         <BarcodeScannerModal
