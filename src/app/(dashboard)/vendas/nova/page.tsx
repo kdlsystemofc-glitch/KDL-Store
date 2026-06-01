@@ -56,6 +56,7 @@ export default function NovaPdvPage() {
   const [formas,      setFormas]      = useState<FormaPagto[]>(FALLBACK_FORMAS)
   const [repassarTaxa, setRepassarTaxa] = useState(false)
   const [parcelas,    setParcelas]    = useState(1)
+  const [jurosCredito, setJurosCredito] = useState(false)
   const hasCamera = useHasCamera()
 
   const carregar = useCallback(async (eid: string) => {
@@ -179,12 +180,22 @@ export default function NovaPdvPage() {
     })
   }
 
+  function getValorComJuros(principal: number, pQty: number, comJuros: boolean): number {
+    if (!comJuros || pQty <= 1) return principal
+    const taxaMensal = 0.0199 // 1.99% a.m.
+    const pmt = principal * (taxaMensal * Math.pow(1 + taxaMensal, pQty)) / (Math.pow(1 + taxaMensal, pQty) - 1)
+    return pmt * pQty
+  }
+
   const subtotal = itens.reduce((a,i) => a + i.precoUsado * i.qty, 0)
   const totalSemTaxa = Math.max(0, subtotal - desconto)
   const formaSelecionada = formas.find(f => f.nome === pagamento)
   const taxaAplicada = formaSelecionada ? formaSelecionada.taxa : 0
   const valorTaxa = repassarTaxa ? (totalSemTaxa * (taxaAplicada / 100)) : 0
-  const total = totalSemTaxa + valorTaxa
+  
+  const principal = totalSemTaxa + valorTaxa
+  const isCredito = pagamento.toLowerCase().includes('crédito') || pagamento.toLowerCase().includes('credito')
+  const total = isCredito ? getValorComJuros(principal, parcelas, jurosCredito) : principal
 
   async function finalizar() {
     if (!empresaId) return
@@ -209,11 +220,15 @@ export default function NovaPdvPage() {
       texto_garantia: i.produto.texto_garantia
     }))
 
-    const finalObs = repassarTaxa 
-      ? `Taxa de ${taxaAplicada}% repassada ao cliente (+${formatCurrency(valorTaxa)})` 
-      : (taxaAplicada > 0 ? `Taxa de ${taxaAplicada}% absorvida pelo estabelecimento (-${formatCurrency(totalSemTaxa * (taxaAplicada / 100))})` : null)
-
     const isCredito = pagamento.toLowerCase().includes('crédito') || pagamento.toLowerCase().includes('credito')
+
+    let finalObs = repassarTaxa 
+      ? `Taxa de ${taxaAplicada}% repassada ao cliente (+${formatCurrency(valorTaxa)})` 
+      : (taxaAplicada > 0 ? `Taxa de ${taxaAplicada}% absorvida pelo estabelecimento (-${formatCurrency(totalSemTaxa * (taxaAplicada / 100))})` : '')
+
+    if (isCredito && jurosCredito && parcelas > 1) {
+      finalObs += (finalObs ? ' | ' : '') + `Com juros de 1.99% a.m. (+${formatCurrency(total - principal)})`
+    }
 
     const { data: vendaId, error } = await supabase.rpc('checkout_venda_transaction', {
       p_empresa_id: empresaId,
@@ -226,7 +241,7 @@ export default function NovaPdvPage() {
       p_comissionado_id: null,
       p_comissionado_nome: null,
       p_registrado_nome: nomeOperador,
-      p_obs: finalObs,
+      p_obs: finalObs || null,
       p_itens: payloadItens,
       p_prazo_dias: prazoDias
     })
@@ -267,7 +282,7 @@ export default function NovaPdvPage() {
       {pagamento==='Fiado' && <p style={{color:'var(--amarelo)',fontWeight:700}}>📒 Registrado no fiado de {cliente}</p>}
       <div style={{display:'flex',gap:'0.625rem',flexWrap:'wrap',justifyContent:'center',marginTop:'0.5rem'}}>
         <Link href={`/vendas/${vendaId}`} className="btn btn-secondary">🧾 Ver Recibo</Link>
-        <button className="btn btn-primary" onClick={()=>{setItens([]);setFase('pdv');setPagamento('');setDesconto(0);setTroco('');setCliente('');setClienteId(null);setClienteSugs([]);setPrazoDias(null);setRepassarTaxa(false);setParcelas(1);}}>
+        <button className="btn btn-primary" onClick={()=>{setItens([]);setFase('pdv');setPagamento('');setDesconto(0);setTroco('');setCliente('');setClienteId(null);setClienteSugs([]);setPrazoDias(null);setRepassarTaxa(false);setParcelas(1);setJurosCredito(false);}}>
           + Nova Venda
         </button>
       </div>
@@ -286,7 +301,7 @@ export default function NovaPdvPage() {
 
       {erro && <div className="alerta alerta-perigo">{erro}</div>}
 
-      <div style={{display:'grid',gridTemplateColumns:'1fr 340px',gap:'0.875rem',alignItems:'start'}}>
+      <div className="pdv-grid">
 
         {/* ── ESQUERDA: busca + carrinho */}
         <div style={{display:'flex',flexDirection:'column',gap:'0.75rem'}}>
@@ -535,16 +550,31 @@ export default function NovaPdvPage() {
           {/* Pagamento */}
           <div style={{border:'1px solid var(--borda-forte)',borderTop:'2px solid var(--borda-forte)',background:'var(--surface)',padding:'0.625rem'}}>
             <label className="campo-label">FORMA DE PAGAMENTO</label>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.375rem',marginTop:'0.375rem'}}>
+            <div className="pdv-formas-pagamento-grid">
               {formas.map(f=>(
                 <button key={f.id} onClick={()=>{
                   setPagamento(f.nome)
                   setRepassarTaxa(f.taxa > 0) // Repassar por padrão se houver taxa
                   setParcelas(1)
+                  setJurosCredito(false)
                 }}
                   className={pagamento===f.nome ? 'btn btn-primary' : 'btn btn-secondary'}
-                  style={{fontSize:'0.72rem',padding:'0.5rem 0.25rem',textTransform:'uppercase',letterSpacing:'0.04em'}}>
-                  {f.nome} {f.taxa > 0 ? `(${f.taxa}%)` : ''}
+                  style={{
+                    fontSize:'0.68rem',
+                    padding:'0.55rem 0.25rem',
+                    textTransform:'uppercase',
+                    letterSpacing:'0.02em',
+                    whiteSpace:'normal',
+                    wordBreak:'break-word',
+                    lineHeight:'1.2',
+                    minHeight:'54px',
+                    display:'flex',
+                    flexDirection:'column',
+                    alignItems:'center',
+                    justifyContent:'center'
+                  }}>
+                  <span>{f.nome}</span>
+                  {f.taxa > 0 && <span style={{fontSize:'0.58rem',opacity:0.8,marginTop:'2px'}}>({f.taxa}%)</span>}
                 </button>
               ))}
             </div>
@@ -567,12 +597,20 @@ export default function NovaPdvPage() {
 
             {/* Opções de Parcelamento */}
             {(pagamento.toLowerCase().includes('crédito') || pagamento.toLowerCase().includes('credito')) && (
-              <div style={{marginTop:'0.75rem',paddingTop:'0.75rem',borderTop:'1px dashed var(--borda)'}}>
-                <label className="campo-label">PARCELAMENTO</label>
-                <select className="campo" style={{marginTop:'0.25rem',fontFamily:'monospace'}} value={parcelas} onChange={e=>setParcelas(parseInt(e.target.value))}>
+              <div style={{marginTop:'0.75rem',paddingTop:'0.75rem',borderTop:'1px dashed var(--borda)',display:'flex',flexDirection:'column',gap:'0.5rem'}}>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                  <label className="campo-label" style={{marginBottom:0}}>PARCELAMENTO</label>
+                  <div style={{display:'flex',alignItems:'center',gap:'0.375rem'}}>
+                    <input type="checkbox" id="jurosCreditoCheckbox" checked={jurosCredito} onChange={e=>{
+                      setJurosCredito(e.target.checked)
+                    }} style={{width:'14px',height:'14px',cursor:'pointer'}}/>
+                    <label htmlFor="jurosCreditoCheckbox" style={{fontSize:'0.7rem',fontWeight:700,color:'var(--texto-sec)',cursor:'pointer'}}>Cobrar Juros (1.99% a.m.)</label>
+                  </div>
+                </div>
+                <select className="campo" style={{fontFamily:'monospace'}} value={parcelas} onChange={e=>setParcelas(parseInt(e.target.value))}>
                   {Array.from({length:12},(_,i)=>i+1).map(n=>(
                     <option key={n} value={n}>
-                      {n}x de {formatCurrency(total / n)} {(n > 1) ? 'Sem juros' : ''}
+                      {n}x de {formatCurrency(getValorComJuros(principal, n, jurosCredito) / n)} {jurosCredito && n > 1 ? `(c/ juros de 1.99% a.m.)` : 'Sem juros'}
                     </option>
                   ))}
                 </select>

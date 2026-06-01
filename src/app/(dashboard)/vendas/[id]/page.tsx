@@ -21,6 +21,7 @@ export default function VendaReciboPage() {
   const [venda,  setVenda]  = useState<Venda|null>(null)
   const [itens,  setItens]  = useState<Item[]>([])
   const [loading,setLoading]= useState(true)
+  const [nomeEmpresa, setNomeEmpresa] = useState('')
 
   // Modal Acionar Fornecedor
   const [showForn,    setShowForn]    = useState(false)
@@ -57,9 +58,13 @@ export default function VendaReciboPage() {
     Promise.all([
       supabase.from('vendas').select('*').eq('id', id).single(),
       supabase.from('itens_venda').select('id,produto_id,produto_nome,quantidade,preco_unitario,brinde,num_serie').eq('venda_id', id),
-    ]).then(([{ data: v }, { data: i }]) => {
+    ]).then(async ([{ data: v }, { data: i }]) => {
       setVenda(v)
       setItens(i || [])
+      if (v?.empresa_id) {
+        const { data: emp } = await supabase.from('empresas').select('nome').eq('id', v.empresa_id).single()
+        if (emp?.nome) setNomeEmpresa(emp.nome)
+      }
       setLoading(false)
     })
   }, [id])
@@ -416,8 +421,8 @@ export default function VendaReciboPage() {
 
       <div className="card printable-receipt-card" style={{padding:0,overflow:'hidden'}}>
         <div style={{padding:'1.25rem',textAlign:'center',borderBottom:'2px dashed var(--borda)'}}>
-          <p style={{fontWeight:900,fontSize:'1.25rem'}}>KDL Store</p>
-          <p style={{color:'var(--texto-desab)',fontSize:'0.82rem'}}>Sistema de Gestão</p>
+          <p style={{fontWeight:900,fontSize:'1.4rem',color:'var(--texto)',textTransform:'uppercase',letterSpacing:'0.04em'}}>{nomeEmpresa || 'Minha Loja'}</p>
+          <p style={{color:'var(--texto-sec)',fontSize:'0.78rem',fontWeight:600,marginTop:'2px'}}>RECIBO DE VENDA · KDL STORE</p>
         </div>
 
         <div style={{padding:'1rem',display:'flex',flexDirection:'column',gap:'0.5rem',borderBottom:'1px solid var(--borda)'}}>
