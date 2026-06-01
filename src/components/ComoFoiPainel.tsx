@@ -140,11 +140,22 @@ export function ComoFoiPainel() {
     const desp    = (desps||[]).reduce((s: number, d: any) => s + d.valor, 0)
     const fiadoAb = (fiados||[]).reduce((s: number, f: any) => s + f.valor_aberto, 0)
 
-    const prodIds = [...new Set((itensVendas||[]).filter((iv: any) => !iv.brinde).map((iv: any) => iv.produto_id))]
+    const prodIds = [...new Set((itensVendas||[]).filter((iv: any) => iv.produto_id).map((iv: any) => iv.produto_id))]
     let zerados: string[] = []
+    let cpv = 0
     if (prodIds.length > 0) {
-      const { data: prods } = await sb.from('produtos').select('id,nome,qtd_atual').in('id', prodIds)
+      const { data: prods } = await sb.from('produtos').select('id,nome,qtd_atual,preco_custo').in('id', prodIds)
       zerados = (prods||[]).filter((p: any) => p.qtd_atual <= 0).map((p: any) => p.nome)
+      
+      const custoMap: Record<string, number> = {}
+      ;(prods||[]).forEach((p: any) => {
+        custoMap[p.id] = Number(p.preco_custo) || 0
+      })
+      ;(itensVendas||[]).forEach((iv: any) => {
+        if (!iv.brinde && iv.produto_id && custoMap[iv.produto_id] !== undefined) {
+          cpv += (custoMap[iv.produto_id] * Number(iv.quantidade))
+        }
+      })
     }
 
     let melhorMes = false
@@ -164,7 +175,7 @@ export function ComoFoiPainel() {
 
     const d: Dados = {
       faturamento: fat, numVendas: (vendas||[]).length,
-      despesas: desp, lucro: fat - desp,
+      despesas: desp, lucro: fat - cpv - desp,
       faturamentoPrev: fatPrev, numVendasPrev: (vendasPrev||[]).length,
       melhorMes, produtosZerados: zerados,
       fiadoAberto: fiadoAb, comissoesPendentes: (comissoes||[]).length,

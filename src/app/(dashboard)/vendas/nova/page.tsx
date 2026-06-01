@@ -13,8 +13,14 @@ type ProdDB = { id:string; nome:string; sku:string|null; ean:string|null; preco_
 type ClienteDB = { id: string; nome: string; telefone: string | null; tipo: string }
 type TipoCliente = 'varejo'|'atacado'|'vip'
 type Item = { produto:ProdDB; qty:number; serie:string; brinde:boolean; precoUsado:number }
+type FormaPagto = { id: string; nome: string; taxa: number; ativo: boolean }
 
-const FORMAS = ['PIX','Dinheiro','Crédito','Débito','Fiado']
+const FALLBACK_FORMAS: FormaPagto[] = [
+  { id: '1', nome: 'Dinheiro', taxa: 0, ativo: true },
+  { id: '2', nome: 'PIX', taxa: 0, ativo: true },
+  { id: '3', nome: 'Cartão Débito', taxa: 1.5, ativo: true },
+  { id: '4', nome: 'Cartão Crédito', taxa: 2.99, ativo: true },
+]
 
 function getPreco(p: ProdDB, tipo: TipoCliente): number {
   if (tipo === 'vip'     && p.preco_vip)     return p.preco_vip
@@ -47,6 +53,9 @@ export default function NovaPdvPage() {
   const [showModalCliente, setShowModalCliente] = useState(false)
   const [showScanner, setShowScanner] = useState(false)
   const [nomeOperador, setNomeOperador] = useState('Operador')
+  const [formas,      setFormas]      = useState<FormaPagto[]>(FALLBACK_FORMAS)
+  const [repassarTaxa, setRepassarTaxa] = useState(false)
+  const [parcelas,    setParcelas]    = useState(1)
   const hasCamera = useHasCamera()
 
   const carregar = useCallback(async (eid: string) => {
@@ -72,9 +81,23 @@ export default function NovaPdvPage() {
       .eq('ativo', true)
       .order('nome')
 
+    const { data: fPagtos } = await supabase
+      .from('formas_pagamento')
+      .select('id,nome,taxa,ativo')
+      .eq('empresa_id', eid)
+      .eq('ativo', true)
+      .order('nome')
+
+    const list = fPagtos && fPagtos.length > 0 ? fPagtos : FALLBACK_FORMAS
+    const finalPagtos = [...list]
+    if (!finalPagtos.some(f => f.nome.toLowerCase() === 'fiado')) {
+      finalPagtos.push({ id: 'fiado-id', nome: 'Fiado', taxa: 0, ativo: true })
+    }
+
     setCatalogo(data || [])
     setFiadosAtivos((fAbertos || []).map(f => f.cliente_nome.toLowerCase().trim()))
     setClientesDB(clis || [])
+    setFormas(finalPagtos)
   }, [])
 
   useEffect(() => { if (empresaId) carregar(empresaId) }, [empresaId, carregar])
@@ -157,7 +180,11 @@ export default function NovaPdvPage() {
   }
 
   const subtotal = itens.reduce((a,i) => a + i.precoUsado * i.qty, 0)
-  const total    = Math.max(0, subtotal - desconto)
+  const totalSemTaxa = Math.max(0, subtotal - desconto)
+  const formaSelecionada = formas.find(f => f.nome === pagamento)
+  const taxaAplicada = formaSelecionada ? formaSelecionada.taxa : 0
+  const valorTaxa = repassarTaxa ? (totalSemTaxa * (taxaAplicada / 100)) : 0
+  const total = totalSemTaxa + valorTaxa
 
   async function finalizar() {
     if (!empresaId) return
@@ -182,18 +209,24 @@ export default function NovaPdvPage() {
       texto_garantia: i.produto.texto_garantia
     }))
 
+    const finalObs = repassarTaxa 
+      ? `Taxa de ${taxaAplicada}% repassada ao cliente (+${formatCurrency(valorTaxa)})` 
+      : (taxaAplicada > 0 ? `Taxa de ${taxaAplicada}% absorvida pelo estabelecimento (-${formatCurrency(totalSemTaxa * (taxaAplicada / 100))})` : null)
+
+    const isCredito = pagamento.toLowerCase().includes('crédito') || pagamento.toLowerCase().includes('credito')
+
     const { data: vendaId, error } = await supabase.rpc('checkout_venda_transaction', {
       p_empresa_id: empresaId,
       // CL1+P1: passa o UUID real do cliente quando selecionado
       p_cliente_id: clienteId,
       p_cliente_nome: cliente || 'Anônimo',
-      p_forma_pagamento: pagamento,
+      p_forma_pagamento: pagamento + (isCredito ? ` (${parcelas}x)` : ''),
       p_total: total,
       p_desconto: desconto,
       p_comissionado_id: null,
       p_comissionado_nome: null,
       p_registrado_nome: nomeOperador,
-      p_obs: null,
+      p_obs: finalObs,
       p_itens: payloadItens,
       p_prazo_dias: prazoDias
     })
@@ -234,7 +267,7 @@ export default function NovaPdvPage() {
       {pagamento==='Fiado' && <p style={{color:'var(--amarelo)',fontWeight:700}}>📒 Registrado no fiado de {cliente}</p>}
       <div style={{display:'flex',gap:'0.625rem',flexWrap:'wrap',justifyContent:'center',marginTop:'0.5rem'}}>
         <Link href={`/vendas/${vendaId}`} className="btn btn-secondary">🧾 Ver Recibo</Link>
-        <button className="btn btn-primary" onClick={()=>{setItens([]);setFase('pdv');setPagamento('');setDesconto(0);setTroco('');setCliente('');setClienteId(null);setClienteSugs([]);setPrazoDias(null)}}>
+        <button className="btn btn-primary" onClick={()=>{setItens([]);setFase('pdv');setPagamento('');setDesconto(0);setTroco('');setCliente('');setClienteId(null);setClienteSugs([]);setPrazoDias(null);setRepassarTaxa(false);setParcelas(1);}}>
           + Nova Venda
         </button>
       </div>
@@ -503,14 +536,49 @@ export default function NovaPdvPage() {
           <div style={{border:'1px solid var(--borda-forte)',borderTop:'2px solid var(--borda-forte)',background:'var(--surface)',padding:'0.625rem'}}>
             <label className="campo-label">FORMA DE PAGAMENTO</label>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.375rem',marginTop:'0.375rem'}}>
-              {FORMAS.map(f=>(
-                <button key={f} onClick={()=>setPagamento(f)}
-                  className={pagamento===f ? 'btn btn-primary' : 'btn btn-secondary'}
+              {formas.map(f=>(
+                <button key={f.id} onClick={()=>{
+                  setPagamento(f.nome)
+                  setRepassarTaxa(f.taxa > 0) // Repassar por padrão se houver taxa
+                  setParcelas(1)
+                }}
+                  className={pagamento===f.nome ? 'btn btn-primary' : 'btn btn-secondary'}
                   style={{fontSize:'0.72rem',padding:'0.5rem 0.25rem',textTransform:'uppercase',letterSpacing:'0.04em'}}>
-                  {f}
+                  {f.nome} {f.taxa > 0 ? `(${f.taxa}%)` : ''}
                 </button>
               ))}
             </div>
+
+            {/* Repasse de taxa */}
+            {taxaAplicada > 0 && (
+              <div style={{marginTop:'0.75rem',padding:'0.5rem 0.625rem',background:'var(--surface-alt)',border:'1px solid var(--borda)',borderRadius:'var(--radius-sm)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                <label htmlFor="repassarTaxaCheckbox" style={{fontSize:'0.75rem',fontWeight:700,color:'var(--texto-sec)',cursor:'pointer'}}>
+                  Repassar taxa de {taxaAplicada}% ao cliente?
+                </label>
+                <input
+                  id="repassarTaxaCheckbox"
+                  type="checkbox"
+                  checked={repassarTaxa}
+                  onChange={e=>setRepassarTaxa(e.target.checked)}
+                  style={{width:'16px',height:'16px',cursor:'pointer'}}
+                />
+              </div>
+            )}
+
+            {/* Opções de Parcelamento */}
+            {(pagamento.toLowerCase().includes('crédito') || pagamento.toLowerCase().includes('credito')) && (
+              <div style={{marginTop:'0.75rem',paddingTop:'0.75rem',borderTop:'1px dashed var(--borda)'}}>
+                <label className="campo-label">PARCELAMENTO</label>
+                <select className="campo" style={{marginTop:'0.25rem',fontFamily:'monospace'}} value={parcelas} onChange={e=>setParcelas(parseInt(e.target.value))}>
+                  {Array.from({length:12},(_,i)=>i+1).map(n=>(
+                    <option key={n} value={n}>
+                      {n}x de {formatCurrency(total / n)} {(n > 1) ? 'Sem juros' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {pagamento==='Dinheiro'&&(
               <div style={{marginTop:'0.5rem'}}>
                 <label className="campo-label">DINHEIRO RECEBIDO</label>
@@ -550,6 +618,18 @@ export default function NovaPdvPage() {
               <div style={{display:'flex',justifyContent:'space-between',marginBottom:'0.2rem'}}>
                 <span style={{fontSize:'0.72rem',color:'var(--vermelho)'}}>DESCONTO</span>
                 <span style={{fontSize:'0.78rem',color:'var(--vermelho)',fontWeight:600}}>- {formatCurrency(desconto)}</span>
+              </div>
+            )}
+            {taxaAplicada > 0 && repassarTaxa && (
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:'0.2rem'}}>
+                <span style={{fontSize:'0.72rem',color:'var(--verde)'}}>TAXA DE {pagamento} ({taxaAplicada}%)</span>
+                <span style={{fontSize:'0.78rem',color:'var(--verde)',fontWeight:600}}>+ {formatCurrency(valorTaxa)}</span>
+              </div>
+            )}
+            {taxaAplicada > 0 && !repassarTaxa && (
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:'0.2rem'}}>
+                <span style={{fontSize:'0.72rem',color:'var(--texto-desab)'}}>TAXA ABSORVIDA ({taxaAplicada}%)</span>
+                <span style={{fontSize:'0.78rem',color:'var(--texto-desab)',fontWeight:600}}>- {formatCurrency(totalSemTaxa * (taxaAplicada / 100))}</span>
               </div>
             )}
             <div style={{display:'flex',justifyContent:'space-between',borderTop:'1px dashed var(--borda-forte)',paddingTop:'0.5rem',marginTop:'0.375rem'}}>
