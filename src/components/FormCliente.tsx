@@ -20,7 +20,7 @@ const Campo = ({ label, children, span2 }: { label: string; children: React.Reac
   </div>
 )
 
-export function FormCliente({ onSuccess, onCancel }: { onSuccess: () => void; onCancel?: () => void }) {
+export function FormCliente({ onSuccess, onCancel }: { onSuccess: (newClient?: { id: string; nome: string; tipo: string }) => void; onCancel?: () => void }) {
   const { empresaId } = useEmpresaId()
   const [salvando, setSalvando] = useState(false)
   const [tipo,     setTipo]     = useState<'varejo'|'atacado'|'vip'>('varejo')
@@ -69,7 +69,7 @@ export function FormCliente({ onSuccess, onCancel }: { onSuccess: () => void; on
     const endFilled = Object.values(end).some(v => v.trim() !== '')
     const endStr = endFilled ? JSON.stringify(end) : null
 
-    const { error } = await supabase.from('clientes').insert({
+    const { data, error } = await supabase.from('clientes').insert({
       empresa_id: empresaId,
       nome:      nome.trim(),
       telefone:  telefone  || null,
@@ -78,10 +78,10 @@ export function FormCliente({ onSuccess, onCancel }: { onSuccess: () => void; on
       endereco:  endStr,
       anotacoes: anotacoes || null,
       tipo,
-    })
+    }).select('id, nome, tipo').single()
     setSalvando(false)
     if (error) { setErro('Erro ao salvar: ' + error.message); return }
-    onSuccess()
+    onSuccess(data || undefined)
   }
 
   return (

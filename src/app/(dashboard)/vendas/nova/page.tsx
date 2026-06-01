@@ -43,6 +43,7 @@ export default function NovaPdvPage() {
   const [clienteSugs, setClienteSugs] = useState<ClienteDB[]>([])
   const [pagamento,   setPagamento]   = useState('')
   const [desconto,    setDesconto]    = useState(0)
+  const [descontoTipo, setDescontoTipo] = useState<'R$' | '%'>('R$')
   const [troco,       setTroco]       = useState('')
   const [prazoDias,   setPrazoDias]   = useState<number|null>(null)
   const [fase,        setFase]        = useState<'pdv'|'ok'>('pdv')
@@ -188,7 +189,8 @@ export default function NovaPdvPage() {
   }
 
   const subtotal = itens.reduce((a,i) => a + i.precoUsado * i.qty, 0)
-  const totalSemTaxa = Math.max(0, subtotal - desconto)
+  const descontoValor = descontoTipo === '%' ? subtotal * (desconto / 100) : desconto
+  const totalSemTaxa = Math.max(0, subtotal - descontoValor)
   const formaSelecionada = formas.find(f => f.nome === pagamento)
   const taxaAplicada = formaSelecionada ? formaSelecionada.taxa : 0
   const valorTaxa = repassarTaxa ? (totalSemTaxa * (taxaAplicada / 100)) : 0
@@ -237,7 +239,7 @@ export default function NovaPdvPage() {
       p_cliente_nome: cliente || 'Anônimo',
       p_forma_pagamento: pagamento + (isCredito ? ` (${parcelas}x)` : ''),
       p_total: total,
-      p_desconto: desconto,
+      p_desconto: descontoValor,
       p_comissionado_id: null,
       p_comissionado_nome: null,
       p_registrado_nome: nomeOperador,
@@ -282,7 +284,7 @@ export default function NovaPdvPage() {
       {pagamento==='Fiado' && <p style={{color:'var(--amarelo)',fontWeight:700}}>📒 Registrado no fiado de {cliente}</p>}
       <div style={{display:'flex',gap:'0.625rem',flexWrap:'wrap',justifyContent:'center',marginTop:'0.5rem'}}>
         <Link href={`/vendas/${vendaId}`} className="btn btn-secondary">🧾 Ver Recibo</Link>
-        <button className="btn btn-primary" onClick={()=>{setItens([]);setFase('pdv');setPagamento('');setDesconto(0);setTroco('');setCliente('');setClienteId(null);setClienteSugs([]);setPrazoDias(null);setRepassarTaxa(false);setParcelas(1);setJurosCredito(false);}}>
+        <button className="btn btn-primary" onClick={()=>{setItens([]);setFase('pdv');setPagamento('');setDesconto(0);setDescontoTipo('R$');setTroco('');setCliente('');setClienteId(null);setClienteSugs([]);setPrazoDias(null);setRepassarTaxa(false);setParcelas(1);setJurosCredito(false);setTipoCliente('varejo')}}>
           + Nova Venda
         </button>
       </div>
@@ -431,10 +433,23 @@ export default function NovaPdvPage() {
                     </div>
                   </div>
                 ))}
-                <div style={{padding:'0.5rem 0.75rem',background:'var(--fundo-painel)',borderTop:'1px solid var(--borda-forte)',display:'flex',gap:'0.5rem',alignItems:'center'}}>
-                  <label style={{fontSize:'0.65rem',fontWeight:700,color:'var(--verde-muted)',whiteSpace:'nowrap',textTransform:'uppercase',letterSpacing:'0.06em'}}>DESCONTO R$:</label>
-                  <input className="campo" type="number" min="0" style={{width:'100px',fontSize:'0.8rem'}}
-                    placeholder="0,00" value={desconto||''} onChange={e=>setDesconto(parseFloat(e.target.value)||0)}/>
+                <div style={{padding:'0.5rem 0.75rem',background:'var(--fundo-painel)',borderTop:'1px solid var(--borda-forte)',display:'flex',gap:'0.5rem',alignItems:'center',flexWrap:'wrap'}}>
+                  <label style={{fontSize:'0.65rem',fontWeight:700,color:'var(--verde-muted)',whiteSpace:'nowrap',textTransform:'uppercase',letterSpacing:'0.06em'}}>DESCONTO:</label>
+                  <div style={{display:'flex',gap:'0',border:'1px solid var(--borda)',borderRadius:'var(--radius-sm)',overflow:'hidden',flexShrink:0}}>
+                    {(['R$','%'] as const).map(t => (
+                      <button key={t} onClick={()=>{ setDescontoTipo(t); setDesconto(0) }}
+                        style={{padding:'0.25rem 0.5rem',fontSize:'0.7rem',fontWeight:700,border:'none',cursor:'pointer',
+                          background: descontoTipo===t ? 'var(--verde)' : 'var(--surface)',
+                          color: descontoTipo===t ? '#060A06' : 'var(--texto-desab)',
+                          transition:'all 0.12s'}}>{t}
+                      </button>
+                    ))}
+                  </div>
+                  <input className="campo" type="number" min="0" max={descontoTipo==='%'?100:undefined} style={{width:'90px',fontSize:'0.8rem'}}
+                    placeholder={descontoTipo==='%'?'0%':'0,00'} value={desconto||''} onChange={e=>setDesconto(parseFloat(e.target.value)||0)}/>
+                  {descontoTipo==='%' && desconto>0 && subtotal>0 && (
+                    <span style={{fontSize:'0.72rem',color:'var(--verde)',fontWeight:700,fontFamily:'monospace'}}>= −{new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(subtotal*(desconto/100))}</span>
+                  )}
                 </div>
               </div>
             )}
@@ -538,7 +553,13 @@ export default function NovaPdvPage() {
               <button
                 className="btn btn-secondary"
                 style={{fontSize:'0.72rem',flex:1}}
-                onClick={() => { setCliente(''); setClienteId(null); setClienteSugs([]) }}
+                onClick={() => {
+                  setCliente('')
+                  setClienteId(null)
+                  setClienteSugs([])
+                  setTipoCliente('varejo')
+                  setItens(prev => prev.map(i => i.brinde ? i : {...i, precoUsado: getPreco(i.produto, 'varejo')}))
+                }}
                 disabled={pagamento==='Fiado'}
                 title="Limpa o campo e registra a venda sem vincular cliente"
               >
@@ -652,10 +673,10 @@ export default function NovaPdvPage() {
               <span style={{fontSize:'0.72rem',color:'var(--texto-sec)'}}>SUBTOTAL</span>
               <span style={{fontSize:'0.78rem',fontWeight:600,color:'var(--texto-mono)'}}>{formatCurrency(subtotal)}</span>
             </div>
-            {desconto>0&&(
+            {descontoValor>0&&(
               <div style={{display:'flex',justifyContent:'space-between',marginBottom:'0.2rem'}}>
-                <span style={{fontSize:'0.72rem',color:'var(--vermelho)'}}>DESCONTO</span>
-                <span style={{fontSize:'0.78rem',color:'var(--vermelho)',fontWeight:600}}>- {formatCurrency(desconto)}</span>
+                <span style={{fontSize:'0.72rem',color:'var(--vermelho)'}}>DESCONTO{descontoTipo==='%'?` (${desconto}%)`:''}</span>
+                <span style={{fontSize:'0.78rem',color:'var(--vermelho)',fontWeight:600}}>- {formatCurrency(descontoValor)}</span>
               </div>
             )}
             {taxaAplicada > 0 && repassarTaxa && (
@@ -711,10 +732,19 @@ export default function NovaPdvPage() {
               <button onClick={()=>setShowModalCliente(false)} className="btn-icon"><X size={16}/></button>
             </div>
             <div style={{ padding:'1rem' }}>
-              <FormCliente onSuccess={() => { 
-                setShowModalCliente(false); 
-                const nomeInput = document.getElementById('cli-nome') as HTMLInputElement;
-                if(nomeInput?.value) setCliente(nomeInput.value.trim());
+              <FormCliente onSuccess={(newClient) => {
+                setShowModalCliente(false)
+                if (newClient) {
+                  setCliente(newClient.nome)
+                  setClienteId(newClient.id)
+                  // Recarrega lista de clientes e ajusta tabela de preço automaticamente
+                  if (empresaId) carregar(empresaId)
+                  const tipo = newClient.tipo as 'varejo'|'atacado'|'vip'
+                  if (tipo === 'atacado' || tipo === 'vip') {
+                    setTipoCliente(tipo)
+                    setItens(prev => prev.map(i => i.brinde ? i : {...i, precoUsado: getPreco(i.produto, tipo)}))
+                  }
+                }
               }} onCancel={() => setShowModalCliente(false)} />
             </div>
           </div>

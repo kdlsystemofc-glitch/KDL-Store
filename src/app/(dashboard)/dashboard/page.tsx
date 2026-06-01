@@ -183,8 +183,9 @@ export default function DashboardPage() {
       {/* ── KPIs OPERACIONAIS ── */}
       <div>
         <p style={{fontSize:'0.72rem',fontWeight:700,color:'#555555',textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:'0.625rem'}}>Alertas Operacionais</p>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'0.75rem'}}>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))',gap:'0.75rem'}}>
           {[
+            {label:'Produtos Ativos',  valor:String(kpis.totalProdutos), suf:'no catálogo', cor:'#1a7a3c', top:'#2ecc71', href:'/produtos'},
             {label:'Estoque Crítico',  valor:String(kpis.produtosCriticos), suf:'produto(s)', cor:kpis.produtosCriticos>0?'#c0392b':'#1a7a3c', top:kpis.produtosCriticos>0?'#c0392b':'#1a7a3c', href:'/estoque'},
             {label:'Fiado em Aberto',  valor:formatCurrency(kpis.fiadoAberto), suf:'pendente', cor:kpis.fiadoAberto>0?'#b7860b':'#1a7a3c', top:kpis.fiadoAberto>0?'#b7860b':'#cccccc', href:'/financeiro/fiado', extra: kpis.fiadosVencidos > 0 ? `⚠ ${kpis.fiadosVencidos} vencido(s)` : null},
             {label:'Despesas do Mês',  valor:formatCurrency(kpis.despesasMes), suf:'lançados', cor:'#111111', top:'#1a5fa8', href:'/financeiro/despesas'},
