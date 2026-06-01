@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
@@ -82,6 +82,8 @@ export default function DespesasPage() {
     })
   }
 
+  const gerandoRef = useRef(false) // lock para evitar geração concorrente
+
   async function carregar(eid: string) {
     setLoading(true)
     const supabase = createClient()
@@ -89,40 +91,56 @@ export default function DespesasPage() {
       .from('despesas').select('*').eq('empresa_id', eid).order('data', { ascending: false })
     const lista = (todas || []) as Despesa[]
 
-    // ── Geração automática para qualquer mês visualizado
-    const fixasMestre = lista.filter(d =>
-      d.tipo === 'fixa' && d.recorrente && !d.parent_id && !d.numero_parcela
-    )
-    if (fixasMestre.length > 0) {
-      const instDoMes = lista.filter(d => d.data?.startsWith(mesStr))
-      const gerarPara = fixasMestre.filter(fixa => {
-        if (fixa.data?.startsWith(mesStr)) return false
-        if ((fixa.data?.slice(0,7) ?? '') > mesStr) return false
-        return !instDoMes.some(inst => inst.parent_id === fixa.id)
-      })
-      if (gerarPara.length > 0) {
-        const maxBase = Math.max(0, ...lista.map(d => d.numero_base ?? 0))
-        let nextBase = maxBase + 1
-        const inserir = gerarPara.map(fixa => {
+    // ── Geração automática de instâncias de despesas fixas recorrentes
+    // Proteção dupla: lock em memória + índice único no banco (EMERGENCY_FIX_DESPESAS_DUPLICATAS.sql)
+    if (!gerandoRef.current) {
+      gerandoRef.current = true
+      try {
+        const fixasMestre = lista.filter(d =>
+          d.tipo === 'fixa' && d.recorrente && !d.parent_id && !d.numero_parcela
+        )
+
+        for (const fixa of fixasMestre) {
+          // Não gera para o mês em que a despesa original foi criada
+          if (fixa.data?.startsWith(mesStr)) continue
+          // Não gera para meses anteriores ao cadastro original
+          if ((fixa.data?.slice(0,7) ?? '') > mesStr) continue
+
+          // ── Verificação DIRETA no banco — imune a lista desatualizada em memória
+          const { count } = await supabase
+            .from('despesas')
+            .select('id', { count: 'exact', head: true })
+            .eq('empresa_id', eid)
+            .eq('parent_id', fixa.id)
+            .gte('data', `${mesStr}-01`)
+            .lte('data', `${mesStr}-31`)
+
+          if ((count ?? 0) > 0) continue // já existe — não duplica
+
           const dia = fixa.data?.slice(8,10) ?? '01'
-          const row = {
+          const maxBase = Math.max(0, ...lista.map(d => d.numero_base ?? 0))
+          const nextBase = maxBase + 1
+          await supabase.from('despesas').insert({
             empresa_id: eid, descricao: fixa.descricao, categoria: fixa.categoria,
             tipo: fixa.tipo, valor: fixa.valor, data: `${mesStr}-${dia}`,
             recorrente: false, status: 'pendente',
             forma_pagamento: fixa.forma_pagamento ?? null, observacao: null,
             numero_base: nextBase, numero_parcela: null, total_parcelas: null,
             identificador: String(nextBase), parent_id: fixa.id,
-          }
-          nextBase++
-          return row
-        })
-        await supabase.from('despesas').insert(inserir)
-        const { data: upd } = await supabase.from('despesas').select('*').eq('empresa_id', eid).order('data', { ascending: false })
-        setDespesas((upd || []) as Despesa[])
-        setLoading(false)
-        return
+          })
+        }
+      } finally {
+        gerandoRef.current = false
       }
+
+      // Recarrega após possíveis inserções
+      const { data: final } = await supabase
+        .from('despesas').select('*').eq('empresa_id', eid).order('data', { ascending: false })
+      setDespesas((final || []) as Despesa[])
+      setLoading(false)
+      return
     }
+
     setDespesas(lista)
     setLoading(false)
   }

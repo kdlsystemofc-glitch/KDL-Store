@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
-import { X, Loader2, Plus, Camera, UserPlus, UserX } from 'lucide-react'
+import { X, Loader2, Plus, Camera, UserPlus } from 'lucide-react'
 import { BarcodeScannerModal, useHasCamera } from '@/components/BarcodeScannerModal'
 
 type ProdDB = { id:string; nome:string; sku:string|null; ean:string|null; preco_varejo:number; preco_atacado:number|null; preco_vip:number|null; preco_minimo:number|null; qtd_atual:number; tem_garantia:boolean; dias_garantia:number|null; texto_garantia:string|null }
@@ -593,28 +593,8 @@ export default function NovaPdvPage() {
                 ● CLIENTE VINCULADO — HISTÓRICO SERÁ ATUALIZADO
               </div>
             )}
-
-            {/* Botão Sem Cliente */}
-            <div style={{display:'flex',gap:'0.375rem',marginTop:'0.375rem'}}>
-              <button
-                className="btn btn-secondary"
-                style={{fontSize:'0.72rem',flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:'0.25rem'}}
-                onClick={() => {
-                  setCliente('')
-                  setClienteId(null)
-                  setClienteSugs([])
-                  setShowCadastroRapido(false)
-                  setCadastroRapido({ nome:'', cpf:'', telefone:'' })
-                  setTipoCliente('varejo')
-                  setItens(prev => prev.map(i => i.brinde ? i : {...i, precoUsado: getPreco(i.produto, 'varejo')}))
-                }}
-                disabled={pagamento==='Fiado'}
-                title="Registrar venda sem vincular cliente"
-              >
-                <UserX size={12}/> Sem cliente
-              </button>
-            </div>
           </div>
+
 
           {/* Pagamento */}
           <div style={{border:'1px solid var(--borda-forte)',borderTop:'2px solid var(--borda-forte)',background:'var(--surface)',padding:'0.625rem'}}>
