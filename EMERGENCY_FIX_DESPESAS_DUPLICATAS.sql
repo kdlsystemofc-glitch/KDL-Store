@@ -1,9 +1,9 @@
 -- ═══════════════════════════════════════════════════════════════
--- EMERGENCY_FIX_DESPESAS_DUPLICATAS.sql  (v2 — corrigido)
+-- EMERGENCY_FIX_DESPESAS_DUPLICATAS.sql  (v4)
 -- Execute no Supabase → SQL Editor → Run
 -- ═══════════════════════════════════════════════════════════════
 
--- PASSO 1: Garante que todas as colunas necessárias existem
+-- PASSO 1: Adicionar colunas faltantes se não existirem (idempotente)
 ALTER TABLE despesas ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'pendente';
 ALTER TABLE despesas ADD COLUMN IF NOT EXISTS numero_base INT;
 ALTER TABLE despesas ADD COLUMN IF NOT EXISTS numero_parcela INT;
@@ -13,18 +13,28 @@ ALTER TABLE despesas ADD COLUMN IF NOT EXISTS parent_id UUID REFERENCES despesas
 ALTER TABLE despesas ADD COLUMN IF NOT EXISTS forma_pagamento TEXT;
 ALTER TABLE despesas ADD COLUMN IF NOT EXISTS observacao TEXT;
 
--- PASSO 2: Remove TODAS as instâncias auto-geradas (parent_id não nulo)
--- (As instâncias serão recriadas corretamente ao abrir o módulo de despesas)
-DELETE FROM despesas WHERE parent_id IS NOT NULL;
+-- PASSO 2: Limpar duplicadas com segurança (mantém a primeira ou a que estiver paga)
+WITH duplicates AS (
+  SELECT id,
+         ROW_NUMBER() OVER (
+           PARTITION BY empresa_id, parent_id, EXTRACT(YEAR FROM data), EXTRACT(MONTH FROM data)
+           ORDER BY status = 'pago' DESC, criado_em ASC, id ASC
+         ) as rn
+  FROM despesas
+  WHERE parent_id IS NOT NULL
+)
+DELETE FROM despesas
+WHERE id IN (
+  SELECT id FROM duplicates WHERE rn > 1
+);
 
--- PASSO 3: Adiciona índice único para impedir duplicatas no futuro
--- Usa DATE_TRUNC porque a coluna 'data' é do tipo DATE (não TEXT)
+-- PASSO 3: Criar o índice único usando funções 100% IMMUTABLE para evitar erros no PostgreSQL
 DROP INDEX IF EXISTS idx_despesas_parent_mes;
 CREATE UNIQUE INDEX idx_despesas_parent_mes
-  ON despesas (empresa_id, parent_id, DATE_TRUNC('month', data))
+  ON despesas (empresa_id, parent_id, EXTRACT(YEAR FROM data), EXTRACT(MONTH FROM data))
   WHERE parent_id IS NOT NULL;
 
--- PASSO 4: Gera identificadores sequenciais para registros sem numero_base
+-- PASSO 4: Gerar identificadores sequenciais para registros sem numero_base
 DO $$
 DECLARE
   r RECORD;
@@ -38,7 +48,7 @@ BEGIN
 END $$;
 
 -- Verificação final
-SELECT tipo, recorrente, COUNT(*) as total, SUM(valor) as soma
+SELECT tipo, status, recorrente, COUNT(*) as total, ROUND(SUM(valor)::numeric, 2) as soma
 FROM despesas
-GROUP BY tipo, recorrente
-ORDER BY tipo;
+GROUP BY tipo, status, recorrente
+ORDER BY tipo, status;
