@@ -17,7 +17,7 @@ type Fornecedor = {
   pedido_minimo: number | null; anotacoes: string | null; ativo: boolean
 }
 type Pedido = {
-  id: string; produto: string; quantidade: number
+  id: string; fornecedor_id: string; produto: string; quantidade: number
   status: string; total: number; obs: string | null; criado_em: string
   fornecedores: { nome: string }[] | null
 }
@@ -64,7 +64,7 @@ export default function FornecedoresPage() {
         .select('id,nome,contato,telefone,email,cnpj,categoria,endereco,cep,rua,numero,bairro,complemento,cidade,estado,prazo_entrega,pedido_minimo,anotacoes,ativo')
         .eq('empresa_id', eid).order('nome'),
       supabase.from('pedidos_fornecedor')
-        .select('id,produto,quantidade,status,total,obs,criado_em,fornecedores(nome)')
+        .select('id,fornecedor_id,produto,quantidade,status,total,obs,criado_em,fornecedores(nome)')
         .eq('empresa_id', eid).order('criado_em', { ascending: false }),
       supabase.from('produtos')
         .select('id,nome')
@@ -141,13 +141,81 @@ export default function FornecedoresPage() {
 
   async function avancarStatus(id: string, atual: string) {
     const next = 'recebido'
-    const { error } = await createClient().from('pedidos_fornecedor').update({ status: next }).eq('id', id)
+    const p = pedidos.find(o => o.id === id)
+    if (!p || !empresaId) return
+
+    const supabase = createClient()
+    setLoading(true)
+
+    // 1. Atualiza status do pedido de fornecedor
+    const { error } = await supabase.from('pedidos_fornecedor').update({ status: next }).eq('id', id)
     if (error) {
-      toast.error('Erro ao atualizar pedido: ' + error.message)
-    } else {
-      toast.success('Pedido recebido e finalizado com sucesso!')
-      setPedidos(prev => prev.map(p => p.id === id ? { ...p, status: next } : p))
+      toast.error('Erro ao atualizar status do pedido: ' + error.message)
+      setLoading(false)
+      return
     }
+
+    // 2. Tenta encontrar o produto no estoque para dar entrada
+    try {
+      const { data: prod } = await supabase
+        .from('produtos')
+        .select('id,qtd_atual')
+        .eq('empresa_id', empresaId)
+        .eq('nome', p.produto)
+        .maybeSingle()
+
+      if (prod) {
+        const quantidadeSomada = parseFloat(String(p.quantidade)) || 0
+        const novaQtd = (prod.qtd_atual || 0) + quantidadeSomada
+        // Atualiza a quantidade do produto
+        await supabase.from('produtos').update({ qtd_atual: novaQtd }).eq('id', prod.id)
+
+        // Registra a movimentação de entrada no estoque
+        const fornNome = Array.isArray(p.fornecedores) ? p.fornecedores[0]?.nome : (p.fornecedores as any)?.nome || 'Fornecedor'
+        await supabase.from('estoque_movimentacoes').insert({
+          empresa_id: empresaId,
+          produto_id: prod.id,
+          tipo: 'entrada',
+          quantidade: quantidadeSomada,
+          obs: `Entrada via Pedido de Compra (Fornecedor: ${fornNome})`
+        })
+        toast.success(`Estoque do produto "${p.produto}" atualizado (+${quantidadeSomada})`)
+      }
+    } catch (err) {
+      console.error('Erro ao atualizar estoque:', err)
+    }
+
+    // 3. Lança a despesa correspondente se o valor total do pedido for > 0
+    if (p.total && p.total > 0) {
+      try {
+        const fornNome = Array.isArray(p.fornecedores) ? p.fornecedores[0]?.nome : (p.fornecedores as any)?.nome || 'Fornecedor'
+        const { data: desps } = await supabase.from('despesas').select('numero_base').eq('empresa_id', empresaId)
+        const maxBase = Math.max(0, ...(desps || []).map(d => d.numero_base ?? 0))
+        const nextBase = maxBase + 1
+
+        await supabase.from('despesas').insert({
+          empresa_id: empresaId,
+          descricao: `Compra de insumo/produto - ${p.produto} (${fornNome})`,
+          categoria: 'Fornecedor',
+          tipo: 'variavel',
+          valor: p.total,
+          data: new Date().toISOString().slice(0, 10),
+          recorrente: false,
+          status: 'pago',
+          forma_pagamento: 'Boleto',
+          observacao: `Lançado automaticamente ao receber o Pedido de Compra #${p.id.substring(0,8).toUpperCase()}. ${p.obs || ''}`,
+          numero_base: nextBase,
+          identificador: String(nextBase)
+        })
+        toast.success('Despesa de compra gerada no financeiro!')
+      } catch (e) {
+        console.error('Erro ao gerar despesa de compra:', e)
+      }
+    }
+
+    toast.success('Pedido recebido e finalizado com sucesso!')
+    setPedidos(prev => prev.map(item => item.id === id ? { ...item, status: next } : item))
+    setLoading(false)
   }
 
   // FO2: cria novo pedido ao fornecedor
@@ -169,7 +237,7 @@ export default function FornecedoresPage() {
       total: totalCalculado,
       obs: obsFinal || null,
       status: 'enviado' // 'rascunho' | 'enviado' | 'recebido' | 'cancelado'
-    }).select('id,produto,quantidade,status,total,obs,criado_em,fornecedores(nome)').single()
+    }).select('id,fornecedor_id,produto,quantidade,status,total,obs,criado_em,fornecedores(nome)').single()
     
     setSalvandoPed(false)
     if (error) {
@@ -450,7 +518,52 @@ export default function FornecedoresPage() {
                   </button>
                 ))}
               </div>
-              <div style={{ display:'flex', justifyContent:'flex-end', gap:'0.5rem', marginTop:'0.25rem' }}>
+              {/* Histórico de Pedidos de Compra */}
+              <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--borda)', paddingTop: '0.75rem' }}>
+                <p style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--texto-sec)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>
+                  📜 Histórico de Pedidos de Compra
+                </p>
+                {pedidos.filter(p => p.fornecedor_id === editando.id).length === 0 ? (
+                  <p style={{ fontSize: '0.72rem', color: 'var(--texto-desab)', fontStyle: 'italic', padding: '0.25rem 0' }}>
+                    Nenhum pedido registrado para este fornecedor.
+                  </p>
+                ) : (
+                  <div className="tabela-wrap" style={{ maxHeight: '180px', overflowY: 'auto' }}>
+                    <table className="tabela" style={{ fontSize: '0.7rem' }}>
+                      <thead>
+                        <tr>
+                          <th>PRODUTO</th>
+                          <th style={{ textAlign: 'center' }}>QTD</th>
+                          <th style={{ textAlign: 'right' }}>VALOR TOTAL</th>
+                          <th>DATA</th>
+                          <th style={{ textAlign: 'center' }}>STATUS</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pedidos
+                          .filter(p => p.fornecedor_id === editando.id)
+                          .map(p => (
+                            <tr key={p.id}>
+                              <td style={{ fontWeight: 600 }}>{p.produto}</td>
+                              <td style={{ textAlign: 'center' }}>{p.quantidade}x</td>
+                              <td style={{ textAlign: 'right', fontWeight: 700, fontFamily: 'monospace', color: 'var(--verde)' }}>
+                                {p.total ? formatCurrency(p.total) : '—'}
+                              </td>
+                              <td>{new Date(p.criado_em).toLocaleDateString('pt-BR')}</td>
+                              <td style={{ textAlign: 'center' }}>
+                                <span className={p.status === 'recebido' ? 'status-ok' : p.status === 'enviado' ? 'status-alerta' : 'status-neutro'} style={{ fontSize: '0.62rem', padding: '0.1rem 0.35rem' }}>
+                                  {p.status === 'recebido' ? 'RECEBIDO' : p.status === 'enviado' ? 'ENVIADO' : p.status?.toUpperCase()}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display:'flex', justifyContent:'flex-end', gap:'0.5rem', marginTop:'0.5rem' }}>
                 <button onClick={()=>setEditando(null)} className="btn btn-ghost">Cancelar</button>
                 <button onClick={salvarEdicao} disabled={salvando} className="btn btn-primary" style={{ display:'flex', alignItems:'center', gap:'0.375rem' }}>
                   {salvando?<><Loader2 size={14} style={{animation:'spin 1s linear infinite'}}/>Salvando...</>:<><Save size={14}/>Salvar alterações</>}
@@ -573,7 +686,7 @@ export default function FornecedoresPage() {
               ) : pedidos.map(p => (
                 <tr key={p.id} style={{ opacity: p.status === 'recebido' ? 0.6 : 1 }}>
                   <td style={{ fontWeight:700 }}>{p.produto}</td>
-                  <td style={{ fontSize:'0.72rem', color:'var(--texto-sec)' }}>{Array.isArray(p.fornecedores) ? p.fornecedores[0]?.nome : '—'}</td>
+                  <td style={{ fontSize:'0.72rem', color:'var(--texto-sec)' }}>{(Array.isArray(p.fornecedores) ? p.fornecedores[0]?.nome : (p.fornecedores as any)?.nome) || '—'}</td>
                   <td style={{ textAlign:'center', fontWeight:700 }}>{p.quantidade}x</td>
                   <td style={{ textAlign:'right', fontWeight:700, fontFamily:'monospace', color:'var(--verde)' }}>{p.total ? formatCurrency(p.total) : '—'}</td>
                   <td style={{ fontSize:'0.72rem', color:'var(--texto-desab)', maxWidth:'200px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={p.obs || ''}>{p.obs || '—'}</td>
