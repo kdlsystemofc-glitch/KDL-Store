@@ -66,7 +66,7 @@ const FLUXO: Record<string, string> = {
 }
 
 export default function OrdensServicoPage() {
-  const { empresaId } = useEmpresaId()
+  const { empresaId, loading: loadingEmpresa } = useEmpresaId()
   const { plano } = useSubscription()
   
   const [ordens, setOrdens] = useState<OS[]>([])
@@ -76,7 +76,7 @@ export default function OrdensServicoPage() {
   
   const [busca, setBusca] = useState('')
   const [filtro, setFiltro] = useState('todos')
-  const [loading, setLoading] = useState(true)
+  const [loadingOS, setLoadingOS] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
@@ -122,50 +122,59 @@ export default function OrdensServicoPage() {
   }, [form.valor_servico, form.valor_pecas])
 
   useEffect(() => {
-    if (empresaId) carregar(empresaId)
-  }, [empresaId])
+    if (empresaId) {
+      carregar(empresaId)
+    } else if (!loadingEmpresa && !empresaId) {
+      setLoadingOS(false)
+    }
+  }, [empresaId, loadingEmpresa])
 
   async function carregar(eid: string) {
-    setLoading(true)
+    setLoadingOS(true)
     const supabase = createClient()
     
-    // 1. Carrega Ordens de Serviço
-    const { data: dataOS } = await supabase
-      .from('ordens_servico')
-      .select('id,numero,cliente_id,cliente_nome,cliente_tel,equipamento,defeito_relatado,status,orcamento,valor_servico,valor_pecas,tecnico,criado_em,previsao,problema,laudo,observacoes')
-      .eq('empresa_id', eid)
-      .order('criado_em', { ascending: false })
-      
-    // 2. Carrega Clientes para o autocomplete
-    const { data: dataClientes } = await supabase
-      .from('clientes')
-      .select('id,nome,telefone,cpf')
-      .eq('empresa_id', eid)
-      .eq('ativo', true)
-      .order('nome')
-      
-    // 3. Carrega Usuários do sistema (Técnicos em potencial)
-    const { data: dataProfiles } = await supabase
-      .from('profiles')
-      .select('id,nome,papel')
-      .eq('empresa_id', eid)
-      .eq('status', 'ativo')
+    try {
+      // 1. Carrega Ordens de Serviço
+      const { data: dataOS } = await supabase
+        .from('ordens_servico')
+        .select('id,numero,cliente_id,cliente_nome,cliente_tel,equipamento,defeito_relatado,status,orcamento,valor_servico,valor_pecas,tecnico,criado_em,previsao,problema,laudo,observacoes')
+        .eq('empresa_id', eid)
+        .order('criado_em', { ascending: false })
+        
+      // 2. Carrega Clientes para o autocomplete
+      const { data: dataClientes } = await supabase
+        .from('clientes')
+        .select('id,nome,telefone,cpf')
+        .eq('empresa_id', eid)
+        .eq('ativo', true)
+        .order('nome')
+        
+      // 3. Carrega Usuários do sistema (Técnicos em potencial)
+      const { data: dataProfiles } = await supabase
+        .from('profiles')
+        .select('id,nome,papel')
+        .eq('empresa_id', eid)
+        .eq('status', 'ativo')
 
-    const osList = (dataOS || []) as OS[]
-    setOrdens(osList)
-    setClientesDB((dataClientes || []) as Cliente[])
-    setTecnicosDB((dataProfiles || []) as Profile[])
-    
-    // Filtra técnicos externos únicos baseados no histórico
-    const externos = Array.from(
-      new Set(
-        osList
-          .map(o => o.tecnico)
-          .filter((t): t is string => !!t && !dataProfiles?.some(p => p.nome === t))
+      const osList = (dataOS || []) as OS[]
+      setOrdens(osList)
+      setClientesDB((dataClientes || []) as Cliente[])
+      setTecnicosDB((dataProfiles || []) as Profile[])
+      
+      // Filtra técnicos externos únicos baseados no histórico
+      const externos = Array.from(
+        new Set(
+          osList
+            .map(o => o.tecnico)
+            .filter((t): t is string => !!t && !dataProfiles?.some(p => p.nome === t))
+        )
       )
-    )
-    setTecnicosExternos(externos)
-    setLoading(false)
+      setTecnicosExternos(externos)
+    } catch (e) {
+      console.error('Erro ao carregar Ordens de Serviço:', e)
+    } finally {
+      setLoadingOS(false)
+    }
   }
 
   async function cadastrarClienteRapido() {
@@ -632,9 +641,13 @@ export default function OrdensServicoPage() {
           style={{flex:1,maxWidth:'280px'}} value={busca} onChange={e=>setBusca(e.target.value)}/>
       </div>
 
-      {loading ? (
+      {loadingEmpresa || loadingOS ? (
         <div style={{display:'flex',justifyContent:'center',padding:'2rem',flexDirection:'column',alignItems:'center',gap:'0.5rem'}}>
           <p style={{color:'var(--verde)',fontSize:'0.75rem',letterSpacing:'0.08em'}}>CARREGANDO ORDENS<span className="blink">_</span></p>
+        </div>
+      ) : !empresaId ? (
+        <div className="alerta alerta-perigo" style={{ margin: '1rem' }}>
+          Empresa não vinculada ou erro de autenticação. Por favor, tente recarregar a página ou faça login novamente.
         </div>
       ) : filtradas.length === 0 ? (
         <div style={{textAlign:'center',padding:'3rem',color:'var(--texto-desab)',border:'1px solid var(--borda)',background:'var(--surface)'}}>

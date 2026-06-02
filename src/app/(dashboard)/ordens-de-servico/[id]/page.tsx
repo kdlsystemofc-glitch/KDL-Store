@@ -74,7 +74,7 @@ const STAGES = ['aguardando', 'aprovado', 'em_servico', 'concluido', 'entregue']
 const STAGE_LABELS = ['Aguardando', 'Aprovado', 'Em Serviço', 'Pronto', 'Entregue']
 
 export default function OSDetalhePage({ params }: { params: { id: string } }) {
-  const { empresaId } = useEmpresaId()
+  const { empresaId, loading: loadingEmpresa } = useEmpresaId()
   const [os, setOs] = useState<OS | null>(null)
   const [empresa, setEmpresa] = useState<Empresa | null>(null)
   const [loggedUser, setLoggedUser] = useState('Operador')
@@ -84,7 +84,7 @@ export default function OSDetalhePage({ params }: { params: { id: string } }) {
   const [tecnicosDB, setTecnicosDB] = useState<Profile[]>([])
   const [tecnicosExternos, setTecnicosExternos] = useState<string[]>([])
   
-  const [loading, setLoading] = useState(true)
+  const [loadingOS, setLoadingOS] = useState(true)
   const [salvando, setSalvando] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
   const [showShare, setShowShare] = useState(false)
@@ -125,7 +125,7 @@ export default function OSDetalhePage({ params }: { params: { id: string } }) {
 
   const carregar = useCallback(async () => {
     if (!empresaId || !params.id) return
-    setLoading(true)
+    setLoadingOS(true)
     const supabase = createClient()
     
     try {
@@ -199,13 +199,17 @@ export default function OSDetalhePage({ params }: { params: { id: string } }) {
     } catch (e) {
       console.error('Erro ao carregar OS:', e)
     } finally {
-      setLoading(false)
+      setLoadingOS(false)
     }
   }, [empresaId, params.id])
 
   useEffect(() => {
-    carregar()
-  }, [carregar])
+    if (empresaId) {
+      carregar()
+    } else if (!loadingEmpresa && !empresaId) {
+      setLoadingOS(false)
+    }
+  }, [empresaId, loadingEmpresa, carregar])
 
   async function concluir() {
     if (!os || !empresaId) return
@@ -289,7 +293,19 @@ export default function OSDetalhePage({ params }: { params: { id: string } }) {
     setTimeout(() => setLinkCopiado(false), 2000)
   }
 
-  if (loading) return (
+  if (loadingEmpresa) return (
+    <div style={{display:'flex',justifyContent:'center',padding:'3rem',color:'var(--texto-desab)'}}>
+      <Loader2 size={24} style={{animation:'spin 1s linear infinite'}}/>
+    </div>
+  )
+
+  if (!empresaId) return (
+    <div className="alerta alerta-perigo" style={{ margin: '1rem' }}>
+      Empresa não vinculada ou erro de autenticação. Por favor, tente recarregar a página ou faça login novamente.
+    </div>
+  )
+
+  if (loadingOS) return (
     <div style={{display:'flex',justifyContent:'center',padding:'3rem',color:'var(--texto-desab)'}}>
       <Loader2 size={24} style={{animation:'spin 1s linear infinite'}}/>
     </div>
