@@ -1,6 +1,7 @@
 'use client'
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
@@ -73,7 +74,8 @@ const STATUS_CLS: Record<string, string> = {
 const STAGES = ['aguardando', 'aprovado', 'em_servico', 'concluido', 'entregue']
 const STAGE_LABELS = ['Aguardando', 'Aprovado', 'Em Serviço', 'Pronto', 'Entregue']
 
-export default function OSDetalhePage({ params }: { params: { id: string } }) {
+export default function OSDetalhePage({ params: propsParams }: { params: { id: string } }) {
+  const params = useParams()
   const { empresaId, loading: loadingEmpresa } = useEmpresaId()
   const [os, setOs] = useState<OS | null>(null)
   const [empresa, setEmpresa] = useState<Empresa | null>(null)

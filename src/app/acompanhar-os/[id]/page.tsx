@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/utils'
 import { Loader2, MessageCircle, Wrench, Shield, CheckCircle, Clock } from 'lucide-react'
@@ -44,7 +45,8 @@ const STATUS_LABEL: Record<string, string> = {
 const STAGES = ['aguardando', 'aprovado', 'em_servico', 'concluido', 'entregue']
 const STAGE_LABELS = ['Aguardando', 'Aprovado', 'Em Serviço', 'Pronto', 'Entregue']
 
-export default function PublicAcompanharOS({ params }: { params: { id: string } }) {
+export default function PublicAcompanharOS({ params: propsParams }: { params: { id: string } }) {
+  const params = useParams()
   const [os, setOs] = useState<OS | null>(null)
   const [empresa, setEmpresa] = useState<Empresa | null>(null)
   const [loading, setLoading] = useState(true)
