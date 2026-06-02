@@ -7,6 +7,7 @@ import { Plus, Search, Loader2, X, Save, Pencil } from 'lucide-react'
 import { PageTabs } from '@/components/PageTabs'
 import { FormFornecedor } from '@/components/FormFornecedor'
 import { useSubscription } from '@/hooks/useSubscription'
+import { formatCurrency } from '@/lib/utils'
 
 type Fornecedor = {
   id: string; nome: string; contato: string | null; telefone: string | null
@@ -17,7 +18,7 @@ type Fornecedor = {
 }
 type Pedido = {
   id: string; produto: string; quantidade: number
-  status: string; criado_em: string
+  status: string; total: number; obs: string | null; criado_em: string
   fornecedores: { nome: string }[] | null
 }
 
@@ -42,6 +43,9 @@ export default function FornecedoresPage() {
   const [showPedido,   setShowPedido]   = useState(false)
   const [pedProduto,   setPedProduto]   = useState('')
   const [pedQtd,       setPedQtd]       = useState('1')
+  const [pedPrecoUnitario, setPedPrecoUnitario] = useState('')
+  const [pedPrevisao,  setPedPrevisao]  = useState('')
+  const [pedObs,       setPedObs]       = useState('')
   const [pedFornId,    setPedFornId]    = useState('')
   const [salvandoPed,  setSalvandoPed]  = useState(false)
 
@@ -60,7 +64,7 @@ export default function FornecedoresPage() {
         .select('id,nome,contato,telefone,email,cnpj,categoria,endereco,cep,rua,numero,bairro,complemento,cidade,estado,prazo_entrega,pedido_minimo,anotacoes,ativo')
         .eq('empresa_id', eid).order('nome'),
       supabase.from('pedidos_fornecedor')
-        .select('id,produto,quantidade,status,criado_em,fornecedores(nome)')
+        .select('id,produto,quantidade,status,total,obs,criado_em,fornecedores(nome)')
         .eq('empresa_id', eid).order('criado_em', { ascending: false }),
       supabase.from('produtos')
         .select('id,nome')
@@ -136,12 +140,12 @@ export default function FornecedoresPage() {
   }
 
   async function avancarStatus(id: string, atual: string) {
-    const next = atual === 'aguardando' ? 'confirmado' : 'entregue'
+    const next = 'recebido'
     const { error } = await createClient().from('pedidos_fornecedor').update({ status: next }).eq('id', id)
     if (error) {
       toast.error('Erro ao atualizar pedido: ' + error.message)
     } else {
-      toast.success(`Pedido ${next === 'confirmado' ? 'confirmado' : 'entregue'} com sucesso!`)
+      toast.success('Pedido recebido e finalizado com sucesso!')
       setPedidos(prev => prev.map(p => p.id === id ? { ...p, status: next } : p))
     }
   }
@@ -150,21 +154,35 @@ export default function FornecedoresPage() {
   async function criarPedido() {
     if (!pedProduto.trim() || !pedQtd || !empresaId) return
     setSalvandoPed(true)
+    
+    const totalCalculado = (parseInt(pedQtd) || 1) * (parseFloat(pedPrecoUnitario) || 0)
+    const obsFinal = [
+      pedPrevisao ? `Previsão: ${pedPrevisao}` : '',
+      pedObs ? `Obs: ${pedObs}` : ''
+    ].filter(Boolean).join(' | ')
+
     const { data, error } = await createClient().from('pedidos_fornecedor').insert({
       empresa_id: empresaId,
       fornecedor_id: pedFornId || null,
       produto: pedProduto.trim(),
       quantidade: parseInt(pedQtd) || 1,
-      status: 'aguardando'
-    }).select('id,produto,quantidade,status,criado_em,fornecedores(nome)').single()
+      total: totalCalculado,
+      obs: obsFinal || null,
+      status: 'enviado' // 'rascunho' | 'enviado' | 'recebido' | 'cancelado'
+    }).select('id,produto,quantidade,status,total,obs,criado_em,fornecedores(nome)').single()
     
     setSalvandoPed(false)
     if (error) {
       toast.error('Erro ao criar pedido: ' + error.message)
     } else {
-      toast.success('Pedido ao fornecedor criado!')
+      toast.success('Pedido ao fornecedor criado com sucesso!')
       if (data) setPedidos(prev => [data as any, ...prev])
-      setPedProduto(''); setPedQtd('1'); setPedFornId('')
+      setPedProduto('')
+      setPedQtd('1')
+      setPedPrecoUnitario('')
+      setPedPrevisao('')
+      setPedObs('')
+      setPedFornId('')
       setShowPedido(false)
     }
   }
@@ -265,16 +283,42 @@ export default function FornecedoresPage() {
                   )}
                 </div>
               </div>
-              <div>
-                <label className="campo-label">Quantidade *</label>
-                <input className="campo" type="number" min="1" style={{marginTop:'0.375rem'}} value={pedQtd} onChange={e=>setPedQtd(e.target.value)}/>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                <div>
+                  <label className="campo-label">Quantidade *</label>
+                  <input className="campo" type="number" min="1" style={{marginTop:'0.375rem'}} value={pedQtd} onChange={e=>setPedQtd(e.target.value)}/>
+                </div>
+                <div>
+                  <label className="campo-label">Preço Unitário (R$)</label>
+                  <input className="campo" type="number" step="0.01" min="0" style={{marginTop:'0.375rem', fontWeight: 700}} value={pedPrecoUnitario} onChange={e=>setPedPrecoUnitario(e.target.value)} placeholder="0,00"/>
+                </div>
               </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface-alt)', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--borda)' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--texto-sec)' }}>Valor Total Estimado:</span>
+                <span style={{ fontSize: '0.9rem', fontWeight: 900, color: 'var(--verde)', fontFamily: 'monospace' }}>
+                  {formatCurrency((parseInt(pedQtd) || 1) * (parseFloat(pedPrecoUnitario) || 0))}
+                </span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                <div>
+                  <label className="campo-label">Previsão Entrega</label>
+                  <input className="campo" style={{marginTop:'0.375rem'}} value={pedPrevisao} onChange={e=>setPedPrevisao(e.target.value)} placeholder="Ex: +5 dias, 10/06"/>
+                </div>
+                <div>
+                  <label className="campo-label">Fornecedor (opcional)</label>
+                  <select className="campo" style={{marginTop:'0.375rem'}} value={pedFornId} onChange={e=>setPedFornId(e.target.value)}>
+                    <option value="">Selecionar...</option>
+                    {fornecedores.filter(f=>f.ativo).map(f=><option key={f.id} value={f.id}>{f.nome}</option>)}
+                  </select>
+                </div>
+              </div>
+
               <div>
-                <label className="campo-label">Fornecedor (opcional)</label>
-                <select className="campo" style={{marginTop:'0.375rem'}} value={pedFornId} onChange={e=>setPedFornId(e.target.value)}>
-                  <option value="">Selecionar fornecedor...</option>
-                  {fornecedores.filter(f=>f.ativo).map(f=><option key={f.id} value={f.id}>{f.nome}</option>)}
-                </select>
+                <label className="campo-label">Observações Adicionais</label>
+                <input className="campo" style={{marginTop:'0.375rem'}} value={pedObs} onChange={e=>setPedObs(e.target.value)} placeholder="Ex: Observações do pedido..."/>
               </div>
             </div>
             <div style={{ display:'flex', gap:'0.5rem', justifyContent:'flex-end', marginTop:'1rem' }}>
@@ -511,32 +555,40 @@ export default function FornecedoresPage() {
           <table className="tabela">
             <thead>
               <tr>
-                <th>PRODUTO</th><th>FORNECEDOR</th><th style={{ textAlign:'center' }}>QTD</th>
-                <th>DATA</th><th style={{ textAlign:'center' }}>STATUS</th><th style={{ textAlign:'center' }}>AÇÃO</th>
+                <th>PRODUTO</th>
+                <th>FORNECEDOR</th>
+                <th style={{ textAlign:'center' }}>QTD</th>
+                <th style={{ textAlign:'right' }}>VALOR TOTAL</th>
+                <th>OBS / PREVISÃO</th>
+                <th>DATA</th>
+                <th style={{ textAlign:'center' }}>STATUS</th>
+                <th style={{ textAlign:'center' }}>AÇÃO</th>
               </tr>
             </thead>
             <tbody>
               {pedidos.length === 0 ? (
-                <tr><td colSpan={6} style={{ textAlign:'center', padding:'2rem', color:'var(--texto-desab)', fontSize:'0.72rem', letterSpacing:'0.06em' }}>
+                <tr><td colSpan={8} style={{ textAlign:'center', padding:'2rem', color:'var(--texto-desab)', fontSize:'0.72rem', letterSpacing:'0.06em' }}>
                   [ NENHUM PEDIDO PENDENTE ]
                 </td></tr>
               ) : pedidos.map(p => (
-                <tr key={p.id}>
+                <tr key={p.id} style={{ opacity: p.status === 'recebido' ? 0.6 : 1 }}>
                   <td style={{ fontWeight:700 }}>{p.produto}</td>
                   <td style={{ fontSize:'0.72rem', color:'var(--texto-sec)' }}>{Array.isArray(p.fornecedores) ? p.fornecedores[0]?.nome : '—'}</td>
                   <td style={{ textAlign:'center', fontWeight:700 }}>{p.quantidade}x</td>
+                  <td style={{ textAlign:'right', fontWeight:700, fontFamily:'monospace', color:'var(--verde)' }}>{p.total ? formatCurrency(p.total) : '—'}</td>
+                  <td style={{ fontSize:'0.72rem', color:'var(--texto-desab)', maxWidth:'200px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={p.obs || ''}>{p.obs || '—'}</td>
                   <td style={{ fontSize:'0.72rem', fontVariantNumeric:'tabular-nums' }}>{new Date(p.criado_em).toLocaleDateString('pt-BR')}</td>
                   <td style={{ textAlign:'center' }}>
-                    <span className={p.status==='entregue'?'status-ok':p.status==='confirmado'?'status-alerta':'status-neutro'}
+                    <span className={p.status === 'recebido' ? 'status-ok' : p.status === 'enviado' ? 'status-alerta' : 'status-neutro'}
                       style={{ fontSize:'0.7rem' }}>
-                      {p.status==='aguardando'?'○ AGUARDANDO':p.status==='confirmado'?'◐ CONFIRMADO':'● ENTREGUE'}
+                      {p.status === 'recebido' ? '● RECEBIDO' : p.status === 'enviado' ? '◐ ENVIADO' : `○ ${p.status?.toUpperCase()}`}
                     </span>
                   </td>
                   <td style={{ textAlign:'center' }}>
-                    {p.status !== 'entregue' && (
-                      <button onClick={()=>avancarStatus(p.id, p.status)}
-                        className="btn btn-secondary" style={{ fontSize:'0.62rem', padding:'0.15rem 0.4rem' }}>
-                        {p.status==='aguardando'?'CONFIRMAR':'ENTREGUE'}
+                    {p.status !== 'recebido' && (
+                      <button onClick={() => avancarStatus(p.id, p.status)}
+                        className="btn btn-secondary" style={{ fontSize:'0.62rem', padding:'0.15rem 0.4rem', fontWeight:700 }}>
+                        ✓ RECEBIDO
                       </button>
                     )}
                   </td>
