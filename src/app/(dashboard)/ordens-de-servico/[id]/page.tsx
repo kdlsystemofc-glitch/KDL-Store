@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
@@ -123,94 +123,89 @@ export default function OSDetalhePage({ params }: { params: { id: string } }) {
     }
   }, [form.valor_servico, form.valor_pecas])
 
-  useEffect(() => {
-    if (empresaId && params.id) carregar()
-  }, [empresaId, params.id])
-
-  async function carregar() {
+  const carregar = useCallback(async () => {
+    if (!empresaId || !params.id) return
     setLoading(true)
     const supabase = createClient()
     
-    // 0. Carrega dados do Usuário Logado para o histórico
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      const { data: prof } = await supabase.from('profiles').select('nome').eq('id', user.id).single()
-      if (prof?.nome) setLoggedUser(prof.nome)
-    }
+    try {
+      // 0. Carrega dados do Usuário Logado para o histórico
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: prof } = await supabase.from('profiles').select('nome').eq('id', user.id).single()
+        if (prof?.nome) setLoggedUser(prof.nome)
+      }
 
-    // 1. Carrega Ordem de Serviço
-    const { data: osData } = await supabase
-      .from('ordens_servico')
-      .select('*')
-      .eq('id', params.id)
-      .eq('empresa_id', empresaId!)
-      .single()
-      
-    // 2. Carrega Dados da Empresa
-    const { data: empData } = await supabase
-      .from('empresas')
-      .select('id,nome,cnpj,telefone,whatsapp,endereco,cidade,estado')
-      .eq('id', empresaId!)
-      .single()
-      
-    // 3. Carrega Clientes para o autocomplete de edição
-    const { data: dataClientes } = await supabase
-      .from('clientes')
-      .select('id,nome,telefone,cpf')
-      .eq('empresa_id', empresaId!)
-      .eq('ativo', true)
-      .order('nome')
-      
-    // 4. Carrega Técnicos do sistema
-    const { data: dataProfiles } = await supabase
-      .from('profiles')
-      .select('id,nome,papel')
-      .eq('empresa_id', empresaId!)
-      .eq('status', 'ativo')
+      // Executa queries em paralelo para performance
+      const [osRes, empRes, clientesRes, profilesRes] = await Promise.all([
+        supabase
+          .from('ordens_servico')
+          .select('*')
+          .eq('id', params.id)
+          .eq('empresa_id', empresaId)
+          .single(),
+        supabase
+          .from('empresas')
+          .select('id,nome,cnpj,telefone,whatsapp,endereco,cidade,estado')
+          .eq('id', empresaId)
+          .single(),
+        supabase
+          .from('clientes')
+          .select('id,nome,telefone,cpf')
+          .eq('empresa_id', empresaId)
+          .eq('ativo', true)
+          .order('nome'),
+        supabase
+          .from('profiles')
+          .select('id,nome,papel')
+          .eq('empresa_id', empresaId)
+          .eq('status', 'ativo'),
+      ])
 
-    if (osData) {
-      setOs(osData as OS)
-      setForm({
-        cliente_id:       osData.cliente_id,
-        cliente_nome:     osData.cliente_nome,
-        cliente_tel:      osData.cliente_tel || '',
-        equipamento:      osData.equipamento,
-        defeito_relatado: osData.defeito_relatado,
-        status:           osData.status,
-        orcamento:        osData.orcamento ? String(osData.orcamento) : '',
-        valor_servico:    osData.valor_servico ? String(osData.valor_servico) : '',
-        valor_pecas:      osData.valor_pecas ? String(osData.valor_pecas) : '',
-        tecnico:          osData.tecnico || '',
-        previsao:         osData.previsao || '',
-        problema:         osData.problema || '',
-        laudo:            osData.laudo || '',
-        observacoes:      osData.observacoes || ''
-      })
-      setClienteBusca(osData.cliente_nome)
-    }
-    
-    if (empData) setEmpresa(empData as Empresa)
-    if (dataClientes) setClientesDB(dataClientes as Cliente[])
-    if (dataProfiles) setTecnicosDB(dataProfiles as Profile[])
-    
-    // Filtra técnicos externos baseados no histórico
-    const { data: allOS } = await supabase
-      .from('ordens_servico')
-      .select('tecnico')
-      .eq('empresa_id', empresaId!)
-    if (allOS) {
-      const externos = Array.from(
-        new Set(
-          allOS
-            .map(o => o.tecnico)
-            .filter((t): t is string => !!t && !dataProfiles?.some(p => p.nome === t))
-        )
-      )
-      setTecnicosExternos(externos)
-    }
+      const osData = osRes.data
+      const empData = empRes.data
+      const dataClientes = clientesRes.data
+      const dataProfiles = profilesRes.data
 
-    setLoading(false)
-  }
+      if (osData) {
+        setOs(osData as OS)
+        setForm({
+          cliente_id:       osData.cliente_id,
+          cliente_nome:     osData.cliente_nome,
+          cliente_tel:      osData.cliente_tel || '',
+          equipamento:      osData.equipamento,
+          defeito_relatado: osData.defeito_relatado,
+          status:           osData.status,
+          orcamento:        osData.orcamento ? String(osData.orcamento) : '',
+          valor_servico:    osData.valor_servico ? String(osData.valor_servico) : '',
+          valor_pecas:      osData.valor_pecas ? String(osData.valor_pecas) : '',
+          tecnico:          osData.tecnico || '',
+          previsao:         osData.previsao || '',
+          problema:         osData.problema || '',
+          laudo:            osData.laudo || '',
+          observacoes:      osData.observacoes || ''
+        })
+        setClienteBusca(osData.cliente_nome)
+
+        // Extrai técnicos externos do próprio registro (sem query extra)
+        if (dataProfiles && osData.tecnico && !dataProfiles.some((p: Profile) => p.nome === osData.tecnico)) {
+          setTecnicosExternos([osData.tecnico])
+        }
+      }
+      
+      if (empData) setEmpresa(empData as Empresa)
+      if (dataClientes) setClientesDB(dataClientes as Cliente[])
+      if (dataProfiles) setTecnicosDB(dataProfiles as Profile[])
+    } catch (e) {
+      console.error('Erro ao carregar OS:', e)
+    } finally {
+      setLoading(false)
+    }
+  }, [empresaId, params.id])
+
+  useEffect(() => {
+    carregar()
+  }, [carregar])
 
   async function concluir() {
     if (!os || !empresaId) return
