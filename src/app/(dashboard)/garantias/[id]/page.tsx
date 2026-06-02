@@ -147,7 +147,7 @@ export default function DocumentoGarantiaPage() {
             </div>
           </div>
           <p style={{ fontSize:'0.68rem', color:'var(--texto-desab)', textAlign:'center', marginTop:'0.75rem' }}>
-            Certificado gerado via NexoCommerce · Verificar em nexocommerce.app/garantia/{g.num}
+            Certificado gerado via KDL Store · Verificar em kdl-store.vercel.app/garantia/{g.num}
           </p>
         </div>
       </div>

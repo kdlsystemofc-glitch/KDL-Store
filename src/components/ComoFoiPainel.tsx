@@ -91,7 +91,7 @@ function gerarMsgWA(d: Dados, aba: Aba): string {
   const labelAba = aba==='hoje'?'hoje':aba==='ontem'?'ontem':aba==='semana'?'essa semana':aba==='mes'?'esse mês':'esse ano'
   const ticket = d.numVendas > 0 ? d.faturamento/d.numVendas : 0
   const frase = gerarFrase(d, aba)
-  let msg = `📊 NexoCommerce — Resumo de ${labelAba} (${labelData})\n\n`
+  let msg = `📊 KDL Store — Resumo de ${labelAba} (${labelData})\n\n`
   msg += `💰 Faturamento: ${formatCurrency(d.faturamento)}\n`
   msg += `🛒 Vendas: ${d.numVendas}\n`
   msg += `🎯 Ticket médio: ${formatCurrency(ticket)}\n`
@@ -100,7 +100,7 @@ function gerarMsgWA(d: Dados, aba: Aba): string {
   if (d.produtosZerados.length > 0) msg += `\n⚠️ ${d.produtosZerados.length} produto(s) zerado(s)\n`
   if (d.fiadoAberto > 0) msg += `📒 ${formatCurrency(d.fiadoAberto)} em fiado aberto\n`
   if (frase) msg += `\n${frase}\n`
-  msg += `\n— Enviado pelo NexoCommerce`
+  msg += `\n— Enviado pelo KDL Store`
   return msg
 }
 

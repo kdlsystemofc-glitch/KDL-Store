@@ -314,7 +314,7 @@ export default function PublicAcompanharOS({ params: propsParams }: { params: { 
         )}
 
         <div style={{ textAlign:'center', marginTop:'1rem', fontSize:'0.7rem', color:'var(--texto-desab)' }}>
-          Powered by NexoCommerce © 2026
+          Powered by KDL Store © 2026
         </div>
 
       </div>

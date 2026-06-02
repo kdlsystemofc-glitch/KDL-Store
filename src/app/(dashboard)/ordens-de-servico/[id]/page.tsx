@@ -74,6 +74,26 @@ const STATUS_CLS: Record<string, string> = {
 const STAGES = ['aguardando', 'aprovado', 'em_servico', 'concluido', 'entregue']
 const STAGE_LABELS = ['Aguardando', 'Aprovado', 'Em Serviço', 'Pronto', 'Entregue']
 
+const FLUXO_DETALHE: Record<string, string> = {
+  aguardando: 'aprovado',
+  aprovado:   'em_servico',
+  em_servico: 'concluido',
+  concluido:  'entregue',
+}
+
+const FLUXO_BTN_LABEL: Record<string, string> = {
+  aguardando: '✅ Aprovar Orçamento',
+  aprovado:   '🔧 Iniciar Serviço',
+  em_servico: '✔ Marcar como Pronta',
+  concluido:  '📦 Marcar como Entregue',
+}
+
+const DEFAULT_TMPL = {
+  abertura:  'Olá {cliente}! Recebemos seu equipamento *{equipamento}* para manutenção sob a *OS #{numero}*. Você pode acompanhar o andamento técnico em tempo real clicando no link: {link}',
+  orcamento: 'Olá {cliente}! O orçamento do seu equipamento *{equipamento}* (OS #{numero}) está pronto. Valor Total: *{valor}*. Você pode ver os detalhes e o laudo completo em: {link}',
+  pronto:    'Boas notícias, {cliente}! Seu equipamento *{equipamento}* (OS #{numero}) já está pronto e testado para retirada. Valor Final: *{valor}*. Endereço da loja: {endereco}. Veja mais detalhes em: {link}',
+}
+
 export default function OSDetalhePage({ params: propsParams }: { params: { id: string } }) {
   const params = useParams()
   const { empresaId, loading: loadingEmpresa } = useEmpresaId()
@@ -92,6 +112,13 @@ export default function OSDetalhePage({ params: propsParams }: { params: { id: s
   const [showShare, setShowShare] = useState(false)
   const [erroEdit, setErroEdit] = useState<string | null>(null)
   const [linkCopiado, setLinkCopiado] = useState(false)
+  
+  // Templates configuráveis de WhatsApp (persistidos no localStorage por empresa)
+  const [tmplAbertura,  setTmplAbertura]  = useState(DEFAULT_TMPL.abertura)
+  const [tmplOrcamento, setTmplOrcamento] = useState(DEFAULT_TMPL.orcamento)
+  const [tmplPronto,    setTmplPronto]    = useState(DEFAULT_TMPL.pronto)
+  const [editTmpl,    setEditTmpl]    = useState<null | 'abertura' | 'orcamento' | 'pronto'>(null)
+  const [editTmplVal, setEditTmplVal] = useState('')
   
   // Edit Form State
   const [form, setForm] = useState({
@@ -124,6 +151,16 @@ export default function OSDetalhePage({ params: propsParams }: { params: { id: s
       setForm(f => ({ ...f, orcamento: (serv + pec).toFixed(2) }))
     }
   }, [form.valor_servico, form.valor_pecas])
+
+  // Carrega templates customizados do localStorage na montagem do componente
+  useEffect(() => {
+    const a = localStorage.getItem('kdl_tmpl_abertura')
+    const o = localStorage.getItem('kdl_tmpl_orcamento')
+    const p = localStorage.getItem('kdl_tmpl_pronto')
+    if (a) setTmplAbertura(a)
+    if (o) setTmplOrcamento(o)
+    if (p) setTmplPronto(p)
+  }, [])
 
   const carregar = useCallback(async () => {
     if (!empresaId || !params.id) return
@@ -213,33 +250,31 @@ export default function OSDetalhePage({ params: propsParams }: { params: { id: s
     }
   }, [empresaId, loadingEmpresa, carregar])
 
-  async function concluir() {
+  async function atualizarStatus(novoStatus: string) {
     if (!os || !empresaId) return
     setSalvando(true)
     
-    // Grava histórico
     const newLog = {
       data: new Date().toISOString(),
       usuario: loggedUser,
-      status: 'concluido',
-      status_label: 'Pronto / Concluído'
+      status: novoStatus,
+      status_label: STATUS_LABEL[novoStatus] || novoStatus
     }
     const updatedHistory = [newLog, ...(os.historico || [])]
 
     const { error } = await createClient()
       .from('ordens_servico')
-      .update({ status: 'concluido', historico: updatedHistory })
+      .update({ status: novoStatus, historico: updatedHistory })
       .eq('id', os.id)
       
+    setSalvando(false)
     if (error) {
-      alert('Erro ao concluir OS: ' + error.message)
-      setSalvando(false)
+      alert('Erro ao atualizar status: ' + error.message)
       return
     }
     
-    setOs({ ...os, status: 'concluido', historico: updatedHistory })
-    setForm(f => ({ ...f, status: 'concluido' }))
-    setSalvando(false)
+    setOs({ ...os, status: novoStatus, historico: updatedHistory })
+    setForm(f => ({ ...f, status: novoStatus }))
   }
 
   async function salvarEdicao() {
@@ -319,12 +354,22 @@ export default function OSDetalhePage({ params: propsParams }: { params: { id: s
   // Monta link do rastreio
   const publicTrackingUrl = typeof window !== 'undefined' ? window.location.origin + '/acompanhar-os/' + os.id : ''
 
-  // Templates de WhatsApp
-  const wppMsgAbertura = `Olá ${os.cliente_nome}! Recebemos seu equipamento *${os.equipamento}* para manutenção sob a *OS #${String(os.numero).padStart(4,'0')}*. Você pode acompanhar o andamento técnico em tempo real clicando no link: ${publicTrackingUrl}`
-  
-  const wppMsgOrcamento = `Olá ${os.cliente_nome}! O orçamento do seu equipamento *${os.equipamento}* (OS #${String(os.numero).padStart(4,'0')}) está pronto. Valor Total: *${formatCurrency(os.orcamento || os.valor_servico + os.valor_pecas)}*. Você pode ver os detalhes e o laudo completo em: ${publicTrackingUrl}`
-  
-  const wppMsgPronto = `Boas notícias, ${os.cliente_nome}! Seu equipamento *${os.equipamento}* (OS #${String(os.numero).padStart(4,'0')}) já está pronto e testado para retirada. Valor Final: *${formatCurrency(os.orcamento || os.valor_servico + os.valor_pecas)}*. Endereço da loja: ${empresa?.endereco || 'Nossa assistência'}. Veja mais detalhes em: ${publicTrackingUrl}`
+  // Substitui variáveis {cliente}, {equipamento}, {numero}, {valor}, {link}, {endereco} no template
+  const applyTemplate = (tmpl: string) => {
+    const valor = formatCurrency(os.orcamento || os.valor_servico + os.valor_pecas)
+    return tmpl
+      .replace(/{cliente}/g,     os.cliente_nome)
+      .replace(/{equipamento}/g, os.equipamento)
+      .replace(/{numero}/g,      String(os.numero).padStart(4, '0'))
+      .replace(/{valor}/g,       valor)
+      .replace(/{link}/g,        publicTrackingUrl)
+      .replace(/{endereco}/g,    empresa?.endereco || 'Nossa assistência')
+  }
+
+  // Mensagens geradas pelos templates configuráveis
+  const wppMsgAbertura  = applyTemplate(tmplAbertura)
+  const wppMsgOrcamento = applyTemplate(tmplOrcamento)
+  const wppMsgPronto    = applyTemplate(tmplPronto)
 
   const sendWppMessage = (msg: string) => {
     if (!os.cliente_tel) return
@@ -575,13 +620,47 @@ export default function OSDetalhePage({ params: propsParams }: { params: { id: s
           </div>
         </div>
 
-        {/* Ação rápida de concluir na tela */}
-        <div className="no-print" style={{ display:'flex', justifyContent:'flex-end', borderTop:'1px solid var(--borda-leve)', paddingTop:'1.25rem', marginTop:'1.25rem' }}>
-          {os.status !== 'concluido' && os.status !== 'entregue' && os.status !== 'cancelado' && (
-            <button onClick={concluir} disabled={salvando} className="btn btn-primary" style={{ display:'flex', alignItems:'center', gap:'0.5rem', fontSize:'1rem', padding:'0.6rem 1.25rem' }}>
-              {salvando ? <Loader2 size={16} style={{animation:'spin 1s linear infinite'}}/> : <CheckCircle size={16}/>}
-              Marcar como Concluída (Pronta)
-            </button>
+        {/* ── Painel de Workflow de Status ─────────────────────────────── */}
+        <div className="no-print" style={{ borderTop:'1px solid var(--borda-leve)', paddingTop:'1.25rem', marginTop:'1.25rem' }}>
+          <p style={{ fontSize:'0.72rem', fontWeight:700, color:'var(--texto-sec)', marginBottom:'0.625rem', textTransform:'uppercase', letterSpacing:'0.04em' }}>AÇÕES DA ORDEM DE SERVIÇO</p>
+
+          {os.status !== 'cancelado' && os.status !== 'entregue' ? (
+            <div style={{ display:'flex', gap:'0.5rem', flexWrap:'wrap', alignItems:'center' }}>
+              {/* Botão de avanço de status */}
+              {FLUXO_DETALHE[os.status] && (
+                <button
+                  onClick={() => atualizarStatus(FLUXO_DETALHE[os.status])}
+                  disabled={salvando}
+                  className="btn btn-primary"
+                  style={{ display:'flex', alignItems:'center', gap:'0.5rem', fontSize:'0.9rem', padding:'0.55rem 1rem' }}
+                >
+                  {salvando
+                    ? <Loader2 size={16} style={{animation:'spin 1s linear infinite'}}/>
+                    : <CheckCircle size={16}/>
+                  }
+                  {FLUXO_BTN_LABEL[os.status]}
+                </button>
+              )}
+              {/* Botão de cancelamento */}
+              <button
+                onClick={() => {
+                  if (window.confirm('Tem certeza que deseja CANCELAR esta OS? Esta ação não pode ser desfeita.'))
+                    atualizarStatus('cancelado')
+                }}
+                disabled={salvando}
+                className="btn btn-secondary"
+                style={{ fontSize:'0.82rem', color:'#c0392b', borderColor:'#c0392b' }}
+              >
+                ✕ Cancelar OS
+              </button>
+            </div>
+          ) : (
+            <div style={{ padding:'0.625rem 0.875rem', background:'var(--surface-alt)', borderRadius:'var(--radius-sm)', fontSize:'0.82rem', color:'var(--texto-sec)', display:'flex', alignItems:'center', gap:'0.5rem', border:'1px solid var(--borda-leve)' }}>
+              {os.status === 'entregue'
+                ? <><CheckCircle size={15} style={{ color:'var(--verde)', flexShrink:0 }}/> <span>OS encerrada — equipamento entregue ao cliente com sucesso.</span></>
+                : <><span>🛑</span> <span>Esta OS foi cancelada e não pode mais ser trabalhada.</span></>
+              }
+            </div>
           )}
         </div>
       </div>
@@ -609,42 +688,98 @@ export default function OSDetalhePage({ params: propsParams }: { params: { id: s
               <p style={{ fontSize:'0.65rem', color:'var(--texto-desab)', marginTop:'0.25rem' }}>O cliente pode acompanhar o stepper visual e laudo por este link sem precisar de login.</p>
             </div>
 
-            {/* Templates de Mensagem do WhatsApp */}
-            <div style={{ display:'flex', flexDirection:'column', gap:'0.75rem' }}>
-              <p style={{ fontSize:'0.72rem', fontWeight:700, color:'var(--texto-sec)' }}>SELECIONE UM TEMPLATE DE WHATSAPP</p>
-              
-              {/* Template 1: Abertura */}
-              <div style={{ border:'1px solid var(--borda)', borderRadius:'var(--radius-sm)', padding:'0.625rem' }}>
-                <p style={{ fontSize:'0.72rem', fontWeight:700, color:'var(--texto)' }}>1. Abertura do Atendimento (Aparelho Recebido)</p>
-                <p style={{ fontSize:'0.72rem', color:'var(--texto-sec)', margin:'0.25rem 0', fontStyle:'italic', background:'var(--surface-alt)', padding:'0.375rem' }}>
-                  {wppMsgAbertura.slice(0, 100)}...
-                </p>
-                <button onClick={()=>sendWppMessage(wppMsgAbertura)} className="btn btn-secondary" style={{ fontSize:'0.65rem', padding:'0.25rem 0.5rem', background:'#25D366', color:'#fff', borderColor:'#25D366', marginTop:'0.25rem' }}>
-                  Enviar no WhatsApp
-                </button>
+            {/* Templates de Mensagem do WhatsApp — Configuráveis */}
+            <div style={{ display:'flex', flexDirection:'column', gap:'0.625rem' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end' }}>
+                <p style={{ fontSize:'0.72rem', fontWeight:700, color:'var(--texto-sec)', textTransform:'uppercase' }}>TEMPLATES DE WHATSAPP</p>
+                <p style={{ fontSize:'0.6rem', color:'var(--texto-desab)', textAlign:'right', maxWidth:'200px' }}>Variáveis: {'{cliente} {equipamento} {numero} {valor} {link} {endereco}'}</p>
               </div>
 
-              {/* Template 2: Orçamento */}
-              <div style={{ border:'1px solid var(--borda)', borderRadius:'var(--radius-sm)', padding:'0.625rem' }}>
-                <p style={{ fontSize:'0.72rem', fontWeight:700, color:'var(--texto)' }}>2. Orçamento Pronto (Aguardando Aprovação)</p>
-                <p style={{ fontSize:'0.72rem', color:'var(--texto-sec)', margin:'0.25rem 0', fontStyle:'italic', background:'var(--surface-alt)', padding:'0.375rem' }}>
-                  {wppMsgOrcamento.slice(0, 100)}...
-                </p>
-                <button onClick={()=>sendWppMessage(wppMsgOrcamento)} className="btn btn-secondary" style={{ fontSize:'0.65rem', padding:'0.25rem 0.5rem', background:'#25D366', color:'#fff', borderColor:'#25D366', marginTop:'0.25rem' }}>
-                  Enviar no WhatsApp
-                </button>
-              </div>
+              {(
+                [
+                  { key: 'abertura'  as const, label: '1. Abertura — Aparelho Recebido',    tmpl: tmplAbertura,  setTmpl: setTmplAbertura,  msg: wppMsgAbertura  },
+                  { key: 'orcamento' as const, label: '2. Orçamento — Aguardando Aprovação', tmpl: tmplOrcamento, setTmpl: setTmplOrcamento, msg: wppMsgOrcamento },
+                  { key: 'pronto'    as const, label: '3. Pronto — Aviso de Retirada',       tmpl: tmplPronto,    setTmpl: setTmplPronto,    msg: wppMsgPronto    },
+                ] as { key: 'abertura'|'orcamento'|'pronto'; label: string; tmpl: string; setTmpl:(v:string)=>void; msg: string }[]
+              ).map(({ key, label, tmpl, setTmpl, msg }) => (
+                <div
+                  key={key}
+                  style={{
+                    border: `1px solid ${editTmpl === key ? 'var(--verde-borda)' : 'var(--borda)'}`,
+                    borderRadius: 'var(--radius-sm)',
+                    padding: '0.625rem',
+                    background: editTmpl === key ? 'var(--verde-claro)' : 'transparent',
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  {/* Cabeçalho do card */}
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'0.25rem' }}>
+                    <p style={{ fontSize:'0.72rem', fontWeight:700, color:'var(--texto)' }}>{label}</p>
+                    <button
+                      onClick={() => {
+                        if (editTmpl === key) { setEditTmpl(null) }
+                        else { setEditTmpl(key); setEditTmplVal(tmpl) }
+                      }}
+                      className="btn btn-secondary"
+                      style={{ fontSize:'0.6rem', padding:'0.15rem 0.375rem', lineHeight:1.3 }}
+                    >
+                      {editTmpl === key ? '✕ Fechar' : '✏️ Editar'}
+                    </button>
+                  </div>
 
-              {/* Template 3: Pronto */}
-              <div style={{ border:'1px solid var(--borda)', borderRadius:'var(--radius-sm)', padding:'0.625rem' }}>
-                <p style={{ fontSize:'0.72rem', fontWeight:700, color:'var(--texto)' }}>3. Equipamento Pronto (Aviso de Retirada)</p>
-                <p style={{ fontSize:'0.72rem', color:'var(--texto-sec)', margin:'0.25rem 0', fontStyle:'italic', background:'var(--surface-alt)', padding:'0.375rem' }}>
-                  {wppMsgPronto.slice(0, 100)}...
-                </p>
-                <button onClick={()=>sendWppMessage(wppMsgPronto)} className="btn btn-secondary" style={{ fontSize:'0.65rem', padding:'0.25rem 0.5rem', background:'#25D366', color:'#fff', borderColor:'#25D366', marginTop:'0.25rem' }}>
-                  Enviar no WhatsApp
-                </button>
-              </div>
+                  {/* Modo edição */}
+                  {editTmpl === key ? (
+                    <div style={{ display:'flex', flexDirection:'column', gap:'0.375rem' }}>
+                      <textarea
+                        className="campo"
+                        rows={4}
+                        style={{ fontSize:'0.72rem', resize:'vertical' }}
+                        value={editTmplVal}
+                        onChange={e => setEditTmplVal(e.target.value)}
+                      />
+                      <div style={{ display:'flex', gap:'0.375rem' }}>
+                        <button
+                          onClick={() => {
+                            setTmpl(editTmplVal)
+                            localStorage.setItem(`kdl_tmpl_${key}`, editTmplVal)
+                            setEditTmpl(null)
+                          }}
+                          className="btn btn-primary"
+                          style={{ fontSize:'0.65rem', flex:1 }}
+                        >
+                          💾 Salvar Template
+                        </button>
+                        <button
+                          onClick={() => {
+                            const def = DEFAULT_TMPL[key]
+                            setTmpl(def); setEditTmplVal(def)
+                            localStorage.setItem(`kdl_tmpl_${key}`, def)
+                          }}
+                          className="btn btn-secondary"
+                          style={{ fontSize:'0.65rem' }}
+                        >
+                          ↩ Restaurar
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Modo visualização */
+                    <>
+                      <p style={{ fontSize:'0.7rem', color:'var(--texto-sec)', fontStyle:'italic', background:'var(--surface-alt)', padding:'0.375rem', borderRadius:'2px', marginBottom:'0.375rem' }}>
+                        {msg.length > 120 ? msg.slice(0, 120) + '...' : msg}
+                      </p>
+                      <button
+                        onClick={() => sendWppMessage(msg)}
+                        disabled={!os.cliente_tel}
+                        className="btn btn-secondary"
+                        style={{ fontSize:'0.65rem', padding:'0.25rem 0.5rem', background: os.cliente_tel ? '#25D366' : 'var(--surface-alt)', color: os.cliente_tel ? '#fff' : 'var(--texto-desab)', borderColor: os.cliente_tel ? '#25D366' : 'var(--borda)', cursor: os.cliente_tel ? 'pointer' : 'not-allowed' }}
+                      >
+                        {os.cliente_tel ? '📱 Enviar no WhatsApp' : '⚠ Sem telefone cadastrado'}
+                      </button>
+                    </>
+                  )}
+                </div>
+              ))}
             </div>
 
             <button onClick={()=>setShowShare(false)} className="btn btn-secondary" style={{ fontSize:'0.72rem', alignSelf:'flex-end' }}>Fechar</button>

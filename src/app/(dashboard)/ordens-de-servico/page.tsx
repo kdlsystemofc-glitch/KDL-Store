@@ -284,21 +284,24 @@ export default function OrdensServicoPage() {
   })
 
   // Estatísticas das ordens de serviço
-  const totalGeral = ordens.length
-  const totalAbertas = ordens.filter(o => !['entregue', 'cancelado'].includes(o.status)).length
+  const totalGeral    = ordens.length
+  const totalAbertas  = ordens.filter(o => !['entregue', 'cancelado'].includes(o.status)).length
   const totalAguardando = ordens.filter(o => o.status === 'aguardando').length
-  const totalEmServico = ordens.filter(o => o.status === 'em_servico').length
-  const totalConcluidoMes = ordens.filter(o => {
-    if (o.status !== 'concluido' && o.status !== 'entregue') return false
-    const d = new Date(o.criado_em)
-    const hj = new Date()
-    return d.getMonth() === hj.getMonth() && d.getFullYear() === hj.getFullYear()
-  }).length
+  const totalEmServico  = ordens.filter(o => o.status === 'em_servico').length
 
-  // Faturamento estimado das OS em andamento e concluídas
-  const faturamentoEstimado = ordens
-    .filter(o => !['cancelado'].includes(o.status))
-    .reduce((acc, o) => acc + (o.orcamento || 0), 0)
+  const isMesAtual = (d: string) => {
+    const dt = new Date(d), hj = new Date()
+    return dt.getMonth() === hj.getMonth() && dt.getFullYear() === hj.getFullYear()
+  }
+
+  // OS finalizadas (concluidas + entregues) no mês
+  const osMes = ordens.filter(o => ['concluido', 'entregue'].includes(o.status) && isMesAtual(o.criado_em))
+  const totalConcluidoMes = osMes.length
+
+  // KPIs financeiros reais: apenas OS concluídas/entregues
+  const faturamentoMes   = osMes.reduce((acc, o) => acc + (o.orcamento || o.valor_servico + o.valor_pecas), 0)
+  const receitaServicoMes = osMes.reduce((acc, o) => acc + (o.valor_servico || 0), 0)
+  const custoPecasMes     = osMes.reduce((acc, o) => acc + (o.valor_pecas  || 0), 0)
 
   return (
     <div className="anim-fade" style={{ display:'flex', flexDirection:'column', gap:'0.75rem' }}>
@@ -319,7 +322,7 @@ export default function OrdensServicoPage() {
       ]} />
 
       {/* KPI Cards */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(180px, 1fr))', gap:'0.625rem', marginBottom:'0.375rem' }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(160px, 1fr))', gap:'0.625rem', marginBottom:'0.375rem' }}>
         <div className="kpi-card" style={{ borderTopColor: 'var(--borda-forte)' }}>
           <span className="kpi-label">OS em Aberto</span>
           <span className="kpi-valor">{totalAbertas}</span>
@@ -341,9 +344,19 @@ export default function OrdensServicoPage() {
           <span className="kpi-sub">Prontas ou entregues</span>
         </div>
         <div className="kpi-card" style={{ borderTopColor: 'var(--verde)' }}>
-          <span className="kpi-label">Valor Projetado</span>
-          <span className="kpi-valor-verde">{formatCurrency(faturamentoEstimado)}</span>
-          <span className="kpi-sub">OS ativas e concluídas</span>
+          <span className="kpi-label">Faturamento (Mês)</span>
+          <span className="kpi-valor-verde">{formatCurrency(faturamentoMes)}</span>
+          <span className="kpi-sub">OS concluídas/entregues</span>
+        </div>
+        <div className="kpi-card" style={{ borderTopColor: 'var(--azul)' }}>
+          <span className="kpi-label">Receita Serviços</span>
+          <span className="kpi-valor" style={{ color:'var(--azul)', fontSize:'0.95rem' }}>{formatCurrency(receitaServicoMes)}</span>
+          <span className="kpi-sub">Mão de obra no mês</span>
+        </div>
+        <div className="kpi-card" style={{ borderTopColor: 'var(--amarelo)' }}>
+          <span className="kpi-label">Custo Peças</span>
+          <span className="kpi-valor" style={{ color:'var(--amarelo)', fontSize:'0.95rem' }}>{formatCurrency(custoPecasMes)}</span>
+          <span className="kpi-sub">Peças/materiais no mês</span>
         </div>
       </div>
 
