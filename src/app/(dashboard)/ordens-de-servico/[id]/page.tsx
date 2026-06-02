@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
-import { Loader2, ArrowLeft, Printer, MessageCircle, CheckCircle, Edit, X } from 'lucide-react'
+import { Loader2, ArrowLeft, Printer, MessageCircle, CheckCircle, Edit, X, Share2, Copy } from 'lucide-react'
 
 type OS = {
   id: string;
@@ -25,6 +25,7 @@ type OS = {
   laudo: string | null;
   observacoes: string | null;
   venda_id: string | null;
+  historico: Array<{ data: string; usuario: string; status: string; status_label: string }> | null;
 }
 
 type Empresa = {
@@ -76,6 +77,7 @@ export default function OSDetalhePage({ params }: { params: { id: string } }) {
   const { empresaId } = useEmpresaId()
   const [os, setOs] = useState<OS | null>(null)
   const [empresa, setEmpresa] = useState<Empresa | null>(null)
+  const [loggedUser, setLoggedUser] = useState('Operador')
   
   // Data lists for Edit Modal
   const [clientesDB, setClientesDB] = useState<Cliente[]>([])
@@ -85,7 +87,9 @@ export default function OSDetalhePage({ params }: { params: { id: string } }) {
   const [loading, setLoading] = useState(true)
   const [salvando, setSalvando] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
+  const [showShare, setShowShare] = useState(false)
   const [erroEdit, setErroEdit] = useState<string | null>(null)
+  const [linkCopiado, setLinkCopiado] = useState(false)
   
   // Edit Form State
   const [form, setForm] = useState({
@@ -127,6 +131,13 @@ export default function OSDetalhePage({ params }: { params: { id: string } }) {
     setLoading(true)
     const supabase = createClient()
     
+    // 0. Carrega dados do Usuário Logado para o histórico
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const { data: prof } = await supabase.from('profiles').select('nome').eq('id', user.id).single()
+      if (prof?.nome) setLoggedUser(prof.nome)
+    }
+
     // 1. Carrega Ordem de Serviço
     const { data: osData } = await supabase
       .from('ordens_servico')
@@ -204,16 +215,28 @@ export default function OSDetalhePage({ params }: { params: { id: string } }) {
   async function concluir() {
     if (!os || !empresaId) return
     setSalvando(true)
+    
+    // Grava histórico
+    const newLog = {
+      data: new Date().toISOString(),
+      usuario: loggedUser,
+      status: 'concluido',
+      status_label: 'Pronto / Concluído'
+    }
+    const updatedHistory = [newLog, ...(os.historico || [])]
+
     const { error } = await createClient()
       .from('ordens_servico')
-      .update({ status: 'concluido' })
+      .update({ status: 'concluido', historico: updatedHistory })
       .eq('id', os.id)
+      
     if (error) {
       alert('Erro ao concluir OS: ' + error.message)
       setSalvando(false)
       return
     }
-    setOs({ ...os, status: 'concluido' })
+    
+    setOs({ ...os, status: 'concluido', historico: updatedHistory })
     setForm(f => ({ ...f, status: 'concluido' }))
     setSalvando(false)
   }
@@ -223,6 +246,17 @@ export default function OSDetalhePage({ params }: { params: { id: string } }) {
       setErroEdit('Preencha cliente, equipamento e defeito.'); return
     }
     setSalvando(true); setErroEdit(null)
+    
+    // Constrói histórico se status mudou
+    const updatedHistory = [...(os?.historico || [])]
+    if (form.status !== os?.status) {
+      updatedHistory.unshift({
+        data: new Date().toISOString(),
+        usuario: loggedUser,
+        status: form.status,
+        status_label: STATUS_LABEL[form.status] || form.status
+      })
+    }
     
     const { error } = await createClient()
       .from('ordens_servico')
@@ -241,6 +275,7 @@ export default function OSDetalhePage({ params }: { params: { id: string } }) {
         problema:         form.problema || null,
         laudo:            form.laudo || null,
         observacoes:      form.observacoes || null,
+        historico:        updatedHistory,
         atualizado_em:    new Date().toISOString()
       })
       .eq('id', params.id)
@@ -252,6 +287,13 @@ export default function OSDetalhePage({ params }: { params: { id: string } }) {
     carregar()
   }
 
+  const copiarRastreamento = () => {
+    const url = window.location.origin + '/acompanhar-os/' + os?.id
+    navigator.clipboard.writeText(url)
+    setLinkCopiado(true)
+    setTimeout(() => setLinkCopiado(false), 2000)
+  }
+
   if (loading) return (
     <div style={{display:'flex',justifyContent:'center',padding:'3rem',color:'var(--texto-desab)'}}>
       <Loader2 size={24} style={{animation:'spin 1s linear infinite'}}/>
@@ -261,11 +303,19 @@ export default function OSDetalhePage({ params }: { params: { id: string } }) {
 
   const printOS = () => window.print()
 
-  const openZap = () => {
+  // Monta link do rastreio
+  const publicTrackingUrl = typeof window !== 'undefined' ? window.location.origin + '/acompanhar-os/' + os.id : ''
+
+  // Templates de WhatsApp
+  const wppMsgAbertura = `Olá ${os.cliente_nome}! Recebemos seu equipamento *${os.equipamento}* para manutenção sob a *OS #${String(os.numero).padStart(4,'0')}*. Você pode acompanhar o andamento técnico em tempo real clicando no link: ${publicTrackingUrl}`
+  
+  const wppMsgOrcamento = `Olá ${os.cliente_nome}! O orçamento do seu equipamento *${os.equipamento}* (OS #${String(os.numero).padStart(4,'0')}) está pronto. Valor Total: *${formatCurrency(os.orcamento || os.valor_servico + os.valor_pecas)}*. Você pode ver os detalhes e o laudo completo em: ${publicTrackingUrl}`
+  
+  const wppMsgPronto = `Boas notícias, ${os.cliente_nome}! Seu equipamento *${os.equipamento}* (OS #${String(os.numero).padStart(4,'0')}) já está pronto e testado para retirada. Valor Final: *${formatCurrency(os.orcamento || os.valor_servico + os.valor_pecas)}*. Endereço da loja: ${empresa?.endereco || 'Nossa assistência'}. Veja mais detalhes em: ${publicTrackingUrl}`
+
+  const sendWppMessage = (msg: string) => {
     if (!os.cliente_tel) return
-    const statusText = os.status === 'concluido' ? 'concluída e pronta para retirada' : 'atualizada para o status: ' + (STATUS_LABEL[os.status] || os.status)
-    const msg = encodeURIComponent(`Olá ${os.cliente_nome}, sua ordem de serviço #${String(os.numero).padStart(4,'0')} foi ${statusText}. Qualquer dúvida, estamos à disposição.`)
-    window.open(`https://wa.me/55${os.cliente_tel.replace(/\D/g, '')}?text=${msg}`, '_blank')
+    window.open(`https://wa.me/55${os.cliente_tel.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank')
   }
 
   const currentStageIndex = STAGES.indexOf(os.status)
@@ -282,11 +332,9 @@ export default function OSDetalhePage({ params }: { params: { id: string } }) {
           <button onClick={() => setShowEdit(true)} className="btn btn-secondary" style={{ display:'flex', alignItems:'center', gap:'0.375rem' }}>
             <Edit size={16}/> Editar OS
           </button>
-          {os.cliente_tel && (
-            <button onClick={openZap} className="btn btn-secondary" style={{ display:'flex', alignItems:'center', gap:'0.375rem', background:'#25D366', color:'#fff', borderColor:'#25D366' }}>
-              <MessageCircle size={16}/> WhatsApp
-            </button>
-          )}
+          <button onClick={() => setShowShare(true)} className="btn btn-secondary" style={{ display:'flex', alignItems:'center', gap:'0.375rem', background:'var(--verde-claro)', color:'var(--verde-esc)', borderColor:'var(--verde-borda)' }}>
+            <Share2 size={16}/> Enviar / Compartilhar
+          </button>
           <button onClick={printOS} className="btn btn-secondary" style={{ display:'flex', alignItems:'center', gap:'0.375rem' }}>
             <Printer size={16}/> Imprimir
           </button>
@@ -464,6 +512,22 @@ export default function OSDetalhePage({ params }: { params: { id: string } }) {
           </div>
         </div>
 
+        {/* Histórico / Timeline no Painel de Controle */}
+        {os.historico && os.historico.length > 0 && (
+          <div className="no-print" style={{ borderTop:'1px solid var(--borda-leve)', paddingTop:'1rem', marginTop:'1.25rem' }}>
+            <p style={{ fontWeight:800, fontSize:'0.75rem', color:'var(--texto-sec)', marginBottom:'0.75rem', textTransform:'uppercase', letterSpacing:'0.04em' }}>Linha do Tempo (Logs de Auditoria)</p>
+            <div style={{ display:'flex', flexDirection:'column', gap:'0.6rem', paddingLeft:'0.75rem', borderLeft:'1px solid var(--borda-leve)' }}>
+              {os.historico.map((h, idx) => (
+                <div key={idx} style={{ fontSize:'0.75rem' }}>
+                  <span style={{ color:'var(--texto-desab)', marginRight:'0.5rem' }}>{new Date(h.data).toLocaleString('pt-BR')}</span>
+                  <span style={{ fontWeight:700, color:'var(--texto)' }}>{h.status_label || h.status}</span>
+                  <span style={{ color:'var(--texto-sec)' }}> por {h.usuario}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Venda vinculada banner (Oculto no print) */}
         {os.venda_id && (
           <div className="alerta alerta-info no-print" style={{ marginTop:'1.25rem' }}>
@@ -508,6 +572,72 @@ export default function OSDetalhePage({ params }: { params: { id: string } }) {
           )}
         </div>
       </div>
+
+      {/* Modal de Compartilhamento (WhatsApp e Rastreio) */}
+      {showShare && (
+        <div style={{ position:'fixed', inset:0, zIndex:100, background:'rgba(0,0,0,0.85)', display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' }}
+          onClick={e=>{if(e.target===e.currentTarget)setShowShare(false)}}>
+          <div className="anim-pop" style={{ width:'100%', maxWidth:'520px', background:'var(--surface)', border:'1px solid var(--borda-forte)', borderRadius:'3px', padding:'1.25rem', display:'flex', flexDirection:'column', gap:'1rem' }}>
+            
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+              <p style={{ fontWeight:800, fontSize:'0.82rem', color:'var(--verde)', textTransform:'uppercase' }}>Compartilhar Ordem de Serviço</p>
+              <button onClick={()=>setShowShare(false)} className="btn-icon"><X size={16}/></button>
+            </div>
+
+            {/* Copiar Link de Acompanhamento */}
+            <div style={{ background:'var(--surface-alt)', border:'1px dashed var(--verde-borda)', padding:'0.75rem', borderRadius:'var(--radius-sm)' }}>
+              <p style={{ fontSize:'0.72rem', fontWeight:700, color:'var(--texto-sec)', marginBottom:'0.375rem' }}>LINK DE RASTREAMENTO PÚBLICO</p>
+              <div style={{ display:'flex', gap:'0.375rem' }}>
+                <input readOnly className="campo" style={{ fontSize:'0.75rem', flex:1 }} value={publicTrackingUrl} />
+                <button onClick={copiarRastreamento} className="btn btn-primary" style={{ fontSize:'0.72rem', display:'flex', alignItems:'center', gap:'0.25rem' }}>
+                  <Copy size={12} /> {linkCopiado ? 'Copiado!' : 'Copiar'}
+                </button>
+              </div>
+              <p style={{ fontSize:'0.65rem', color:'var(--texto-desab)', marginTop:'0.25rem' }}>O cliente pode acompanhar o stepper visual e laudo por este link sem precisar de login.</p>
+            </div>
+
+            {/* Templates de Mensagem do WhatsApp */}
+            <div style={{ display:'flex', flexDirection:'column', gap:'0.75rem' }}>
+              <p style={{ fontSize:'0.72rem', fontWeight:700, color:'var(--texto-sec)' }}>SELECIONE UM TEMPLATE DE WHATSAPP</p>
+              
+              {/* Template 1: Abertura */}
+              <div style={{ border:'1px solid var(--borda)', borderRadius:'var(--radius-sm)', padding:'0.625rem' }}>
+                <p style={{ fontSize:'0.72rem', fontWeight:700, color:'var(--texto)' }}>1. Abertura do Atendimento (Aparelho Recebido)</p>
+                <p style={{ fontSize:'0.72rem', color:'var(--texto-sec)', margin:'0.25rem 0', fontStyle:'italic', background:'var(--surface-alt)', padding:'0.375rem' }}>
+                  {wppMsgAbertura.slice(0, 100)}...
+                </p>
+                <button onClick={()=>sendWppMessage(wppMsgAbertura)} className="btn btn-secondary" style={{ fontSize:'0.65rem', padding:'0.25rem 0.5rem', background:'#25D366', color:'#fff', borderColor:'#25D366', marginTop:'0.25rem' }}>
+                  Enviar no WhatsApp
+                </button>
+              </div>
+
+              {/* Template 2: Orçamento */}
+              <div style={{ border:'1px solid var(--borda)', borderRadius:'var(--radius-sm)', padding:'0.625rem' }}>
+                <p style={{ fontSize:'0.72rem', fontWeight:700, color:'var(--texto)' }}>2. Orçamento Pronto (Aguardando Aprovação)</p>
+                <p style={{ fontSize:'0.72rem', color:'var(--texto-sec)', margin:'0.25rem 0', fontStyle:'italic', background:'var(--surface-alt)', padding:'0.375rem' }}>
+                  {wppMsgOrcamento.slice(0, 100)}...
+                </p>
+                <button onClick={()=>sendWppMessage(wppMsgOrcamento)} className="btn btn-secondary" style={{ fontSize:'0.65rem', padding:'0.25rem 0.5rem', background:'#25D366', color:'#fff', borderColor:'#25D366', marginTop:'0.25rem' }}>
+                  Enviar no WhatsApp
+                </button>
+              </div>
+
+              {/* Template 3: Pronto */}
+              <div style={{ border:'1px solid var(--borda)', borderRadius:'var(--radius-sm)', padding:'0.625rem' }}>
+                <p style={{ fontSize:'0.72rem', fontWeight:700, color:'var(--texto)' }}>3. Equipamento Pronto (Aviso de Retirada)</p>
+                <p style={{ fontSize:'0.72rem', color:'var(--texto-sec)', margin:'0.25rem 0', fontStyle:'italic', background:'var(--surface-alt)', padding:'0.375rem' }}>
+                  {wppMsgPronto.slice(0, 100)}...
+                </p>
+                <button onClick={()=>sendWppMessage(wppMsgPronto)} className="btn btn-secondary" style={{ fontSize:'0.65rem', padding:'0.25rem 0.5rem', background:'#25D366', color:'#fff', borderColor:'#25D366', marginTop:'0.25rem' }}>
+                  Enviar no WhatsApp
+                </button>
+              </div>
+            </div>
+
+            <button onClick={()=>setShowShare(false)} className="btn btn-secondary" style={{ fontSize:'0.72rem', alignSelf:'flex-end' }}>Fechar</button>
+          </div>
+        </div>
+      )}
 
       {/* Modal de Edição de OS */}
       {showEdit && (
@@ -719,7 +849,6 @@ export default function OSDetalhePage({ params }: { params: { id: string } }) {
       {/* Estilo embutido para controlar a impressão específica da OS */}
       <style jsx global>{`
         @media print {
-          /* Sobrescreve as regras para focar apenas na OS */
           body, html, main {
             background: #ffffff !important;
             color: #000000 !important;
