@@ -16,3 +16,11 @@ UPDATE ordens_servico SET status = 'em_servico' WHERE status = 'em_andamento';
 
 -- 4. Cria índice para busca rápida de clientes vinculados
 CREATE INDEX IF NOT EXISTS idx_os_cliente ON ordens_servico(cliente_id);
+
+-- 5. Remove restrições NOT NULL incorretas ou obsoletas de colunas opcionais (evita falhas de inserção)
+ALTER TABLE ordens_servico ALTER COLUMN produto_desc DROP NOT NULL;
+ALTER TABLE ordens_servico ALTER COLUMN problema DROP NOT NULL;
+ALTER TABLE ordens_servico ALTER COLUMN laudo DROP NOT NULL;
+ALTER TABLE ordens_servico ALTER COLUMN observacoes DROP NOT NULL;
+ALTER TABLE ordens_servico ALTER COLUMN tecnico DROP NOT NULL;
+ALTER TABLE ordens_servico ALTER COLUMN orcamento DROP NOT NULL;
