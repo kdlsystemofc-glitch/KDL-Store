@@ -177,31 +177,6 @@ export default function ConfiguracoesPage() {
         </div>
       )}
 
-      {/* Menu de configurações */}
-      <div className="card" style={{padding:0,overflow:'hidden'}}>
-        <div className="sec-header"><span>MENU DE CONFIGURAÇÕES</span></div>
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          {sections.map((s, i) => (
-            <Link key={s.href} href={s.href} style={{
-              display: 'flex', alignItems: 'center', gap: '0.875rem',
-              padding: '0.6rem 0.875rem',
-              borderBottom: i < sections.length-1 ? '1px solid var(--borda-leve)' : 'none',
-              textDecoration: 'none',
-              transition: 'background 0.12s'
-            }}
-              onMouseEnter={e=>(e.currentTarget.style.background='var(--surface-alt)')}
-              onMouseLeave={e=>(e.currentTarget.style.background='transparent')}
-            >
-              <span style={{ fontFamily:'monospace', fontSize:'0.65rem', color:'var(--verde)', fontWeight:700, flexShrink:0 }}>{s.icon}</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontWeight: 700, color: 'var(--texto)', fontSize:'0.78rem', letterSpacing:'0.04em' }}>{s.title}</p>
-                <p style={{ fontSize: '0.68rem', color: 'var(--texto-desab)', marginTop: '1px' }}>{s.desc}</p>
-              </div>
-              <ChevronRight size={14} style={{ color: 'var(--texto-desab)', flexShrink: 0 }} />
-            </Link>
-          ))}
-        </div>
-      </div>
 
       {/* Preferências do CRM */}
       <div className="card" style={{padding:0,overflow:'hidden'}}>

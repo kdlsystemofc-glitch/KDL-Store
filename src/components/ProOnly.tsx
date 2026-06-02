@@ -140,8 +140,8 @@ export function ProOnly({ children }: { children: React.ReactNode }) {
           {
             icon: Coins,
             color: 'var(--amarelo)',
-            title: 'Fiados & Cobranças',
-            desc: 'Gerencie dívidas de clientes e controle vencimentos com avisos e painéis de inadimplência.'
+            title: 'Fechamento de Caixa',
+            desc: 'Faça conferência diária do caixa físico, registrando sobras, faltas e fechando o dia de forma organizada.'
           },
           {
             icon: Users2,

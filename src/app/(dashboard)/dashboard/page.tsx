@@ -249,7 +249,7 @@ export default function DashboardPage() {
         <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'0.75rem'}}>
           {[
             {href:'/vendas/nova',           label:'Nova Venda',      desc:'Frente de caixa',      primary:true,  proOnly:false},
-            {href:'/financeiro/fiado',       label:'Ver Fiado',       desc:formatCurrency(kpis.fiadoAberto)+' aberto', primary:false, proOnly:true},
+            {href:'/financeiro/fiado',       label:'Ver Fiado',       desc:formatCurrency(kpis.fiadoAberto)+' aberto', primary:false, proOnly:false},
             {href:'/financeiro/despesas',    label:'Lançar Despesa',  desc:'Registrar saída',      primary:false, proOnly:true},
             {href:'/financeiro/fechamento',  label:'Fechar Caixa',    desc:'Conferência do dia',   primary:false, proOnly:true},
           ].filter(a => !a.proOnly || isPro).map(a => (

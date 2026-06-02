@@ -67,6 +67,7 @@ function AssinarPage() {
       'Garantias digitais',
       'Catálogo com QR Code',
       'Recibo imprimível',
+      'Controle de Fiados 📒',
       '1 usuário',
     ],
     pro: [
@@ -75,7 +76,6 @@ function AssinarPage() {
       'CRM de Clientes Sumidos',
       'Comissões de puxadores',
       'DRE completo',
-      'Fiado com cobrança automática',
       'Fechamento de caixa',
       'Até 5 usuários',
     ],

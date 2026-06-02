@@ -93,7 +93,6 @@ export default function FiadoPage() {
   }
 
   return (
-    <ProOnly>
     <div className="anim-fade" style={{display:'flex',flexDirection:'column',gap:'0.875rem'}}>
       <div className="pg-header">
         <div>
@@ -227,6 +226,5 @@ export default function FiadoPage() {
         )}
 
     </div>
-    </ProOnly>
   )
 }

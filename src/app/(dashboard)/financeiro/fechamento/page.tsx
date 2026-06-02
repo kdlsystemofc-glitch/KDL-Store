@@ -58,7 +58,6 @@ export default function FechamentoPage() {
 
   return (
     <AdminOnly fallbackRedirect="/financeiro">
-      <ProOnly>
       <div className="anim-fade" style={{display:'flex',flexDirection:'column',gap:'0.875rem',maxWidth:'680px'}}>
       <div className="pg-header">
         <div><h1 className="pg-titulo">🔒 Fechamento de Caixa</h1>
@@ -76,6 +75,8 @@ export default function FechamentoPage() {
         { label: 'Fiados 📒', href: '/financeiro/fiado' },
         { label: 'Fechamento de Caixa', href: '/financeiro/fechamento' }
       ]} />
+
+      <ProOnly>
 
 
         {/* Seletor de período */}
@@ -174,8 +175,8 @@ export default function FechamentoPage() {
           </>
         )}
 
-      </div>
       </ProOnly>
+      </div>
     </AdminOnly>
   )
 }

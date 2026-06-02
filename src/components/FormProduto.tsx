@@ -17,12 +17,12 @@ const SECAO = ({ titulo, children }: { titulo: string; children: React.ReactNode
 )
 
 const Campo = ({ label, required, dica, children }: { label: string; required?: boolean; dica?: string; children: React.ReactNode }) => (
-  <div style={{ display:'flex', flexDirection:'column', gap:'0.25rem' }}>
-    <label style={{ fontSize:'0.82rem', fontWeight:600, color:'var(--texto-sec)' }}>
+  <div style={{ display:'flex', flexDirection:'column', gap:'0.25rem', width: '100%' }}>
+    <label style={{ fontSize:'0.78rem', fontWeight:600, color:'var(--texto-sec)' }}>
       {label}{required && <span style={{ color:'var(--vermelho)', marginLeft:'2px' }}>*</span>}
     </label>
-    {dica && <span style={{ fontSize:'0.72rem', color:'var(--texto-desab)', fontWeight:400, marginTop:'-2px', lineHeight:1.25 }}>{dica}</span>}
     {children}
+    {dica && <span style={{ fontSize:'0.72rem', color:'var(--texto-desab)', fontWeight:400, marginTop:'2px', lineHeight:1.25 }}>{dica}</span>}
   </div>
 )
 
@@ -244,25 +244,25 @@ export function FormProduto({ onSuccess, onCancel }: { onSuccess: () => void; on
       </SECAO>
 
       <SECAO titulo="📦 Identificação">
-        <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap:'0.75rem' }}>
+        <div style={{ display:'grid', gridTemplateColumns:'1.2fr 0.8fr', gap:'0.75rem' }}>
           <Campo label="Nome do Produto" required>
             <input className="campo" value={nome} onChange={e=>setNome(e.target.value)} placeholder="Ex: Som JBL Stage 200"/>
           </Campo>
-          <Campo label="SKU (Código interno)" dica="Código único de controle interno (ex: CAM-VER-G).">
-            <div style={{ display: 'flex', gap: '0.375rem' }}>
-              <input className="campo" value={sku} onChange={e=>setSku(e.target.value)} style={{ minWidth:'130px', fontFamily:'monospace' }} placeholder="Ex: PRD-123"/>
-              <button type="button" onClick={() => setSku(generateSKU())} className="btn btn-secondary" style={{ padding:'0 0.5rem' }} title="Gerar novo SKU aleatório">
+          <Campo label="SKU (Código interno)" dica="Código único de controle interno (ex: PRD-123).">
+            <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'stretch' }}>
+              <input className="campo" value={sku} onChange={e=>setSku(e.target.value)} style={{ fontFamily:'monospace', flex: 1, minWidth: 0 }} placeholder="Ex: PRD-123"/>
+              <button type="button" onClick={() => setSku(generateSKU())} className="btn btn-secondary" style={{ padding:'0 0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-sm)' }} title="Gerar novo SKU aleatório">
                 <RefreshCw size={14}/>
               </button>
             </div>
           </Campo>
         </div>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.75rem' }}>
+        <div style={{ display:'grid', gridTemplateColumns:'1.2fr 0.8fr', gap:'0.75rem' }}>
           <Campo label="Código de Barras (EAN/ISBN)" dica="Código de barras numérico para leitura rápida no PDV.">
-            <div style={{ display: 'flex', gap: '0.375rem' }}>
-              <input className="campo" value={codigoBarras} onChange={e=>setCodigoBarras(e.target.value)} placeholder="Ex: 7891234567890" style={{ fontFamily:'monospace' }}/>
+            <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'stretch' }}>
+              <input className="campo" value={codigoBarras} onChange={e=>setCodigoBarras(e.target.value)} placeholder="Ex: 7891234567890" style={{ fontFamily:'monospace', flex: 1, minWidth: 0 }}/>
               {hasCamera && (
-                <button type="button" onClick={() => setShowScanner(true)} className="btn btn-secondary" style={{ padding:'0 0.5rem' }} title="Ler com a câmera">
+                <button type="button" onClick={() => setShowScanner(true)} className="btn btn-secondary" style={{ padding:'0 0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-sm)' }} title="Ler com a câmera">
                   <Camera size={16}/>
                 </button>
               )}
@@ -270,25 +270,25 @@ export function FormProduto({ onSuccess, onCancel }: { onSuccess: () => void; on
           </Campo>
           <Campo label="Categoria">
             {showNovaCat ? (
-              <div style={{ display:'flex', gap:'0.375rem' }}>
-                <input autoFocus className="campo" style={{ flex:1 }} placeholder="Nome da nova categoria" value={novaCatNome} onChange={e=>setNovaCatNome(e.target.value)} onKeyDown={e=>e.key==='Enter'&&criarCategoria()}/>
-                <button type="button" onClick={criarCategoria} disabled={salvandoCat||!novaCatNome.trim()} className="btn btn-primary" style={{ padding:'0 0.75rem' }}>{salvandoCat?<Loader2 size={14} style={{animation:'spin 1s linear infinite'}}/>:'Salvar'}</button>
-                <button type="button" onClick={()=>setShowNovaCat(false)} className="btn btn-secondary" style={{ padding:'0 0.5rem' }}><X size={14}/></button>
+              <div style={{ display:'flex', gap:'0.375rem', alignItems: 'stretch' }}>
+                <input autoFocus className="campo" style={{ flex:1, minWidth: 0 }} placeholder="Nome da nova categoria" value={novaCatNome} onChange={e=>setNovaCatNome(e.target.value)} onKeyDown={e=>e.key==='Enter'&&criarCategoria()}/>
+                <button type="button" onClick={criarCategoria} disabled={salvandoCat||!novaCatNome.trim()} className="btn btn-primary" style={{ padding:'0 0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-sm)' }}>{salvandoCat?<Loader2 size={14} style={{animation:'spin 1s linear infinite'}}/>:'Salvar'}</button>
+                <button type="button" onClick={()=>setShowNovaCat(false)} className="btn btn-secondary" style={{ padding:'0 0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-sm)' }}><X size={14}/></button>
               </div>
             ) : (
-              <div style={{ display:'flex', gap:'0.375rem' }}>
-                <select className="campo" style={{ flex:1 }} value={categoria} onChange={e=>setCategoria(e.target.value)}>
+              <div style={{ display:'flex', gap:'0.375rem', alignItems: 'stretch' }}>
+                <select className="campo" style={{ flex:1, minWidth: 0 }} value={categoria} onChange={e=>setCategoria(e.target.value)}>
                   <option value="">— Selecionar —</option>
                   {categorias.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
                 </select>
-                <button type="button" onClick={()=>setShowNovaCat(true)} className="btn btn-secondary" style={{ padding:'0 0.625rem', display:'flex', alignItems:'center', gap:'0.25rem' }} title="Criar nova categoria">
+                <button type="button" onClick={()=>setShowNovaCat(true)} className="btn btn-secondary" style={{ padding:'0 0.75rem', display:'flex', alignItems:'center', gap:'0.25rem', justifyContent: 'center', borderRadius: 'var(--radius-sm)' }} title="Criar nova categoria">
                   <Plus size={14}/> Nova
                 </button>
               </div>
             )}
           </Campo>
         </div>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.75rem' }}>
+        <div style={{ display:'grid', gridTemplateColumns:'1.2fr 0.8fr', gap:'0.75rem' }}>
           <Campo label="Fornecedor Vinculado">
             <select className="campo" value={fornecedorId} onChange={e=>setFornecedorId(e.target.value)}>
               <option value="">— Nenhum —</option>
@@ -303,7 +303,6 @@ export function FormProduto({ onSuccess, onCancel }: { onSuccess: () => void; on
         </Campo>
       </SECAO>
 
-      {/* ── Preços ── */}
       <SECAO titulo="💰 Preços">
         <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'0.75rem' }}>
           <Campo label="Preço de Custo (R$)">
@@ -313,16 +312,17 @@ export function FormProduto({ onSuccess, onCancel }: { onSuccess: () => void; on
             <input className="campo" type="number" min="0" step="0.01" value={varejo} onChange={e=>setVarejo(e.target.value)} placeholder="0,00"/>
           </Campo>
           <Campo label="Preço Mínimo PDV (R$)" dica="Menor preço que o vendedor pode praticar após descontos.">
-            <input className="campo" type="number" min="0" step="0.01" value={minimo} onChange={e=>setMinimo(e.target.value)} placeholder="Piso de desconto"/>
+            <input className="campo" type="number" min="0" step="0.01" value={minimo} onChange={e=>setMinimo(e.target.value)} placeholder="0,00"/>
           </Campo>
         </div>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.75rem' }}>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'0.75rem' }}>
           <Campo label="Preço Atacado (R$)" dica="Preço aplicado para compras em grandes volumes.">
-            <input className="campo" type="number" min="0" step="0.01" value={atacado} onChange={e=>setAtacado(e.target.value)} placeholder="Para clientes atacado"/>
+            <input className="campo" type="number" min="0" step="0.01" value={atacado} onChange={e=>setAtacado(e.target.value)} placeholder="0,00"/>
           </Campo>
           <Campo label="Preço VIP (R$)" dica="Preço especial voltado para clientes cadastrados como VIP.">
-            <input className="campo" type="number" min="0" step="0.01" value={vip} onChange={e=>setVip(e.target.value)} placeholder="Para clientes VIP"/>
+            <input className="campo" type="number" min="0" step="0.01" value={vip} onChange={e=>setVip(e.target.value)} placeholder="0,00"/>
           </Campo>
+          <div/>
         </div>
       </SECAO>
 

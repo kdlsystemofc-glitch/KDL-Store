@@ -138,7 +138,8 @@ export default function PlanosPage() {
                   <p style={{marginBottom:'1rem'}}>A partir de <strong>{sub?.current_period_end ? new Date(sub.current_period_end).toLocaleDateString('pt-BR') : 'então'}</strong>, você passará automaticamente para o plano Start (R$65/mês).</p>
                   <p style={{fontWeight:700,marginBottom:'0.5rem'}}>No próximo vencimento, você perderá acesso a:</p>
                   <ul style={{paddingLeft:'1.25rem',marginBottom:'1rem',color:'var(--texto-sec)',display:'flex',flexDirection:'column',gap:'0.25rem'}}>
-                    <li>Financeiro</li>
+                    <li>Visão Geral do Financeiro (DRE)</li>
+                    <li>Lançamento de Despesas</li>
                     <li>Relatórios</li>
                     <li>CRM Sumidos</li>
                     <li>Comissões</li>

@@ -115,7 +115,6 @@ export default function FinanceiroPage() {
   const maxGraf      = Math.max(...diasGraf.map(d=>d.total), 1)
 
   return (
-    <ProOnly>
     <div className="anim-fade" style={{display:'flex',flexDirection:'column',gap:'0.75rem'}}>
       <div className="pg-header">
         <div>
@@ -135,6 +134,7 @@ export default function FinanceiroPage() {
         { label: 'Fechamento de Caixa', href: '/financeiro/fechamento' }
       ]} />
 
+      <ProOnly>
       {loading ? (
         <div style={{display:'flex',justifyContent:'center',padding:'3rem',flexDirection:'column',alignItems:'center',gap:'0.5rem'}}>
           <p style={{color:'var(--verde)',fontSize:'0.75rem',letterSpacing:'0.08em'}}>CARREGANDO DADOS<span className="blink">_</span></p>
@@ -270,7 +270,7 @@ export default function FinanceiroPage() {
           </div>
         </>
       )}
+      </ProOnly>
     </div>
-    </ProOnly>
   )
 }

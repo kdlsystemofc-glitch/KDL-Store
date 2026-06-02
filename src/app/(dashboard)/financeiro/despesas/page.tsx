@@ -276,7 +276,6 @@ export default function DespesasPage() {
   const isFilhaRecorrente  = (d: Despesa) => !!d.parent_id
 
   return (
-    <ProOnly>
     <div className="anim-fade" style={{display:'flex',flexDirection:'column',gap:'0.875rem',maxWidth:'960px'}}>
 
       {/* ── HEADER ── */}
@@ -299,6 +298,8 @@ export default function DespesasPage() {
         { label: 'Fiados 📒', href: '/financeiro/fiado' },
         { label: 'Fechamento de Caixa', href: '/financeiro/fechamento' }
       ]} />
+
+      <ProOnly>
 
       {/* ── SELETOR DE MÊS ── */}
       <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'0.75rem',padding:'0.5rem 1rem',background:'var(--surface)',border:'1px solid var(--borda)',borderRadius:'var(--radius)'}}>
@@ -520,7 +521,7 @@ export default function DespesasPage() {
           </table>
         </div>
       )}
-    </div>
+      </ProOnly>
 
     {/* ── MODAL EDITAR ── */}
     {editTarget&&(
@@ -640,6 +641,6 @@ export default function DespesasPage() {
         </div>
       </div>
     )}
-    </ProOnly>
+    </div>
   )
 }

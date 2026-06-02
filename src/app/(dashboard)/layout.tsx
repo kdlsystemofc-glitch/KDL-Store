@@ -18,12 +18,12 @@ const baseItems = [
   { href: '/vendas',        label: 'Histórico de Vendas', icon: ShoppingCart },
   { href: '/produtos',      label: 'Produtos / Estoque',  icon: Package },
   { href: '/clientes',      label: 'Clientes e Fornecedores', icon: Users },
+  { href: '/financeiro',    label: 'Financeiro',          icon: BarChart3 },
   { href: '/garantias',     label: 'Ops Extras',          icon: Shield },
 ]
 
 // ── Módulos EXCLUSIVOS do plano Pro ──
 const proItems = [
-  { href: '/financeiro',    label: 'Financeiro',          icon: BarChart3 },
   { href: '/relatorios',    label: 'Relatórios',          icon: FileBarChart2 },
 ]
 
