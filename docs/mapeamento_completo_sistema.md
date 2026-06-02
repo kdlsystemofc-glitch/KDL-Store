@@ -1,8 +1,10 @@
 # MAPEAMENTO COMPLETO DO SISTEMA — KDL STORE
-**Versão:** 1.0  
-**Gerado em:** 2026-05-20  
-**Cobertura:** Landing Page · Auth · Dashboard · APIs · Middleware  
-**Total de arquivos analisados:** ~55
+**Versão:** 2.0  
+**Gerado em:** 2026-05-20 · **Última atualização:** 2026-06-02  
+**Cobertura:** Landing Page · Auth · Dashboard · APIs · Middleware · Todos os módulos  
+**Total de arquivos analisados:** ~70
+
+> ⚠️ **v2.0:** Documento atualizado com todas as implementações, correções e melhorias realizadas entre 20/05/2026 e 02/06/2026. Ver **Seção 39** para o changelog completo.
 
 ---
 
@@ -3247,19 +3249,177 @@ Abaixo encontra-se a matriz de controle de acessos e operações diretas de banc
 ## 38. INCONSISTÊNCIAS IDENTIFICADAS E ALERTAS
 Durante a auditoria analítica e mapeamento minucioso do repositório de código fonte do KDL Store, foram catalogadas as seguintes inconsistências lógicas e limitações técnicas estruturais:
 
-### 1. Inconsistência Crítica na Tela de Detalhes da Garantia (`/garantias/[id]`)
-- **Problema:** Ao clicar em uma garantia e navegar para `/garantias/[id]`, a página falha em buscar os dados dinâmicos reais da venda, do cliente ou dos prazos no banco de dados Supabase.
-- **Evidência:** O arquivo de página utiliza um objeto estático de dados simulados (mock data) com informações genéricas de exemplo fixas. Além disso, o rodapé exibe o nome do produto concorrente/anterior `"NexoCommerce"` em vez da marca `"KDL Store"` adotada no restante do sistema.
+> **Legenda de status:** ✅ CORRIGIDO · ⚠️ PENDENTE · 🔄 PARCIALMENTE RESOLVIDO
 
-### 2. Contradição Visual do Componente ProOnly (`src/components/ProOnly.tsx`)
-- **Problema:** Os comentários internos e a documentação de código do componente alegam categoricamente: *"Se o plano é Start, mostra overlay com upsell"*.
-- **Evidência:** A implementação do código é um retorno silencioso de valor nulo (`return null`). Não há lógica para exibição de sobreposição escura, banner explicativo, pop-up de ofertas ou botão de direcionamento para assinatura, resultando em uma ocultação silenciosa das opções do plano Start sem qualquer direcionamento comercial para conversão.
+### 1. ✅ CORRIGIDO — Tela de Detalhes da Garantia (`/garantias/[id]`)
+- **Problema original:** Página usava mock data estático; rodapé exibia "NexoCommerce" em vez de "KDL Store".
+- **Resolução (Jun/2026):** Página completamente reescrita com design premium dinâmico. Busca dados reais do Supabase (`garantias`, `clientes`, `produtos`). Exibe certificado profissional com QR Code, assinatura e dados da empresa. Fluxo de devolução integrado (reembolso gera despesa automática; troca estorna estoque).
 
-### 3. Redirecionamento em Loop ou Tela Travada em OS Nova (`/ordens-de-servico/nova`)
-- **Problema:** A navegação para o cadastro de ordens de serviço novas resulta em travamento ou em uma experiência inutilizável.
-- **Evidência:** O arquivo de página está implementado com um estado de carregamento permanente ou spinner de redirecionamento infinito no carregamento devido à ausência do formulário físico correspondente, impossibilitando a abertura direta por operadores.
+### 2. ✅ CORRIGIDO — Componente ProOnly (`src/components/ProOnly.tsx`)
+- **Problema original:** Retornava `null` silenciosamente para usuários Start sem qualquer CTA de upgrade.
+- **Resolução:** Componente reimplementado exibindo overlay com upsell completo: explicação dos benefícios Pro, botão de direcionamento para `/assinar`, bloqueio visual do conteúdo.
 
-### 4. Hardcoding de Versão nas Configurações Gerais (`/configuracoes/page.tsx`)
-- **Problema:** Inconsistência de versionamento global.
-- **Evidência:** O rodapé da tela de configurações exibe de forma estática o texto `"KDL STORE v1.2.0"`. Essa informação não provém de variáveis de ambiente do Next.js ou do arquivo central `package.json`, forçando atualizações manuais no código-fonte a cada novo deploy do sistema de vendas.
+### 3. ✅ CORRIGIDO — OS Nova (`/ordens-de-servico/nova`)
+- **Problema original:** Tela travada em estado de carregamento permanente.
+- **Resolução:** Formulário completo implementado para criação de OS (cliente, equipamento, defeito, técnico, orçamento, valores). Integrado ao fluxo de status e ao módulo financeiro.
+
+### 4. ⚠️ PENDENTE — Hardcoding de Versão nas Configurações
+- **Problema:** Versão `"KDL STORE v1.2.0"` hardcoded em `/configuracoes/page.tsx`.
+- **Status:** Pendente de correção. Versão deve ser lida de `package.json` via env var.
+
+### 5. ✅ CORRIGIDO — Produto aparecia `—` nas Movimentações de Estoque
+- **Problema:** Campo PRODUTO exibia `—` (traço) em todas as movimentações recentes.
+- **Resolução:** Tratamento defensivo `Array.isArray()` adicionado — a relação `produtos` do Supabase SDK pode retornar objeto ou array dependendo do contexto da query.
+
+### 6. ✅ CORRIGIDO — Erro de Enum ao Criar Pedido de Fornecedor
+- **Problema:** `invalid input value for enum status_pedido: "aguardando"` ao criar pedido.
+- **Resolução:** Valor correto do enum Postgres mapeado: `"pendente"` (não `"aguardando"`). Valores válidos: `pendente`, `enviado`, `recebido`, `cancelado`.
+
+### 7. ✅ CORRIGIDO — Faturamento de OS ausente no Financeiro
+- **Problema:** O módulo Financeiro (DRE) não contabilizava receitas de Ordens de Serviço.
+- **Resolução:** Adicionadas queries de `ordens_servico` (status `concluido`/`entregue`) ao financeiro. DRE agora desdobra: Receita Vendas + Receita Serviços OS = Receita Bruta Total.
+
+### 8. ✅ CORRIGIDO — KPIs de Comissões apenas na aba "Por Venda"
+- **Problema:** KPIs de Total, Pendente e Pago só apareciam ao clicar na aba "Por Venda".
+- **Resolução:** Dados carregados em paralelo na inicialização. KPIs e Ranking sempre visíveis ao entrar na página.
+
+### 9. ✅ CORRIGIDO — Tipo TypeScript `Pedido` sem `fornecedor_id`
+- **Problema:** Erros `TS2551` em `fornecedores/page.tsx` (linhas 526 e 544).
+- **Resolução:** Campo `fornecedor_id: string` adicionado ao tipo `Pedido`.
+
+---
+
+## 39. CHANGELOG — IMPLEMENTAÇÕES PÓS-AUDITORIA (Mai → Jun 2026)
+
+> Todas as mudanças abaixo foram implementadas após a geração da v1.0 deste documento (20/05/2026).
+
+---
+
+### 📋 Módulo: Ordens de Serviço (`/ordens-de-servico`)
+
+| Item | Descrição |
+|------|-----------|
+| **Templates WhatsApp** | Live Preview estilo bolha do WhatsApp em tempo real |
+| **Presets de mensagem** | 5 situações pré-configuradas: Orçamento, Aprovação, Em Andamento, Concluído, Atraso |
+| **Tags rápidas** | Clicáveis no editor: `{CLIENTE}`, `{EQUIPAMENTO}`, `{VALOR}`, `{NUMERO_OS}`, `{PREVISAO}` etc. |
+| **Botão WhatsApp** | Link direto `wa.me/` com mensagem pré-preenchida e codificada |
+| **Nova OS** | Formulário completo implementado (cliente, equipamento, defeito, técnico, orçamento, peças) |
+| **Integração Financeiro** | OS concluídas/entregues contabilizadas como receita no DRE |
+
+---
+
+### 🛡️ Módulo: Garantias (`/garantias` + `/garantias/[id]`)
+
+| Item | Descrição |
+|------|-----------|
+| **Certificado Premium** | Design profissional com logo, dados dinâmicos do Supabase, período de validade, QR Code e assinatura digital |
+| **Devolução — Reembolso** | Ao registrar devolução com resolução "Reembolso": despesa criada automaticamente em `despesas` (categoria "Reembolso de Garantia", status "Paga") |
+| **Devolução — Troca** | Estorno de estoque + nova saída gerados automaticamente |
+| **Integração Financeiro** | Reembolsos de garantia aparecem nas despesas do mês e no DRE |
+
+---
+
+### 🏭 Módulo: Fornecedores (`/fornecedores`)
+
+| Item | Descrição |
+|------|-----------|
+| **Autocomplete de Produtos** | Campo de produto no novo pedido sugere produtos do estoque em tempo real |
+| **Preço Unitário + Total** | Modal de pedido calcula total automaticamente (qtd × preço unitário) |
+| **Previsão de Entrega** | Campo de data de previsão adicionado ao pedido |
+| **Observações no Pedido** | Campo de obs livre adicionado |
+| **Histórico por Fornecedor** | Modal de edição do fornecedor exibe histórico completo de pedidos daquele fornecedor |
+| **Integração Estoque** | Ao marcar pedido como "Recebido" → entrada automática em `estoque_movimentacoes` |
+| **Integração Financeiro** | Ao marcar pedido como "Recebido" → despesa automática em `despesas` (categoria "Compra de Mercadoria") |
+| **Correção Enum** | Status mapeado corretamente: `pendente` → `enviado` → `recebido` → `cancelado` |
+
+---
+
+### 📊 Módulo: Estoque (`/estoque`)
+
+| Item | Descrição |
+|------|-----------|
+| **Bug produto `—`** | Corrigido tratamento da relação `produtos` (array vs objeto) em `estoque_movimentacoes` |
+
+---
+
+### 💰 Módulo: Financeiro (`/financeiro`)
+
+| Item | Descrição |
+|------|-----------|
+| **Receita de OS** | Query adicionada para `ordens_servico` concluídas/entregues do mês |
+| **KPI — Serviços (OS)** | Novo card azul separando receita de OS da receita de vendas |
+| **KPI — Receita Total** | Soma de Vendas + OS |
+| **DRE Desdobrado** | `(+) Receita Vendas` + `(+) Receita Serviços (OS)` = `(=) Receita Bruta Total` |
+| **Gráfico 15 dias** | Combina vendas + OS por dia no gráfico de faturamento |
+| **Fiado como alerta** | Fiado separado dos KPIs principais, exibido como banner de atenção |
+| **5 KPIs** | Expandido de 4 para 5 cards (adicionado Serviços OS) |
+
+---
+
+### 🎯 Módulo: Comissões (`/comissoes`)
+
+| Item | Descrição |
+|------|-----------|
+| **KPIs globais** | 4 cards sempre visíveis: Total em Comissões, Pendente Pagar, Já Pago, Comissionados Ativos |
+| **Ranking permanente** | Ranking com medalhas 🥇🥈🥉 visível ao entrar na página (não só na aba "Por Venda") |
+| **Pendente por pessoa** | Ranking exibe valor pendente individual de cada comissionado |
+| **Tabela enriquecida** | Aba Comissionados agora mostra comissão total histórica e pendente por pessoa |
+| **Carregamento paralelo** | Dados de vendas e comissionados carregados juntos na inicialização |
+
+---
+
+### 🔧 Correções Técnicas Gerais
+
+| Item | Arquivo | Descrição |
+|------|---------|----------|
+| Tipo `Pedido` sem `fornecedor_id` | `fornecedores/page.tsx` | Campo adicionado ao tipo TS, eliminando erros TS2551 |
+| Build TypeScript | Todos os módulos | 0 erros após todas as correções (`npx tsc --noEmit`) |
+
+---
+
+### 📁 Arquivos SQL de Migração Gerados
+
+| Arquivo | Finalidade |
+|---------|----------|
+| `EMERGENCY_FIX_DESPESAS_DUPLICATAS.sql` | Remove despesas duplicadas geradas por bug |
+| `FIX_DESPESAS_COLUMNS.sql` | Adiciona colunas extras a `despesas` |
+| `FIX_DESPESAS_V2.sql` | Versão revisada do patch de despesas |
+| `FIX_OS_HISTORICO.sql` | Histórico de status em OS |
+| `FIX_OS_MODULE.sql` | Melhorias estruturais no módulo de OS |
+| `FIX_SECURITY_POLICIES.sql` | Revisão das políticas RLS |
+| `FIX_VENDA_ENUM.sql` | Correção do enum `status_venda` |
+| `patch_catalogo_*.sql` | Evolução do módulo de catálogo (v1 a v4) |
+
+---
+
+### 🗺️ Mapa de Integrações Implementadas (fluxo completo)
+
+```
+VENDA (PDV)
+  ├── → estoque_movimentacoes [tipo: saida/brinde]
+  ├── → fiados [se forma_pagamento = 'Fiado']
+  └── → vendas.valor_comissao + comissionado_id + comissao_paga
+
+PEDIDO FORNECEDOR (status → recebido)
+  ├── → estoque_movimentacoes [tipo: entrada]
+  └── → despesas [categoria: 'Compra de Mercadoria']
+
+GARANTIA (devolução → reembolso)
+  ├── → despesas [categoria: 'Reembolso de Garantia', status: 'Paga']
+  └── → estoque_movimentacoes [estorno]
+
+OS (status: concluido / entregue)
+  └── → financeiro/page.tsx [receitaOS = valor_servico + valor_pecas]
+
+FINANCEIRO — DRE
+  ├── ← vendas [receita de vendas]
+  ├── ← ordens_servico [receita de serviços]
+  ├── ← despesas [saídas do mês]
+  ├── ← estoque_movimentacoes [brindes → custo]
+  └── ← itens_venda [CMV]
+```
+
+---
+
+*Documento mantido em: `docs/mapeamento_completo_sistema.md` · Repositório: `kdlsystemofc-glitch/KDL-Store` · Branch: `master`*
 
