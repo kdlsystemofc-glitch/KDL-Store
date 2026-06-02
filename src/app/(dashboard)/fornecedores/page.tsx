@@ -45,6 +45,11 @@ export default function FornecedoresPage() {
   const [pedFornId,    setPedFornId]    = useState('')
   const [salvandoPed,  setSalvandoPed]  = useState(false)
 
+  // Autocomplete de produtos em estoque
+  const [produtosDB,   setProdutosDB]   = useState<{ id: string; nome: string }[]>([])
+  const [pedSugs,      setPedSugs]      = useState<{ id: string; nome: string }[]>([])
+  const [showPedSugs,  setShowPedSugs]  = useState(false)
+
   useEffect(() => { if (empresaId) carregar(empresaId) }, [empresaId])
 
   async function carregar(eid: string) {
@@ -57,12 +62,18 @@ export default function FornecedoresPage() {
       supabase.from('pedidos_fornecedor')
         .select('id,produto,quantidade,status,criado_em,fornecedores(nome)')
         .eq('empresa_id', eid).order('criado_em', { ascending: false }),
+      supabase.from('produtos')
+        .select('id,nome')
+        .eq('empresa_id', eid)
+        .order('nome'),
     ])
     const getRes = (i: number): any => results[i].status === 'fulfilled' ? (results[i] as PromiseFulfilledResult<any>).value || {} : {}
     const { data: forn } = getRes(0)
     const { data: peds } = getRes(1)
+    const { data: prods } = getRes(2)
     setFornecedores(forn || [])
     setPedidos(peds || [])
+    setProdutosDB(prods || [])
     setLoading(false)
   }
 
@@ -158,6 +169,18 @@ export default function FornecedoresPage() {
     }
   }
 
+  const handlePedProdutoChange = (val: string) => {
+    setPedProduto(val)
+    if (val.trim().length > 0) {
+      const filtered = produtosDB.filter(p => p.nome.toLowerCase().includes(val.toLowerCase())).slice(0, 5)
+      setPedSugs(filtered)
+      setShowPedSugs(filtered.length > 0)
+    } else {
+      setPedSugs([])
+      setShowPedSugs(false)
+    }
+  }
+
   const filtrados = fornecedores.filter(f =>
     f.nome.toLowerCase().includes(busca.toLowerCase()) ||
     (f.categoria || '').toLowerCase().includes(busca.toLowerCase())
@@ -180,7 +203,67 @@ export default function FornecedoresPage() {
             <div style={{ display:'flex', flexDirection:'column', gap:'0.625rem' }}>
               <div>
                 <label className="campo-label">Produto / Descrição *</label>
-                <input className="campo" style={{marginTop:'0.375rem'}} value={pedProduto} onChange={e=>setPedProduto(e.target.value)} placeholder="Ex: Cabo HDMI 2m"/>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    className="campo"
+                    style={{ marginTop: '0.375rem', width: '100%' }}
+                    value={pedProduto}
+                    onChange={e => handlePedProdutoChange(e.target.value)}
+                    onFocus={() => {
+                      if (pedProduto.trim().length > 0) {
+                        const filtered = produtosDB.filter(p => p.nome.toLowerCase().includes(pedProduto.toLowerCase())).slice(0, 5)
+                        setPedSugs(filtered)
+                        setShowPedSugs(filtered.length > 0)
+                      }
+                    }}
+                    onBlur={() => {
+                      setTimeout(() => setShowPedSugs(false), 200)
+                    }}
+                    placeholder="Ex: Cabo HDMI 2m"
+                  />
+                  {showPedSugs && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      zIndex: 50,
+                      background: 'var(--surface)',
+                      border: '1px solid var(--borda)',
+                      borderRadius: 'var(--radius-sm)',
+                      maxHeight: '150px',
+                      overflowY: 'auto',
+                      boxShadow: '0 4px 6px rgba(0,0,0,0.15)',
+                      marginTop: '2px'
+                    }}>
+                      {pedSugs.map(s => (
+                        <div
+                          key={s.id}
+                          onClick={() => {
+                            setPedProduto(s.nome)
+                            setShowPedSugs(false)
+                          }}
+                          style={{
+                            padding: '0.5rem 0.75rem',
+                            cursor: 'pointer',
+                            fontSize: '0.78rem',
+                            color: 'var(--texto)',
+                            borderBottom: '1px solid var(--borda-leve)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            transition: 'background 0.1s'
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-alt)'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                        >
+                          <span>{s.nome}</span>
+                          <span style={{ fontSize: '0.58rem', background: 'var(--verde-claro)', color: 'var(--verde-esc)', padding: '2px 6px', borderRadius: '999px', fontWeight: 700 }}>Estoque</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <div>
                 <label className="campo-label">Quantidade *</label>

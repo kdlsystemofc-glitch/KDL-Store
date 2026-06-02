@@ -7,7 +7,7 @@ import { Loader2, Search } from 'lucide-react'
 import { PageTabs } from '@/components/PageTabs'
 
 type Produto = { id:string; nome:string; sku:string|null; categoria:string|null; qtd_atual:number; qtd_minima:number; preco_custo:number; pode_ser_brinde:boolean }
-type Mov     = { id:string; tipo:string; quantidade:number; criado_em:string; obs:string|null; produtos:{ nome:string }[]|null }
+type Mov     = { id:string; tipo:string; quantidade:number; criado_em:string; obs:string|null; produtos:{ nome:string }[] | { nome:string } | null }
 
 export default function EstoquePage() {
   const { empresaId } = useEmpresaId()
@@ -170,7 +170,7 @@ export default function EstoquePage() {
               <tr><td colSpan={5} style={{textAlign:'center',color:'var(--texto-desab)',padding:'1.5rem',fontSize:'0.72rem',letterSpacing:'0.06em'}}>[ NENHUMA MOVIMENTAÇÃO REGISTRADA ]</td></tr>
             ) : movs.map(m=>(
               <tr key={m.id}>
-                <td style={{fontWeight:600}}>{m.produtos?.[0]?.nome||'—'}</td>
+                <td style={{fontWeight:600}}>{(Array.isArray(m.produtos) ? m.produtos[0]?.nome : (m.produtos as any)?.nome) || '—'}</td>
                 <td><span style={{fontSize:'0.68rem',fontWeight:700,color:corMov[m.tipo]||'var(--texto-sec)',letterSpacing:'0.06em'}}>{tipoMov[m.tipo]||m.tipo}</span></td>
                 <td style={{textAlign:'center',fontWeight:700,color:m.quantidade>0?'var(--verde)':'var(--vermelho)',fontVariantNumeric:'tabular-nums'}}>
                   {m.quantidade>0?'+':''}{m.quantidade}

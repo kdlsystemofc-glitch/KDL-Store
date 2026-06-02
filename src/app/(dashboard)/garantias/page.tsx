@@ -49,6 +49,8 @@ export default function GarantiasPage() {
     setSalvandoDev(true)
     const supabase = createClient()
     
+    const valorRefund = devValor ? parseFloat(devValor) : 0
+
     // Insere na tabela devolucoes com valor monetário (G1)
     await supabase.from('devolucoes').insert({
       empresa_id: empresaId,
@@ -73,6 +75,32 @@ export default function GarantiasPage() {
             tipo: 'entrada', quantidade: 1, obs: `Retorno por troca de garantia (Venda #${gData.venda_id||'?'})`
           })
         }
+      }
+    }
+
+    // Se for reembolso, cria despesa correspondente automaticamente
+    if (devRes === 'Reembolso' && valorRefund > 0) {
+      try {
+        const { data: desps } = await supabase.from('despesas').select('numero_base').eq('empresa_id', empresaId)
+        const maxBase = Math.max(0, ...(desps || []).map(d => d.numero_base ?? 0))
+        const nextBase = maxBase + 1
+
+        await supabase.from('despesas').insert({
+          empresa_id: empresaId,
+          descricao: `Reembolso de Devolução - ${devGarantia.produto_nome} (Garantia #${devGarantia.id.substring(0,8).toUpperCase()})`,
+          categoria: 'Outros',
+          tipo: 'variavel',
+          valor: valorRefund,
+          data: new Date().toISOString().slice(0, 10),
+          recorrente: false,
+          status: 'pago',
+          forma_pagamento: 'PIX',
+          observacao: `Reembolso lançado automaticamente a partir da devolução da garantia. Motivo: ${devMotivo.trim()}`,
+          numero_base: nextBase,
+          identificador: String(nextBase)
+        })
+      } catch (e) {
+        console.error('Erro ao criar despesa automática de reembolso:', e)
       }
     }
     

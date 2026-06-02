@@ -94,6 +94,25 @@ const DEFAULT_TMPL = {
   pronto:    'Boas notícias, {cliente}! Seu equipamento *{equipamento}* (OS #{numero}) já está pronto e testado para retirada. Valor Final: *{valor}*. Endereço da loja: {endereco}. Veja mais detalhes em: {link}',
 }
 
+const PRESETS: Record<'abertura'|'orcamento'|'pronto', { label: string; text: string }[]> = {
+  abertura: [
+    { label: '💼 Formal', text: 'Olá {cliente}! Informamos que seu equipamento *{equipamento}* foi recebido e registrado em nosso laboratório sob a *OS #{numero}*. Para acompanhar o status da manutenção em tempo real, acesse: {link}' },
+    { label: '😊 Amigável', text: 'Olá, {cliente}! Recebemos seu *{equipamento}* para análise sob a *OS #{numero}*. Nossos técnicos já estão verificando. Acompanhe todo o processo aqui: {link}' },
+    { label: '⚡ Direto', text: 'Olá {cliente}! Aparelho *{equipamento}* recebido para manutenção. OS #{numero}. Acompanhe em: {link}' },
+  ],
+  orcamento: [
+    { label: '💼 Formal', text: 'Prezado(a) {cliente}, o orçamento para a manutenção de seu *{equipamento}* (OS #{numero}) está pronto. O valor total é de *{valor}*. Confira o laudo técnico completo e aprove online em: {link}' },
+    { label: '😊 Amigável', text: 'Olá, {cliente}! Temos o diagnóstico do seu *{equipamento}* (OS #{numero}). O valor total fica em *{valor}* (peças + mão de obra). Você pode ver o laudo e aprovar direto pelo link: {link}' },
+    { label: '⚡ Direto', text: 'Olá {cliente}! Orçamento pronto (OS #{numero}). Total: *{valor}*. Detalhes e aprovação em: {link}' },
+  ],
+  pronto: [
+    { label: '💼 Formal', text: 'Prezado(a) {cliente}, temos a satisfação de informar que a manutenção de seu equipamento *{equipamento}* (OS #{numero}) foi concluída com sucesso. O valor final é de *{valor}*. Retirada em: {endereco}. Detalhes: {link}' },
+    { label: '😊 Amigável', text: 'Boas notícias, {cliente}! 🎉 Seu *{equipamento}* (OS #{numero}) está prontinho e testado! Valor final: *{valor}*. Você pode retirar em: {endereco}. Veja o histórico do serviço em: {link}' },
+    { label: '⚡ Direto', text: 'Olá {cliente}! Seu *{equipamento}* está pronto para retirada. Valor: *{valor}*. Endereço de retirada: {endereco}. Detalhes: {link}' },
+  ],
+}
+
+
 export default function OSDetalhePage({ params: propsParams }: { params: { id: string } }) {
   const params = useParams()
   const { empresaId, loading: loadingEmpresa } = useEmpresaId()
@@ -374,6 +393,36 @@ export default function OSDetalhePage({ params: propsParams }: { params: { id: s
   const sendWppMessage = (msg: string) => {
     if (!os.cliente_tel) return
     window.open(`https://wa.me/55${os.cliente_tel.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank')
+  }
+
+  const insertVariable = (tag: string) => {
+    const txtArea = document.getElementById('tmpl-textarea') as HTMLTextAreaElement
+    if (!txtArea) {
+      setEditTmplVal(prev => prev + tag)
+      return
+    }
+    const start = txtArea.selectionStart
+    const end = txtArea.selectionEnd
+    const text = txtArea.value
+    const before = text.substring(0, start)
+    const after = text.substring(end, text.length)
+    const val = before + tag + after
+    setEditTmplVal(val)
+    setTimeout(() => {
+      txtArea.focus()
+      txtArea.setSelectionRange(start + tag.length, start + tag.length)
+    }, 10)
+  }
+
+  const getLivePreview = (tmpl: string) => {
+    const valor = formatCurrency(os.orcamento || os.valor_servico + os.valor_pecas)
+    return tmpl
+      .replace(/{cliente}/g,     os.cliente_nome || 'João da Silva')
+      .replace(/{equipamento}/g, os.equipamento || 'Aparelho de Teste')
+      .replace(/{numero}/g,      String(os.numero || 1).padStart(4, '0'))
+      .replace(/{valor}/g,       valor || 'R$ 150,00')
+      .replace(/{link}/g,        publicTrackingUrl || 'https://acompanhar.assistencia.com')
+      .replace(/{endereco}/g,    empresa?.endereco || 'Rua da Assistência, 123 — Centro')
   }
 
   const currentStageIndex = STAGES.indexOf(os.status)
@@ -729,15 +778,94 @@ export default function OSDetalhePage({ params: propsParams }: { params: { id: s
 
                   {/* Modo edição */}
                   {editTmpl === key ? (
-                    <div style={{ display:'flex', flexDirection:'column', gap:'0.375rem' }}>
+                    <div style={{ display:'flex', flexDirection:'column', gap:'0.5rem' }}>
+                      
+                      {/* Presets / Modelos Rápidos */}
+                      <div style={{ display:'flex', alignItems:'center', gap:'0.375rem', flexWrap:'wrap' }}>
+                        <span style={{ fontSize:'0.65rem', color:'var(--texto-desab)', fontWeight:700 }}>💡 Modelos:</span>
+                        {PRESETS[key].map(preset => (
+                          <button
+                            key={preset.label}
+                            type="button"
+                            onClick={() => setEditTmplVal(preset.text)}
+                            className="btn btn-secondary"
+                            style={{ fontSize:'0.6rem', padding:'0.15rem 0.35rem', display:'flex', alignItems:'center', gap:'2px' }}
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Textarea */}
                       <textarea
+                        id="tmpl-textarea"
                         className="campo"
                         rows={4}
-                        style={{ fontSize:'0.72rem', resize:'vertical' }}
+                        style={{ fontSize:'0.72rem', resize:'vertical', fontFamily:'sans-serif' }}
                         value={editTmplVal}
                         onChange={e => setEditTmplVal(e.target.value)}
                       />
-                      <div style={{ display:'flex', gap:'0.375rem' }}>
+
+                      {/* Inserção rápida de variáveis */}
+                      <div style={{ display:'flex', flexDirection:'column', gap:'0.25rem' }}>
+                        <span style={{ fontSize:'0.62rem', color:'var(--texto-desab)', fontWeight:700 }}>➕ Inserir variáveis (Tags rápidas):</span>
+                        <div style={{ display:'flex', gap:'0.25rem', flexWrap:'wrap' }}>
+                          {[
+                            { label: '🧑 Cliente', tag: '{cliente}' },
+                            { label: '💻 Aparelho', tag: '{equipamento}' },
+                            { label: '🔢 Nº OS', tag: '{numero}' },
+                            { label: '💰 Valor', tag: '{valor}' },
+                            { label: '🔗 Link Rastreio', tag: '{link}' },
+                            { label: '📍 Endereço', tag: '{endereco}' },
+                          ].map(v => (
+                            <button
+                              key={v.tag}
+                              type="button"
+                              onClick={() => insertVariable(v.tag)}
+                              className="btn btn-secondary"
+                              style={{ fontSize:'0.6rem', padding:'0.15rem 0.375rem', borderStyle:'dashed', borderColor:'var(--verde-borda)' }}
+                            >
+                              {v.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* WhatsApp Live Preview */}
+                      <div style={{
+                        background: '#efeae2',
+                        backgroundImage: 'radial-gradient(#dfdcd6 1px, transparent 1px)',
+                        backgroundSize: '12px 12px',
+                        padding: '0.625rem',
+                        borderRadius: 'var(--radius-sm)',
+                        border: '1px solid #e1dbd2',
+                        marginTop: '0.25rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.25rem'
+                      }}>
+                        <p style={{ fontSize: '0.6rem', fontWeight: 800, color: '#128c7e', textTransform: 'uppercase', letterSpacing: '0.04em', margin: 0 }}>📱 WhatsApp Live Preview</p>
+                        <div style={{
+                          background: '#d9fdd3',
+                          padding: '0.5rem 0.625rem',
+                          borderRadius: '8px 0px 8px 8px',
+                          alignSelf: 'flex-end',
+                          maxWidth: '95%',
+                          position: 'relative',
+                          boxShadow: '0 1px 0.5px rgba(0,0,0,0.13)',
+                          border: '1px solid #c5ebd4'
+                        }}>
+                          <p style={{ fontSize: '0.72rem', color: '#111b21', whiteSpace: 'pre-wrap', lineHeight: '1.4', margin: 0 }}>
+                            {getLivePreview(editTmplVal)}
+                          </p>
+                          <span style={{ fontSize: '0.52rem', color: '#667781', float: 'right', marginTop: '2px' }}>
+                            {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} ✔✔
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Botoes de Acao */}
+                      <div style={{ display:'flex', gap:'0.375rem', marginTop: '0.25rem' }}>
                         <button
                           onClick={() => {
                             setTmpl(editTmplVal)
@@ -758,7 +886,7 @@ export default function OSDetalhePage({ params: propsParams }: { params: { id: s
                           className="btn btn-secondary"
                           style={{ fontSize:'0.65rem' }}
                         >
-                          ↩ Restaurar
+                          ↩ Restaurar Padrão
                         </button>
                       </div>
                     </div>
