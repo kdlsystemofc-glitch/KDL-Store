@@ -9,9 +9,10 @@ import { ArrowLeft, Printer, X, Loader2, Package, Wrench } from 'lucide-react'
 import { AdminOnly } from '@/components/AdminOnly'
 import { OperadorOnly } from '@/components/OperadorOnly'
 
-type Venda    = { id:string; numero:number; cliente_nome:string|null; forma_pagamento:string; subtotal:number; desconto:number; total:number; status:string; criado_em:string; motivo_cancelamento?:string; registrado_nome?:string|null; cliente_id?:string|null }
+type Venda    = { id:string; numero:number; cliente_nome:string|null; forma_pagamento:string; subtotal:number; desconto:number; total:number; status:string; criado_em:string; motivo_cancelamento?:string; registrado_nome?:string|null; cliente_id?:string|null; obs?:string|null }
 type Item     = { id:string; produto_id:string; produto_nome:string; quantidade:number; preco_unitario:number; brinde:boolean; num_serie:string|null }
 type Fornecedor = { id:string; nome:string; telefone:string|null }
+type EmpresaInfo = { nome:string; cnpj:string|null; whatsapp:string|null; telefone:string|null; email:string|null; endereco:string|null; cidade:string|null; estado:string|null; logo_url:string|null }
 
 const FORMA_ICON: Record<string,string> = { PIX:'📱', Dinheiro:'💵', Crédito:'💳', Débito:'💴', Fiado:'📒' }
 
@@ -22,6 +23,10 @@ export default function VendaReciboPage() {
   const [itens,  setItens]  = useState<Item[]>([])
   const [loading,setLoading]= useState(true)
   const [nomeEmpresa, setNomeEmpresa] = useState('')
+  const [empresa, setEmpresa] = useState<EmpresaInfo|null>(null)
+  const [qrSrc, setQrSrc] = useState('')
+  const [clienteInfo, setClienteInfo] = useState<{ nome:string; telefone:string|null; email:string|null; cpf:string|null; endereco:string|null }|null>(null)
+  const [garantias, setGarantias] = useState<{ id:string; produto_nome:string; num_serie:string|null; data_vencimento:string; status:string }[]>([])
 
   // Modal Acionar Fornecedor
   const [showForn,    setShowForn]    = useState(false)
@@ -61,9 +66,23 @@ export default function VendaReciboPage() {
     ]).then(async ([{ data: v }, { data: i }]) => {
       setVenda(v)
       setItens(i || [])
-      if (v?.empresa_id) {
-        const { data: emp } = await supabase.from('empresas').select('nome').eq('id', v.empresa_id).single()
-        if (emp?.nome) setNomeEmpresa(emp.nome)
+      if (v) {
+        if (v.cliente_id) {
+          const { data: cli } = await supabase.from('clientes').select('nome,telefone,email,cpf,endereco').eq('id', v.cliente_id).single()
+          if (cli) setClienteInfo(cli)
+        }
+        if (v.empresa_id) {
+          const { data: emp } = await supabase.from('empresas').select('nome,cnpj,whatsapp,telefone,email,endereco,cidade,estado,logo_url').eq('id', v.empresa_id).single()
+          if (emp) {
+            setNomeEmpresa(emp.nome || '')
+            setEmpresa(emp as EmpresaInfo)
+          }
+          const url = typeof window !== 'undefined' ? window.location.href : ''
+          setQrSrc(`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(url)}&color=14532d&bgcolor=ffffff`)
+        }
+        // Buscar garantias vinculadas a esta venda
+        const { data: gars } = await supabase.from('garantias').select('id,produto_nome,num_serie,data_vencimento,status').eq('venda_id', v.id)
+        setGarantias(gars || [])
       }
       setLoading(false)
     })
@@ -419,81 +438,309 @@ export default function VendaReciboPage() {
         </div>
       </OperadorOnly>
 
-      <div className="card printable-receipt-card" style={{padding:0,overflow:'hidden'}}>
-        <div style={{padding:'1.25rem',textAlign:'center',borderBottom:'2px dashed var(--borda)'}}>
-          <p style={{fontWeight:900,fontSize:'1.4rem',color:'var(--texto)',textTransform:'uppercase',letterSpacing:'0.04em'}}>{nomeEmpresa || 'Minha Loja'}</p>
-          <p style={{color:'var(--texto-sec)',fontSize:'0.78rem',fontWeight:600,marginTop:'2px'}}>RECIBO DE VENDA · KDL STORE</p>
+
+      {/* ══════════════════════════════════════════════
+          RECIBO PREMIUM REDESENHADO
+      ══════════════════════════════════════════════ */}
+      <div id="recibo-print" style={{
+        background: '#fff', color: '#1a1a1a',
+        fontFamily: "'Inter','Segoe UI',sans-serif",
+        border: '1px solid #e5e7eb', borderRadius: '8px',
+        overflow: 'hidden', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)',
+        maxWidth: '680px',
+        width: '100%',
+      }}>
+
+        {/* ── Cabeçalho Principal ── */}
+        <div style={{
+          background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+          padding: '1.5rem 2rem', position: 'relative',
+          color: '#fff',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              {empresa?.logo_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={empresa.logo_url} alt="Logo" style={{ maxHeight: '60px', maxWidth: '160px', borderRadius: '4px', objectFit: 'contain', background: '#fff', padding: '4px' }} />
+              ) : (
+                <div style={{ background: 'var(--verde)', color: '#000', width: '45px', height: '45px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '1.4rem' }}>
+                  {(nomeEmpresa || 'N')[0].toUpperCase()}
+                </div>
+              )}
+              <div>
+                <h2 style={{ fontSize: '1.2rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.03em', margin: 0, color: '#fff' }}>
+                  {nomeEmpresa || 'Minha Loja'}
+                </h2>
+                {empresa?.cnpj && (
+                  <p style={{ color: 'var(--verde)', fontSize: '0.72rem', margin: '3px 0 0', fontFamily: 'monospace', letterSpacing: '0.02em', fontWeight: 700 }}>
+                    CNPJ: {empresa.cnpj}
+                  </p>
+                )}
+                {(empresa?.endereco || empresa?.cidade) && (
+                  <p style={{ color: '#94a3b8', fontSize: '0.7rem', margin: '2px 0 0' }}>
+                    {[empresa.endereco, empresa.cidade, empresa.estado].filter(Boolean).join(', ')}
+                  </p>
+                )}
+                {(empresa?.whatsapp || empresa?.telefone || empresa?.email) && (
+                  <p style={{ color: '#94a3b8', fontSize: '0.7rem', margin: '2px 0 0' }}>
+                    {empresa.whatsapp ? `Zap: ${empresa.whatsapp}` : empresa.telefone ? `Tel: ${empresa.telefone}` : ''}
+                    {empresa.email ? `  ·  ${empresa.email}` : ''}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+              <div style={{
+                background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: '6px', padding: '0.625rem 1rem', display: 'inline-block'
+              }}>
+                <p style={{ color: 'var(--verde)', fontSize: '0.58rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>COMPROVANTE DE VENDA</p>
+                <p style={{ color: '#fff', fontWeight: 900, fontSize: '1.4rem', fontFamily: 'monospace', margin: '2px 0 0', letterSpacing: '0.04em' }}>
+                  #{String(venda.numero).padStart(4, '0')}
+                </p>
+                <p style={{ color: '#94a3b8', fontSize: '0.65rem', margin: '2px 0 0' }}>
+                  {new Date(venda.criado_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div style={{padding:'1rem',display:'flex',flexDirection:'column',gap:'0.5rem',borderBottom:'1px solid var(--borda)'}}>
-          <div style={{display:'flex',justifyContent: 'space-between'}}>
-            <span style={{color:'var(--texto-sec)',fontSize:'0.82rem'}}>Cliente</span>
-            <span style={{fontWeight:800}}>{venda.cliente_nome || 'Consumidor Final (Anônimo)'}</span>
+        {/* ── Barra de status ── */}
+        <div style={{
+          background: venda.status === 'concluida' ? '#f0fdf4' : '#fef2f2',
+          borderBottom: '1px solid',
+          borderColor: venda.status === 'concluida' ? '#dcfce7' : '#fee2e2',
+          padding: '0.625rem 2rem',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          fontSize: '0.75rem',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: venda.status === 'concluida' ? '#22c55e' : '#ef4444', display: 'inline-block' }} />
+            <strong style={{ color: venda.status === 'concluida' ? '#15803d' : '#b91c1c', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              {venda.status === 'concluida' ? 'Transação Concluída' : 'Transação Cancelada'}
+            </strong>
           </div>
-          <div style={{display:'flex',justifyContent: 'space-between'}}>
-            <span style={{color:'var(--texto-sec)',fontSize:'0.82rem'}}>Operador</span>
-            <span style={{fontWeight:700}}>{venda.registrado_nome || 'Operador Padrão'}</span>
+          <span style={{ color: '#64748b', fontWeight: 500 }}>
+            Operador: {venda.registrado_nome || 'Sistema'}
+          </span>
+        </div>
+
+        {/* ── Informações da Transação (Cliente & Pagamento) ── */}
+        <div style={{ padding: '1.5rem 2rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', borderBottom: '1px solid #f1f5f9' }}>
+          <div>
+            <h3 style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 0.5rem' }}>Cliente</h3>
+            {clienteInfo ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                <p style={{ fontWeight: 800, fontSize: '0.9rem', color: '#0f172a', margin: 0 }}>{clienteInfo.nome}</p>
+                {clienteInfo.cpf && <p style={{ fontSize: '0.75rem', color: '#475569', margin: 0 }}>CPF/CNPJ: <span style={{ fontFamily: 'monospace' }}>{clienteInfo.cpf}</span></p>}
+                {clienteInfo.telefone && <p style={{ fontSize: '0.75rem', color: '#475569', margin: 0 }}>WhatsApp: {clienteInfo.telefone}</p>}
+                {clienteInfo.endereco && <p style={{ fontSize: '0.72rem', color: '#64748b', margin: 0 }}>Endereço: {clienteInfo.endereco}</p>}
+              </div>
+            ) : (
+              <div>
+                <p style={{ fontWeight: 800, fontSize: '0.9rem', color: '#0f172a', margin: 0 }}>{venda.cliente_nome || 'Consumidor Final'}</p>
+                <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '2px 0 0', fontStyle: 'italic' }}>Nenhum dado cadastrado</p>
+              </div>
+            )}
           </div>
-          <div style={{display:'flex',justifyContent: 'space-between'}}>
-            <span style={{color:'var(--texto-sec)',fontSize:'0.82rem'}}>Pagamento</span>
-            <span style={{fontWeight:700}}>{`${FORMA_ICON[venda.forma_pagamento]||''} ${venda.forma_pagamento}`}</span>
+          <div>
+            <h3 style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 0.5rem' }}>Pagamento</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <p style={{ fontWeight: 800, fontSize: '0.9rem', color: '#0f172a', margin: 0 }}>
+                {FORMA_ICON[venda.forma_pagamento.split(' ')[0]] || '💳'} {venda.forma_pagamento}
+              </p>
+              <p style={{ fontSize: '0.72rem', color: '#64748b', margin: 0 }}>
+                Status: <span style={{ color: '#15803d', fontWeight: 700 }}>PAGO</span>
+              </p>
+              {venda.obs && (
+                <p style={{ fontSize: '0.68rem', background: '#f8fafc', padding: '4px 8px', borderRadius: '4px', border: '1px solid #e2e8f0', color: '#475569', margin: '4px 0 0', fontStyle: 'italic' }}>
+                  {venda.obs}
+                </p>
+              )}
+            </div>
           </div>
-          <div style={{display:'flex',justifyContent:'space-between'}}>
-            <span style={{color:'var(--texto-sec)',fontSize:'0.82rem'}}>Status</span>
-            <span className={venda.status==='concluida'?'status-ok':'status-neutro'} style={{fontSize:'0.82rem',fontWeight:700}}>
-              {venda.status==='concluida'?'● Concluída':'○ Cancelada'}
+        </div>
+
+        {/* ── Itens da Venda ── */}
+        <div style={{ padding: '1.5rem 2rem', borderBottom: '1px solid #f1f5f9' }}>
+          <h3 style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 0.75rem' }}>Especificação dos Itens</h3>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
+                <th style={{ textAlign: 'left', padding: '0 0 0.5rem', fontWeight: 700, color: '#475569', fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Descrição do Item</th>
+                <th style={{ textAlign: 'center', padding: '0 0 0.5rem', fontWeight: 700, color: '#475569', fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.05em', width: '60px' }}>Qtd</th>
+                <th style={{ textAlign: 'right', padding: '0 0 0.5rem', fontWeight: 700, color: '#475569', fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.05em', width: '100px' }}>Unitário</th>
+                <th style={{ textAlign: 'right', padding: '0 0 0.5rem', fontWeight: 700, color: '#475569', fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.05em', width: '100px' }}>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {itens.map((item, idx) => (
+                <tr key={item.id} style={{ borderBottom: idx < itens.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+                  <td style={{ padding: '0.625rem 0' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                      <span style={{ fontWeight: 700, color: '#1e293b' }}>{item.produto_nome}</span>
+                      {item.brinde && (
+                        <span style={{ fontSize: '0.58rem', background: '#dcfce7', color: '#166534', padding: '2px 6px', borderRadius: '3px', fontWeight: 900, letterSpacing: '0.04em' }}>BRINDE</span>
+                      )}
+                    </div>
+                    {item.num_serie && (
+                      <p style={{ fontSize: '0.65rem', color: '#64748b', margin: '3px 0 0', fontFamily: 'monospace' }}>S/N: {item.num_serie}</p>
+                    )}
+                  </td>
+                  <td style={{ textAlign: 'center', padding: '0.625rem 0', color: '#0f172a', fontWeight: 700 }}>{item.quantidade}</td>
+                  <td style={{ textAlign: 'right', padding: '0.625rem 0', fontFamily: 'monospace', color: '#334155' }}>
+                    {item.brinde ? 'R$ 0,00' : formatCurrency(item.preco_unitario)}
+                  </td>
+                  <td style={{ textAlign: 'right', padding: '0.625rem 0', fontFamily: 'monospace', fontWeight: 800, color: item.brinde ? '#16a34a' : '#0f172a' }}>
+                    {item.brinde ? 'R$ 0,00' : formatCurrency(item.quantidade * item.preco_unitario)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* ── Totais ── */}
+        <div style={{ padding: '1.25rem 2rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', borderBottom: '1px solid #f1f5f9', background: '#f8fafc' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '3rem' }}>
+            <span style={{ color: '#64748b', fontSize: '0.78rem', fontWeight: 500 }}>Subtotal dos itens</span>
+            <span style={{ fontFamily: 'monospace', minWidth: '100px', textAlign: 'right', color: '#334155', fontSize: '0.82rem' }}>
+              {formatCurrency(Number(venda.total) + Number(venda.desconto || 0))}
+            </span>
+          </div>
+          {venda.desconto > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '3rem' }}>
+              <span style={{ color: '#ef4444', fontSize: '0.78rem', fontWeight: 700 }}>Desconto aplicado</span>
+              <span style={{ fontFamily: 'monospace', minWidth: '100px', textAlign: 'right', color: '#ef4444', fontWeight: 700, fontSize: '0.82rem' }}>
+                − {formatCurrency(venda.desconto)}
+              </span>
+            </div>
+          )}
+          <div style={{
+            display: 'flex', justifyContent: 'flex-end', gap: '3rem',
+            borderTop: '1px solid #e2e8f0', paddingTop: '0.625rem', marginTop: '0.25rem',
+          }}>
+            <span style={{ fontWeight: 900, fontSize: '0.85rem', color: '#0f172a', letterSpacing: '0.04em' }}>TOTAL LIQUIDO PAGO</span>
+            <span style={{ fontFamily: 'monospace', fontWeight: 900, fontSize: '1.4rem', color: '#16a34a', minWidth: '100px', textAlign: 'right', lineHeight: 1 }}>
+              {formatCurrency(venda.total)}
             </span>
           </div>
         </div>
 
-        <div style={{padding:'1rem',borderBottom:'1px solid var(--borda)'}}>
-          <p style={{fontWeight:800,marginBottom:'0.625rem',fontSize:'0.875rem'}}>ITENS</p>
-          <div style={{display:'flex',flexDirection:'column',gap:'0.5rem'}}>
-            {itens.map(item=>(
-              <div key={item.id} style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:'0.5rem'}}>
-                <div style={{flex:1,minWidth:0}}>
-                  <p style={{fontWeight:600,fontSize:'0.875rem'}}>
-                    {item.produto_nome}
-                    {item.brinde&&<span style={{marginLeft:'0.375rem',fontSize:'0.7rem',background:'var(--verde-claro)',color:'var(--verde-esc)',padding:'1px 5px',borderRadius:'3px',fontWeight:700}}>BRINDE</span>}
-                  </p>
-                  {item.num_serie&&<p style={{fontSize:'0.72rem',color:'var(--texto-desab)',fontFamily:'monospace'}}>Série: {item.num_serie}</p>}
-                  <p style={{fontSize:'0.75rem',color:'var(--texto-desab)'}}>{item.quantidade}x {item.brinde?'R$ 0,00':formatCurrency(item.preco_unitario)}</p>
-                </div>
-                <span style={{fontWeight:800,fontFamily:'monospace',flexShrink:0,color:item.brinde?'var(--verde)':'var(--texto)'}}>
-                  {item.brinde?'R$ 0,00':formatCurrency(item.quantidade*item.preco_unitario)}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div style={{padding:'1rem',display:'flex',flexDirection:'column',gap:'0.375rem'}}>
-          <div style={{display:'flex',justifyContent:'space-between'}}>
-            <span style={{color:'var(--texto-sec)',fontSize:'0.875rem'}}>Subtotal</span>
-            <span style={{fontFamily:'monospace'}}>{formatCurrency(Number(venda.total) + Number(venda.desconto || 0))}</span>
-          </div>
-          {venda.desconto>0&&(
-            <div style={{display:'flex',justifyContent:'space-between'}}>
-              <span style={{color:'var(--vermelho)',fontSize:'0.875rem'}}>Desconto</span>
-              <span style={{fontFamily:'monospace',color:'var(--vermelho)'}}>- {formatCurrency(venda.desconto)}</span>
+        {/* ── Certificado de Garantia dos Itens (Se houver) ── */}
+        {garantias.length > 0 && (
+          <div style={{ padding: '1.25rem 2rem', borderBottom: '1px solid #f1f5f9', background: 'rgba(0,191,165,0.02)' }}>
+            <h3 style={{ fontSize: '0.65rem', fontWeight: 900, color: 'var(--verde)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 0.625rem', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+              🛡️ Certificado de Garantia dos Itens
+            </h3>
+            <div className="tabela-wrap">
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.72rem' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid rgba(0,191,165,0.15)', color: '#475569' }}>
+                    <th style={{ textAlign: 'left', paddingBottom: '4px', fontWeight: 700 }}>Produto</th>
+                    <th style={{ textAlign: 'left', paddingBottom: '4px', fontWeight: 700, width: '140px' }}>Número de Série</th>
+                    <th style={{ textAlign: 'center', paddingBottom: '4px', fontWeight: 700, width: '100px' }}>Vencimento</th>
+                    <th style={{ textAlign: 'center', paddingBottom: '4px', fontWeight: 700, width: '80px' }}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {garantias.map(g => (
+                    <tr key={g.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '6px 0', color: '#1e293b', fontWeight: 600 }}>{g.produto_nome}</td>
+                      <td style={{ padding: '6px 0', fontFamily: 'monospace', color: '#334155' }}>{g.num_serie || '—'}</td>
+                      <td style={{ padding: '6px 0', textAlign: 'center', fontWeight: 700, color: 'var(--verde)' }}>
+                        {new Date(g.data_vencimento + 'T12:00:00').toLocaleDateString('pt-BR')}
+                      </td>
+                      <td style={{ padding: '6px 0', textAlign: 'center' }}>
+                        <span style={{
+                          fontSize: '0.58rem',
+                          background: g.status === 'ativa' ? 'rgba(0,191,165,0.1)' : 'rgba(239,68,68,0.1)',
+                          color: g.status === 'ativa' ? 'var(--verde)' : '#dc2626',
+                          padding: '1px 5px',
+                          borderRadius: '3px',
+                          fontWeight: 800,
+                          textTransform: 'uppercase',
+                        }}>
+                          {g.status === 'ativa' ? 'Ativa' : g.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          )}
-          <div style={{display:'flex',justifyContent:'space-between',borderTop:'2px solid var(--borda)',paddingTop:'0.5rem',marginTop:'0.25rem'}}>
-            <span style={{fontWeight:900,fontSize:'1.1rem'}}>TOTAL</span>
-            <span style={{fontFamily:'monospace',fontWeight:900,fontSize:'1.5rem',color:'var(--verde)'}}>{formatCurrency(venda.total)}</span>
+          </div>
+        )}
+
+        {/* ── Assinaturas & Termo Legal ── */}
+        <div style={{ padding: '1.5rem 2rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', borderBottom: '1px solid #f1f5f9' }}>
+          {/* Assinatura */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3rem', marginTop: '0.5rem' }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ borderBottom: '1px solid #cbd5e1', height: '30px', marginBottom: '4px' }} />
+              <p style={{ fontSize: '0.62rem', color: '#64748b', margin: 0, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Responsável Comercial</p>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ borderBottom: '1px solid #cbd5e1', height: '30px', marginBottom: '4px' }} />
+              <p style={{ fontSize: '0.62rem', color: '#64748b', margin: 0, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Assinatura do Cliente</p>
+            </div>
+          </div>
+
+          {/* Termo de Garantia CDC */}
+          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '0.75rem 1rem' }}>
+            <p style={{ fontSize: '0.65rem', color: '#475569', margin: 0, lineHeight: 1.6 }}>
+              <strong style={{ color: '#0f172a' }}>Termo de Garantia Simplificado (Art. 26 do CDC - Lei 8.078/90):</strong>
+              <br />
+              Conforme a legislação brasileira, é assegurada a garantia legal de <strong>30 dias</strong> para produtos não duráveis e <strong>90 dias</strong> para produtos duráveis. Eventuais garantias contratuais adicionais concedidas pelo fabricante ou estabelecimento estão discriminadas por item no corpo deste recibo. Para acionamento, é obrigatória a apresentação deste documento contendo o número de série correspondente.
+            </p>
           </div>
         </div>
 
-        <div style={{padding:'1rem',textAlign:'center',borderTop:'2px dashed var(--borda)',color:'var(--texto-desab)',fontSize:'0.78rem'}}>
-          <p>Obrigado pela preferência! 🙏</p>
-          <p style={{marginTop:'4px'}}>Guarde este recibo para a garantia.</p>
+        {/* ── Rodapé com QR Code ── */}
+        <div style={{ background: '#f8fafc', padding: '1rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <p style={{ fontSize: '0.7rem', color: '#475569', margin: 0, fontWeight: 700 }}>Obrigado pela preferência!</p>
+            <p style={{ fontSize: '0.62rem', color: '#64748b', margin: '2px 0 0' }}>Volte sempre e confira as novidades em nosso catálogo.</p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{ textAlign: 'right' }}>
+              <p style={{ fontSize: '0.55rem', color: '#94a3b8', margin: 0, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em' }}>DOCUMENTO DIGITAL</p>
+              <p style={{ fontSize: '0.62rem', color: '#64748b', margin: '1px 0 0' }}>Acesse pelo QR Code</p>
+            </div>
+            {qrSrc ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={qrSrc} alt="QR Code" width={56} height={56} style={{ border: '1px solid #cbd5e1', borderRadius: '4px', background: '#fff', padding: '2px' }} />
+            ) : (
+              <div style={{ width: 56, height: 56, border: '1px solid #cbd5e1', borderRadius: '4px', background: '#f1f5f9' }} />
+            )}
+          </div>
         </div>
+
       </div>
 
       <div style={{display:'flex',gap:'0.5rem',justifyContent:'center'}} className="no-print">
         <Link href="/vendas" className="btn btn-ghost">← Voltar</Link>
+        <button onClick={() => window.print()} className="btn btn-secondary" style={{display:'flex',alignItems:'center',gap:'0.375rem'}}>
+          <Printer size={14}/> Imprimir Recibo
+        </button>
         <Link href="/vendas/nova" className="btn btn-primary">+ Nova Venda</Link>
       </div>
+
+      <style>{`
+        @media print {
+          .no-print { display: none !important; }
+          body { background: white !important; margin: 0 !important; }
+          #recibo-print {
+            box-shadow: none !important;
+            border: none !important;
+            max-width: 100% !important;
+            border-radius: 0 !important;
+          }
+          @page { margin: 1cm; size: A4; }
+        }
+      `}</style>
     </div>
   )
 }

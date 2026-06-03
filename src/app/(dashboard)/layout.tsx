@@ -146,10 +146,18 @@ function Sidebar({
                 boxShadow: 'var(--sombra-cta)',
                 fontFamily: "'Nunito Sans', sans-serif",
                 transition: 'transform 0.12s',
+                position: 'relative',
               }}
             >
               <Plus size={15} />
               Nova Venda
+              <span style={{
+                position: 'absolute', right: '8px',
+                fontSize: '0.52rem', fontWeight: 900,
+                background: 'rgba(0,0,0,0.2)', color: 'rgba(255,255,255,0.85)',
+                padding: '1px 5px', borderRadius: '4px', letterSpacing: '0.04em',
+                fontFamily: 'monospace',
+              }}>F2</span>
             </Link>
           </div>
         </OperadorOnly>
@@ -465,6 +473,36 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </button>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginLeft: 'auto' }}>
+            <Link href="/vendas/nova" style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.375rem',
+              fontSize: '0.72rem',
+              background: 'rgba(0,191,165,0.08)',
+              color: 'var(--verde)',
+              border: '1px solid rgba(0,191,165,0.2)',
+              padding: '0.2rem 0.5rem',
+              borderRadius: 'var(--radius-sm)',
+              fontWeight: 700,
+              textDecoration: 'none',
+              transition: 'background 0.1s',
+            }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,191,165,0.15)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,191,165,0.08)'}
+              title="Ir para o PDV (Frente de Caixa)"
+            >
+              <span>PDV</span>
+              <span style={{
+                fontSize: '0.58rem',
+                background: 'var(--verde)',
+                color: '#060a06',
+                padding: '1px 3px',
+                borderRadius: '2px',
+                fontFamily: 'monospace',
+                fontWeight: 900,
+                letterSpacing: '0.02em',
+              }}>F2</span>
+            </Link>
             <span style={{ fontSize: '0.78rem', color: 'var(--muted)', fontWeight: 500 }} className="hidden sm:block">
               {headerInfo.nomeLoja}
             </span>

@@ -26,6 +26,7 @@ export default function FinanceiroPage() {
   async function carregar(eid: string) {
     setLoading(true)
     const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0,10)
+    const fimMes    = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().slice(0,10)
     const inicio15d = new Date(Date.now()-14*86400000).toISOString().slice(0,10)
     const supabase  = createClient()
 
@@ -33,7 +34,8 @@ export default function FinanceiroPage() {
       // [0] Vendas do mês
       supabase.from('vendas').select('total,forma_pagamento,criado_em').eq('empresa_id', eid).eq('status','concluida').gte('criado_em', inicioMes),
       // [1] Despesas do mês
-      supabase.from('despesas').select('categoria,tipo,valor').eq('empresa_id', eid).gte('data', inicioMes),
+      // Apenas despesas PAGAS do mês atual — pendentes e meses futuros ficam de fora
+      supabase.from('despesas').select('categoria,tipo,valor').eq('empresa_id', eid).eq('status','pago').gte('data', inicioMes).lte('data', fimMes),
       // [2] Fiados abertos
       supabase.from('fiados').select('valor_aberto').eq('empresa_id', eid).eq('status','aberto'),
       // [3] Vendas 15 dias para gráfico

@@ -27,13 +27,16 @@ export default function FechamentoPage() {
   async function carregar(eid: string, t: string) {
     setLoading(true)
     setFechado(false)
-    const hoje = new Date().toISOString().slice(0,10)
+    const hoje      = new Date().toISOString().slice(0,10)
     const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0,10)
+    const fimMes    = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().slice(0,10)
     const desde = t === 'diario' ? hoje : inicioMes
+    const ate   = t === 'diario' ? hoje : fimMes
     const supabase = createClient()
     const results = await Promise.allSettled([
-      supabase.from('vendas').select('total,forma_pagamento,criado_em').eq('empresa_id', eid).eq('status','concluida').gte('criado_em', desde),
-      supabase.from('despesas').select('descricao,categoria,valor').eq('empresa_id', eid).gte('data', desde),
+      supabase.from('vendas').select('total,forma_pagamento,criado_em').eq('empresa_id', eid).eq('status','concluida').gte('criado_em', desde).lte('criado_em', ate + 'T23:59:59'),
+      // Apenas despesas com BAIXA DADA (status='pago') no período — pendentes e futuras ficam fora
+      supabase.from('despesas').select('descricao,categoria,valor').eq('empresa_id', eid).eq('status','pago').gte('data', desde).lte('data', ate),
     ])
     const getRes = (i: number): any => results[i].status === 'fulfilled' ? (results[i] as PromiseFulfilledResult<any>).value || {} : {}
     const { data: v } = getRes(0)

@@ -48,9 +48,11 @@ export default function FornecedoresPage() {
   const [pedObs,       setPedObs]       = useState('')
   const [pedFornId,    setPedFornId]    = useState('')
   const [salvandoPed,  setSalvandoPed]  = useState(false)
+  const [abaModal,     setAbaModal]     = useState<'dados'|'produtos'|'pedidos'>('dados')
+  const [selectedProdParaVincular, setSelectedProdParaVincular] = useState('')
 
   // Autocomplete de produtos em estoque
-  const [produtosDB,   setProdutosDB]   = useState<{ id: string; nome: string }[]>([])
+  const [produtosDB,   setProdutosDB]   = useState<{ id: string; nome: string; sku: string | null; qtd_atual: number; preco_varejo: number; fornecedor_id: string | null }[]>([])
   const [pedSugs,      setPedSugs]      = useState<{ id: string; nome: string }[]>([])
   const [showPedSugs,  setShowPedSugs]  = useState(false)
 
@@ -67,7 +69,7 @@ export default function FornecedoresPage() {
         .select('id,fornecedor_id,produto,quantidade,status,total,obs,criado_em,fornecedores(nome)')
         .eq('empresa_id', eid).order('criado_em', { ascending: false }),
       supabase.from('produtos')
-        .select('id,nome')
+        .select('id,nome,sku,qtd_atual,preco_varejo,fornecedor_id')
         .eq('empresa_id', eid)
         .order('nome'),
     ])
@@ -140,7 +142,9 @@ export default function FornecedoresPage() {
   }
 
   async function avancarStatus(id: string, atual: string) {
-    const next = 'recebido'
+    const fluxo: Record<string, string> = { pendente: 'enviado', enviado: 'recebido' }
+    const next = fluxo[atual]
+    if (!next) return // já está no estado final ou desconhecido
     const p = pedidos.find(o => o.id === id)
     if (!p || !empresaId) return
 
@@ -236,7 +240,7 @@ export default function FornecedoresPage() {
       quantidade: parseInt(pedQtd) || 1,
       total: totalCalculado,
       obs: obsFinal || null,
-      status: 'enviado' // 'rascunho' | 'enviado' | 'recebido' | 'cancelado'
+      status: 'pendente' // 'pendente' | 'enviado' | 'recebido' | 'cancelado'
     }).select('id,fornecedor_id,produto,quantidade,status,total,obs,criado_em,fornecedores(nome)').single()
     
     setSalvandoPed(false)
@@ -252,6 +256,30 @@ export default function FornecedoresPage() {
       setPedObs('')
       setPedFornId('')
       setShowPedido(false)
+    }
+  }
+
+  async function vincularProduto(prodId: string) {
+    if (!editando) return
+    const supabase = createClient()
+    const { error } = await supabase.from('produtos').update({ fornecedor_id: editando.id }).eq('id', prodId)
+    if (error) {
+      toast.error('Erro ao vincular produto: ' + error.message)
+    } else {
+      toast.success('Produto vinculado com sucesso!')
+      setProdutosDB(prev => prev.map(p => p.id === prodId ? { ...p, fornecedor_id: editando.id } : p))
+      setSelectedProdParaVincular('')
+    }
+  }
+
+  async function desvincularProduto(prodId: string) {
+    const supabase = createClient()
+    const { error } = await supabase.from('produtos').update({ fornecedor_id: null }).eq('id', prodId)
+    if (error) {
+      toast.error('Erro ao desvincular produto: ' + error.message)
+    } else {
+      toast.success('Produto desvinculado!')
+      setProdutosDB(prev => prev.map(p => p.id === prodId ? { ...p, fornecedor_id: null } : p))
     }
   }
 
@@ -444,143 +472,268 @@ export default function FornecedoresPage() {
               </div>
               <button onClick={()=>setEditando(null)} className="btn-icon"><X size={16}/></button>
             </div>
-            <div style={{ padding:'1.25rem', display:'flex', flexDirection:'column', gap:'0.875rem' }}>
-              {erroEdit && <div className="alerta alerta-perigo">{erroEdit}</div>}
 
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.625rem' }}>
-                <div>
-                  <label className="campo-label">Nome da empresa *</label>
-                  <input className="campo" style={campo} value={editando.nome} onChange={e=>set('nome',e.target.value)}/>
-                </div>
-                <div>
-                  <label className="campo-label">Nome do contato</label>
-                  <input className="campo" style={campo} value={editando.contato||''} onChange={e=>set('contato',e.target.value)}/>
-                </div>
-                <div>
-                  <label className="campo-label">Telefone / WhatsApp</label>
-                  <input className="campo" style={campo} value={editando.telefone||''} onChange={e=>set('telefone',e.target.value)}/>
-                </div>
-                <div>
-                  <label className="campo-label">E-mail</label>
-                  <input className="campo" type="email" style={campo} value={editando.email||''} onChange={e=>set('email',e.target.value)}/>
-                </div>
-                <div>
-                  <label className="campo-label">CNPJ</label>
-                  <input className="campo" style={{...campo,fontFamily:'monospace'}} value={editando.cnpj||''} onChange={e=>set('cnpj',e.target.value)}/>
-                </div>
-                <div>
-                  <label className="campo-label">Categoria</label>
-                  <select className="campo" style={campo} value={editando.categoria||''} onChange={e=>set('categoria',e.target.value)}>
-                    <option value="">Selecionar...</option>
-                    {CATEGORIAS_FORN.map(c=><option key={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="campo-label">CEP</label>
-                  <input className="campo" style={{...campo,fontFamily:'monospace'}} maxLength={9} value={editando.cep||''} onChange={e=>set('cep',e.target.value)} onBlur={e=>buscarCepEdicao(e.target.value)}/>
-                </div>
-                <div>
-                  <label className="campo-label">Rua / Logradouro</label>
-                  <input className="campo" style={campo} value={editando.rua||''} onChange={e=>set('rua',e.target.value)}/>
-                </div>
-                <div>
-                  <label className="campo-label">Número</label>
-                  <input className="campo" style={campo} value={editando.numero||''} onChange={e=>set('numero',e.target.value)}/>
-                </div>
-                <div>
-                  <label className="campo-label">Bairro</label>
-                  <input className="campo" style={campo} value={editando.bairro||''} onChange={e=>set('bairro',e.target.value)}/>
-                </div>
-                <div>
-                  <label className="campo-label">Complemento</label>
-                  <input className="campo" style={campo} value={editando.complemento||''} onChange={e=>set('complemento',e.target.value)}/>
-                </div>
-                <div>
-                  <label className="campo-label">Cidade</label>
-                  <input className="campo" style={campo} value={editando.cidade||''} onChange={e=>set('cidade',e.target.value)}/>
-                </div>
-                <div>
-                  <label className="campo-label">Estado</label>
-                  <select className="campo" style={{...campo,maxWidth:'100%'}} value={editando.estado||''} onChange={e=>set('estado',e.target.value)}>
-                    <option value="">UF</option>
-                    {ESTADOS_BR.map(s=><option key={s}>{s}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="campo-label">Prazo de entrega</label>
-                  <input className="campo" style={campo} value={editando.prazo_entrega||''} onChange={e=>set('prazo_entrega',e.target.value)} placeholder="Ex: 24h, 3 dias úteis"/>
-                </div>
-                <div>
-                  <label className="campo-label">Pedido mínimo (R$)</label>
-                  <input className="campo" type="number" style={campo} value={editando.pedido_minimo??''} onChange={e=>set('pedido_minimo',parseFloat(e.target.value)||null)}/>
-                </div>
-              </div>
-              <div>
-                <label className="campo-label">Anotações</label>
-                <textarea className="campo" rows={2} style={{...campo,resize:'none'}} value={editando.anotacoes||''} onChange={e=>set('anotacoes',e.target.value)}/>
-              </div>
-              <div style={{ display:'flex', alignItems:'center', gap:'0.75rem' }}>
-                <label className="campo-label" style={{ margin:0 }}>Status:</label>
-                {(['ativo','inativo'] as const).map(s=>(
-                  <button key={s} type="button" onClick={()=>set('ativo', s==='ativo')}
-                    style={{ padding:'0.3rem 0.875rem', border:`2px solid ${editando.ativo===(s==='ativo')?'var(--verde)':'var(--borda)'}`,
-                      borderRadius:'var(--radius-sm)', background: editando.ativo===(s==='ativo')?'var(--verde-claro)':'var(--surface)',
-                      cursor:'pointer', fontWeight:700, fontFamily:'inherit', fontSize:'0.82rem',
-                      color: editando.ativo===(s==='ativo')?'var(--verde-esc)':'var(--texto-sec)' }}>
-                    {s==='ativo'?'● Ativo':'○ Inativo'}
-                  </button>
-                ))}
-              </div>
-              {/* Histórico de Pedidos de Compra */}
-              <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--borda)', paddingTop: '0.75rem' }}>
-                <p style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--texto-sec)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>
-                  📜 Histórico de Pedidos de Compra
-                </p>
-                {pedidos.filter(p => p.fornecedor_id === editando.id).length === 0 ? (
-                  <p style={{ fontSize: '0.72rem', color: 'var(--texto-desab)', fontStyle: 'italic', padding: '0.25rem 0' }}>
-                    Nenhum pedido registrado para este fornecedor.
-                  </p>
-                ) : (
-                  <div className="tabela-wrap" style={{ maxHeight: '180px', overflowY: 'auto' }}>
-                    <table className="tabela" style={{ fontSize: '0.7rem' }}>
-                      <thead>
-                        <tr>
-                          <th>PRODUTO</th>
-                          <th style={{ textAlign: 'center' }}>QTD</th>
-                          <th style={{ textAlign: 'right' }}>VALOR TOTAL</th>
-                          <th>DATA</th>
-                          <th style={{ textAlign: 'center' }}>STATUS</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {pedidos
-                          .filter(p => p.fornecedor_id === editando.id)
-                          .map(p => (
-                            <tr key={p.id}>
-                              <td style={{ fontWeight: 600 }}>{p.produto}</td>
-                              <td style={{ textAlign: 'center' }}>{p.quantidade}x</td>
-                              <td style={{ textAlign: 'right', fontWeight: 700, fontFamily: 'monospace', color: 'var(--verde)' }}>
-                                {p.total ? formatCurrency(p.total) : '—'}
-                              </td>
-                              <td>{new Date(p.criado_em).toLocaleDateString('pt-BR')}</td>
-                              <td style={{ textAlign: 'center' }}>
-                                <span className={p.status === 'recebido' ? 'status-ok' : p.status === 'enviado' ? 'status-alerta' : 'status-neutro'} style={{ fontSize: '0.62rem', padding: '0.1rem 0.35rem' }}>
-                                  {p.status === 'recebido' ? 'RECEBIDO' : p.status === 'enviado' ? 'ENVIADO' : p.status?.toUpperCase()}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                      </tbody>
-                    </table>
+            {/* Modal Tabs */}
+            <div style={{ padding: '0.75rem 1.25rem 0', borderBottom: '1px solid var(--borda)', display: 'flex', gap: '0.75rem', background: 'var(--surface-alt)' }}>
+              {[
+                { id: 'dados', label: 'Dados Cadastrais' },
+                { id: 'produtos', label: `Produtos Vinculados (${produtosDB.filter(p => p.fornecedor_id === editando.id).length})` },
+                { id: 'pedidos', label: `Pedidos de Compra (${pedidos.filter(p => p.fornecedor_id === editando.id).length})` },
+              ].map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => setAbaModal(t.id as any)}
+                  style={{
+                    padding: '0.5rem 0.75rem',
+                    border: 'none',
+                    background: 'transparent',
+                    borderBottom: abaModal === t.id ? '2px solid var(--verde)' : 'none',
+                    color: abaModal === t.id ? 'var(--verde)' : 'var(--texto-desab)',
+                    fontWeight: abaModal === t.id ? 700 : 500,
+                    fontSize: '0.75rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.12s',
+                    paddingBottom: '0.625rem',
+                  }}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ padding:'1.25rem', display:'flex', flexDirection:'column', gap:'0.875rem' }}>
+              {abaModal === 'dados' && (
+                <>
+                  {erroEdit && <div className="alerta alerta-perigo">{erroEdit}</div>}
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.625rem' }}>
+                    <div>
+                      <label className="campo-label">Nome da empresa *</label>
+                      <input className="campo" style={campo} value={editando.nome} onChange={e=>set('nome',e.target.value)}/>
+                    </div>
+                    <div>
+                      <label className="campo-label">Nome do contato</label>
+                      <input className="campo" style={campo} value={editando.contato||''} onChange={e=>set('contato',e.target.value)}/>
+                    </div>
+                    <div>
+                      <label className="campo-label">Telefone / WhatsApp</label>
+                      <input className="campo" style={campo} value={editando.telefone||''} onChange={e=>set('telefone',e.target.value)}/>
+                    </div>
+                    <div>
+                      <label className="campo-label">E-mail</label>
+                      <input className="campo" type="email" style={campo} value={editando.email||''} onChange={e=>set('email',e.target.value)}/>
+                    </div>
+                    <div>
+                      <label className="campo-label">CNPJ</label>
+                      <input className="campo" style={{...campo,fontFamily:'monospace'}} value={editando.cnpj||''} onChange={e=>set('cnpj',e.target.value)}/>
+                    </div>
+                    <div>
+                      <label className="campo-label">Categoria</label>
+                      <select className="campo" style={campo} value={editando.categoria||''} onChange={e=>set('categoria',e.target.value)}>
+                        <option value="">Selecionar...</option>
+                        {CATEGORIAS_FORN.map(c=><option key={c}>{c}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="campo-label">CEP</label>
+                      <input className="campo" style={{...campo,fontFamily:'monospace'}} maxLength={9} value={editando.cep||''} onChange={e=>set('cep',e.target.value)} onBlur={e=>buscarCepEdicao(e.target.value)}/>
+                    </div>
+                    <div>
+                      <label className="campo-label">Rua / Logradouro</label>
+                      <input className="campo" style={campo} value={editando.rua||''} onChange={e=>set('rua',e.target.value)}/>
+                    </div>
+                    <div>
+                      <label className="campo-label">Número</label>
+                      <input className="campo" style={campo} value={editando.numero||''} onChange={e=>set('numero',e.target.value)}/>
+                    </div>
+                    <div>
+                      <label className="campo-label">Bairro</label>
+                      <input className="campo" style={campo} value={editando.bairro||''} onChange={e=>set('bairro',e.target.value)}/>
+                    </div>
+                    <div>
+                      <label className="campo-label">Complemento</label>
+                      <input className="campo" style={campo} value={editando.complemento||''} onChange={e=>set('complemento',e.target.value)}/>
+                    </div>
+                    <div>
+                      <label className="campo-label">Cidade</label>
+                      <input className="campo" style={campo} value={editando.cidade||''} onChange={e=>set('cidade',e.target.value)}/>
+                    </div>
+                    <div>
+                      <label className="campo-label">Estado</label>
+                      <select className="campo" style={{...campo,maxWidth:'100%'}} value={editando.estado||''} onChange={e=>set('estado',e.target.value)}>
+                        <option value="">UF</option>
+                        {ESTADOS_BR.map(s=><option key={s}>{s}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="campo-label">Prazo de entrega</label>
+                      <input className="campo" style={campo} value={editando.prazo_entrega||''} onChange={e=>set('prazo_entrega',e.target.value)} placeholder="Ex: 24h, 3 dias úteis"/>
+                    </div>
+                    <div>
+                      <label className="campo-label">Pedido mínimo (R$)</label>
+                      <input className="campo" type="number" style={campo} value={editando.pedido_minimo??''} onChange={e=>set('pedido_minimo',parseFloat(e.target.value)||null)}/>
+                    </div>
                   </div>
-                )}
-              </div>
+                  <div>
+                    <label className="campo-label">Anotações</label>
+                    <textarea className="campo" rows={2} style={{...campo,resize:'none'}} value={editando.anotacoes||''} onChange={e=>set('anotacoes',e.target.value)}/>
+                  </div>
+                  <div style={{ display:'flex', alignItems:'center', gap:'0.75rem' }}>
+                    <label className="campo-label" style={{ margin:0 }}>Status:</label>
+                    {(['ativo','inativo'] as const).map(s=>(
+                      <button key={s} type="button" onClick={()=>set('ativo', s==='ativo')}
+                        style={{ padding:'0.3rem 0.875rem', border:`2px solid ${editando.ativo===(s==='ativo')?'var(--verde)':'var(--borda)'}`,
+                          borderRadius:'var(--radius-sm)', background: editando.ativo===(s==='ativo')?'var(--verde-claro)':'var(--surface)',
+                          cursor:'pointer', fontWeight:700, fontFamily:'inherit', fontSize:'0.82rem',
+                          color: editando.ativo===(s==='ativo')?'var(--verde-esc)':'var(--texto-sec)' }}>
+                        {s==='ativo'?'● Ativo':'○ Inativo'}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {abaModal === 'produtos' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', background: 'var(--surface-alt)', padding: '0.75rem', border: '1px solid var(--borda)', borderRadius: 'var(--radius-sm)' }}>
+                    <div style={{ flex: 1 }}>
+                      <label className="campo-label">Vincular novo produto a este fornecedor</label>
+                      <select
+                        className="campo"
+                        style={{ marginTop: '0.375rem', width: '100%' }}
+                        value={selectedProdParaVincular}
+                        onChange={e => setSelectedProdParaVincular(e.target.value)}
+                      >
+                        <option value="">— Selecione um produto —</option>
+                        {produtosDB.filter(p => p.fornecedor_id !== editando.id).map(p => (
+                          <option key={p.id} value={p.id}>
+                            {p.nome} {p.sku ? `(SKU: ${p.sku})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (selectedProdParaVincular) {
+                          vincularProduto(selectedProdParaVincular)
+                        }
+                      }}
+                      disabled={!selectedProdParaVincular}
+                      className="btn btn-primary"
+                      style={{ padding: '0.45rem 1rem', whiteSpace: 'nowrap' }}
+                    >
+                      + Vincular
+                    </button>
+                  </div>
+
+                  <div style={{ marginTop: '0.5rem' }}>
+                    <p style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--texto-sec)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>
+                      📋 Produtos Vinculados
+                    </p>
+                    {produtosDB.filter(p => p.fornecedor_id === editando.id).length === 0 ? (
+                      <p style={{ fontSize: '0.72rem', color: 'var(--texto-desab)', fontStyle: 'italic', padding: '1rem', textAlign: 'center', border: '1px dashed var(--borda)', background: 'var(--surface-alt)' }}>
+                        Nenhum produto vinculado a este fornecedor.
+                      </p>
+                    ) : (
+                      <div className="tabela-wrap">
+                        <table className="tabela" style={{ fontSize: '0.72rem' }}>
+                          <thead>
+                            <tr>
+                              <th>PRODUTO</th>
+                              <th>SKU</th>
+                              <th style={{ textAlign: 'center' }}>ESTOQUE</th>
+                              <th style={{ textAlign: 'right' }}>PREÇO</th>
+                              <th style={{ textAlign: 'center' }}>AÇÃO</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {produtosDB
+                              .filter(p => p.fornecedor_id === editando.id)
+                              .map(p => (
+                                <tr key={p.id}>
+                                  <td style={{ fontWeight: 700 }}>{p.nome}</td>
+                                  <td><code>{p.sku || '—'}</code></td>
+                                  <td style={{ textAlign: 'center', fontWeight: 600 }}>{p.qtd_atual}</td>
+                                  <td style={{ textAlign: 'right', fontWeight: 700, fontFamily: 'monospace' }}>
+                                    {formatCurrency(p.preco_varejo)}
+                                  </td>
+                                  <td style={{ textAlign: 'center' }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => desvincularProduto(p.id)}
+                                      className="btn btn-secondary"
+                                      style={{ fontSize: '0.62rem', padding: '0.1rem 0.35rem', color: 'var(--vermelho)' }}
+                                    >
+                                      Desvincular
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {abaModal === 'pedidos' && (
+                <div style={{ marginTop: '0.25rem' }}>
+                  <p style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--texto-sec)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>
+                    📜 Histórico de Pedidos de Compra
+                  </p>
+                  {pedidos.filter(p => p.fornecedor_id === editando.id).length === 0 ? (
+                    <p style={{ fontSize: '0.72rem', color: 'var(--texto-desab)', fontStyle: 'italic', padding: '1rem', textAlign: 'center', border: '1px dashed var(--borda)', background: 'var(--surface-alt)' }}>
+                      Nenhum pedido registrado para este fornecedor.
+                    </p>
+                  ) : (
+                    <div className="tabela-wrap" style={{ maxHeight: '280px', overflowY: 'auto' }}>
+                      <table className="tabela" style={{ fontSize: '0.7rem' }}>
+                        <thead>
+                          <tr>
+                            <th>PRODUTO</th>
+                            <th style={{ textAlign: 'center' }}>QTD</th>
+                            <th style={{ textAlign: 'right' }}>VALOR TOTAL</th>
+                            <th>DATA</th>
+                            <th style={{ textAlign: 'center' }}>STATUS</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pedidos
+                            .filter(p => p.fornecedor_id === editando.id)
+                            .map(p => (
+                              <tr key={p.id}>
+                                <td style={{ fontWeight: 600 }}>{p.produto}</td>
+                                <td style={{ textAlign: 'center' }}>{p.quantidade}x</td>
+                                <td style={{ textAlign: 'right', fontWeight: 700, fontFamily: 'monospace', color: 'var(--verde)' }}>
+                                  {p.total ? formatCurrency(p.total) : '—'}
+                                </td>
+                                <td>{new Date(p.criado_em).toLocaleDateString('pt-BR')}</td>
+                                <td style={{ textAlign: 'center' }}>
+                                  <span className={p.status === 'recebido' ? 'status-ok' : p.status === 'enviado' ? 'status-alerta' : 'status-neutro'} style={{ fontSize: '0.62rem', padding: '0.1rem 0.35rem' }}>
+                                    {p.status === 'recebido' ? 'RECEBIDO' : p.status === 'enviado' ? 'ENVIADO' : 'PENDENTE'}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div style={{ display:'flex', justifyContent:'flex-end', gap:'0.5rem', marginTop:'0.5rem' }}>
-                <button onClick={()=>setEditando(null)} className="btn btn-ghost">Cancelar</button>
-                <button onClick={salvarEdicao} disabled={salvando} className="btn btn-primary" style={{ display:'flex', alignItems:'center', gap:'0.375rem' }}>
-                  {salvando?<><Loader2 size={14} style={{animation:'spin 1s linear infinite'}}/>Salvando...</>:<><Save size={14}/>Salvar alterações</>}
-                </button>
+                {abaModal === 'dados' ? (
+                  <>
+                    <button onClick={()=>setEditando(null)} className="btn btn-ghost">Cancelar</button>
+                    <button onClick={salvarEdicao} disabled={salvando} className="btn btn-primary" style={{ display:'flex', alignItems:'center', gap:'0.375rem' }}>
+                      {salvando?<><Loader2 size={14} style={{animation:'spin 1s linear infinite'}}/>Salvando...</>:<><Save size={14}/>Salvar alterações</>}
+                    </button>
+                  </>
+                ) : (
+                  <button onClick={()=>setEditando(null)} className="btn btn-primary">Fechar</button>
+                )}
               </div>
             </div>
           </div>
@@ -647,7 +800,7 @@ export default function FornecedoresPage() {
                 <tbody>
                   {filtrados.map(f => (
                     <tr key={f.id}>
-                      <td style={{ fontWeight:700 }}>{f.nome}</td>
+                      <td style={{ fontWeight:700, cursor:'pointer', color:'var(--verde)' }} onClick={() => { setEditando(f); setAbaModal('dados'); }}>{f.nome}</td>
                       <td>
                         {f.telefone
                           ? <a href={`https://wa.me/55${f.telefone.replace(/\D/g,'')}`} target="_blank" rel="noopener noreferrer"
@@ -666,8 +819,8 @@ export default function FornecedoresPage() {
                         </span>
                       </td>
                       <td style={{ textAlign:'center' }}>
-                        <button onClick={() => setEditando(f)} className="btn btn-secondary"
-                          style={{ fontSize:'0.62rem', padding:'0.15rem 0.4rem' }}>EDITAR</button>
+                        <button onClick={() => { setEditando(f); setAbaModal('dados'); }} className="btn btn-secondary"
+                          style={{ fontSize:'0.62rem', padding:'0.15rem 0.4rem' }}>VER/EDITAR</button>
                       </td>
                     </tr>
                   ))}
@@ -707,14 +860,14 @@ export default function FornecedoresPage() {
                   <td style={{ textAlign:'center' }}>
                     <span className={p.status === 'recebido' ? 'status-ok' : p.status === 'enviado' ? 'status-alerta' : 'status-neutro'}
                       style={{ fontSize:'0.7rem' }}>
-                      {p.status === 'recebido' ? '● RECEBIDO' : p.status === 'enviado' ? '◐ ENVIADO' : `○ ${p.status?.toUpperCase()}`}
+                      {p.status === 'recebido' ? '● RECEBIDO' : p.status === 'enviado' ? '◐ ENVIADO' : '○ PENDENTE'}
                     </span>
                   </td>
                   <td style={{ textAlign:'center' }}>
                     {p.status !== 'recebido' && (
                       <button onClick={() => avancarStatus(p.id, p.status)}
                         className="btn btn-secondary" style={{ fontSize:'0.62rem', padding:'0.15rem 0.4rem', fontWeight:700 }}>
-                        ✓ RECEBIDO
+                        {p.status === 'enviado' ? '📦 DAR ENTRADA' : '📤 ENVIAR'}
                       </button>
                     )}
                   </td>
