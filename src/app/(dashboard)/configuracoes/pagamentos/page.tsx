@@ -12,7 +12,6 @@ const PADROES = [
   { nome:'Dinheiro',taxa:0    },
   { nome:'Crédito', taxa:3.5  },
   { nome:'Débito',  taxa:1.8  },
-  { nome:'Fiado',   taxa:0    },
 ]
 
 export default function PagamentosPage() {
@@ -180,6 +179,7 @@ export default function PagamentosPage() {
 
       <div className="alerta alerta-info" style={{ fontSize:'0.82rem' }}>
         💡 Formas desativadas não aparecem no PDV. As taxas são apenas informativas.
+        <br/><span style={{fontSize:'0.75rem',color:'var(--texto-desab)',marginTop:'0.25rem',display:'block'}}>ℹ️ A forma de pagamento <strong>Fiado</strong> é exclusiva do plano <strong>PRO</strong>. Adicione-a manualmente caso tenha o plano PRO.</span>
       </div>
     </div>
   )

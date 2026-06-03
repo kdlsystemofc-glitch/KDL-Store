@@ -108,6 +108,8 @@ export default function FiadoPage() {
         { label: 'Fechamento de Caixa', href: '/financeiro/fechamento' }
       ]} />
 
+      <ProOnly>
+
 
         {/* KPIs */}
         <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'0.625rem'}}>
@@ -225,6 +227,7 @@ export default function FiadoPage() {
           </div>
         )}
 
+      </ProOnly>
     </div>
   )
 }

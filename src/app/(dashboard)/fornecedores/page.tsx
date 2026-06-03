@@ -201,7 +201,7 @@ export default function FornecedoresPage() {
           valor: p.total,
           data: new Date().toISOString().slice(0, 10),
           recorrente: false,
-          status: 'pago',
+          status: 'pendente',
           forma_pagamento: 'Boleto',
           observacao: `Lançado automaticamente ao receber o Pedido de Compra #${p.id.substring(0,8).toUpperCase()}. ${p.obs || ''}`,
           numero_base: nextBase,

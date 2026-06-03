@@ -40,8 +40,8 @@ export default function FinanceiroPage() {
       supabase.from('vendas').select('criado_em,total').eq('empresa_id', eid).eq('status','concluida').gte('criado_em', inicio15d),
       // [4] Brindes do mês
       supabase.from('estoque_movimentacoes').select('quantidade,produto_id,produtos(preco_custo)').eq('empresa_id', eid).eq('tipo','brinde').gte('criado_em', inicioMes),
-      // [5] CMV — custo de mercadoria vendida no mês
-      supabase.from('itens_venda').select('quantidade,produtos(preco_custo)').eq('empresa_id', eid).gte('criado_em', inicioMes),
+      // [5] CMV — custo de mercadoria vendida no mês (apenas vendas concluídas)
+      supabase.from('itens_venda').select('quantidade,produtos(preco_custo),vendas!inner(status,empresa_id)').eq('empresa_id', eid).gte('criado_em', inicioMes).eq('vendas.status','concluida').eq('vendas.empresa_id', eid),
       // [6] OS concluídas/entregues no mês (faturamento de serviços)
       supabase.from('ordens_servico').select('valor_servico,valor_pecas,criado_em').eq('empresa_id', eid).in('status',['concluido','entregue']).gte('criado_em', inicioMes),
       // [7] OS 15 dias para gráfico

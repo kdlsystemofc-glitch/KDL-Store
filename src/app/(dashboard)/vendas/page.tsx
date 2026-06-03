@@ -43,7 +43,8 @@ export default function VendasPage() {
     return matchBusca && matchFiltro
   })
 
-  const totalFiltrado = filtradas.reduce((a,v) => a + v.total, 0)
+  // Apenas vendas concluídas contam para o total do período (canceladas são excluídas)
+  const totalFiltrado = filtradas.filter(v => v.status === 'concluida').reduce((a,v) => a + v.total, 0)
   const hoje = new Date().toISOString().slice(0,10)
   const vendasHoje = vendas.filter(v => v.criado_em.startsWith(hoje) && v.status === 'concluida')
   const faturamentoHoje = vendasHoje.reduce((a,v) => a + v.total, 0)
@@ -67,7 +68,7 @@ export default function VendasPage() {
           { l:'FATURAMENTO HOJE', v: formatCurrency(faturamentoHoje), dot:'var(--verde)',   c:'var(--verde)' },
           { l:'VENDAS HOJE',     v: String(vendasHoje.length),       dot:'var(--verde)',   c:'var(--verde)' },
           { l:'TOTAL PERÍODO',  v: formatCurrency(totalFiltrado),   dot:'var(--azul)',    c:'var(--texto-mono)' },
-          { l:'REGISTROS',       v: String(filtradas.length),        dot:'var(--texto-sec)', c:'var(--texto-sec)' },
+          { l:'REGISTROS',       v: String(filtradas.length) + ' (' + filtradas.filter(v=>v.status==='cancelada').length + ' canc.)',  dot:'var(--texto-sec)', c:'var(--texto-sec)' },
         ].map(k=>(
           <div key={k.l} className="kpi-card">
             <div style={{display:'flex',alignItems:'center',gap:'0.35rem'}}>
