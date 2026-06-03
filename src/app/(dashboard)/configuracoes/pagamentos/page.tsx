@@ -2,48 +2,77 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
-import { Plus, Trash2, Loader2, Pencil, Save } from 'lucide-react'
+import { useSubscription } from '@/hooks/useSubscription'
+import { Plus, Trash2, Loader2, Pencil, Save, Lock, Crown } from 'lucide-react'
 import { toast } from 'react-hot-toast'
+import Link from 'next/link'
 
-type Forma = { id:string; nome:string; taxa:number|null; ativo:boolean }
+type Forma = { id: string; nome: string; taxa: number | null; ativo: boolean }
 
+// Formas padrão do sistema (editáveis pelo usuário)
 const PADROES = [
-  { nome:'PIX',     taxa:0    },
-  { nome:'Dinheiro',taxa:0    },
-  { nome:'Crédito', taxa:3.5  },
-  { nome:'Débito',  taxa:1.8  },
+  { nome: 'PIX',     taxa: 0   },
+  { nome: 'Dinheiro',taxa: 0   },
+  { nome: 'Crédito', taxa: 3.5 },
+  { nome: 'Débito',  taxa: 1.8 },
 ]
+
+const ICONS: Record<string, string> = {
+  PIX: '📱', Dinheiro: '💵', Crédito: '💳', Débito: '💴', Fiado: '📒'
+}
 
 export default function PagamentosPage() {
   const { empresaId } = useEmpresaId()
+  const { plano } = useSubscription()
   const [formas,   setFormas]   = useState<Forma[]>([])
   const [loading,  setLoading]  = useState(true)
   const [nome,     setNome]     = useState('')
   const [taxa,     setTaxa]     = useState('')
   const [salvando, setSalvando] = useState(false)
-  const [editando, setEditando] = useState<Forma|null>(null)
+  const [editando, setEditando] = useState<Forma | null>(null)
+  // Estado local do Fiado para o plano Pro (ativo/inativo)
+  const [fiadoAtivo, setFiadoAtivo] = useState(true)
+
+  const isPro = plano === 'pro'
 
   useEffect(() => { if (empresaId) carregar(empresaId) }, [empresaId])
 
   async function carregar(eid: string) {
     setLoading(true)
-    const { data } = await createClient().from('formas_pagamento').select('*').eq('empresa_id', eid).order('nome')
-    if (!data || data.length === 0) await popularPadroes(eid)
-    else { setFormas(data); setLoading(false) }
+    const { data } = await createClient()
+      .from('formas_pagamento')
+      .select('*')
+      .eq('empresa_id', eid)
+      .order('nome')
+
+    if (!data || data.length === 0) {
+      await popularPadroes(eid)
+    } else {
+      // Fiado NÃO deve vir do banco — filtra caso alguém tenha adicionado manualmente
+      const semFiado = data.filter(f => f.nome.toLowerCase() !== 'fiado')
+      setFormas(semFiado)
+      setLoading(false)
+    }
   }
 
   async function popularPadroes(eid: string) {
     const supabase = createClient()
-    await supabase.from('formas_pagamento').insert(PADROES.map(p => ({ empresa_id:eid, nome:p.nome, taxa:p.taxa, ativo:true })))
-    const { data } = await supabase.from('formas_pagamento').select('*').eq('empresa_id', eid).order('nome')
-    setFormas(data || [])
+    await supabase.from('formas_pagamento').insert(
+      PADROES.map(p => ({ empresa_id: eid, nome: p.nome, taxa: p.taxa, ativo: true }))
+    )
+    const { data } = await supabase
+      .from('formas_pagamento')
+      .select('*')
+      .eq('empresa_id', eid)
+      .order('nome')
+    setFormas((data || []).filter(f => f.nome.toLowerCase() !== 'fiado'))
     setLoading(false)
   }
 
   async function toggleAtivo(id: string, atual: boolean) {
     await createClient().from('formas_pagamento').update({ ativo: !atual }).eq('id', id)
-    setFormas(prev => prev.map(f => f.id===id ? {...f, ativo:!atual} : f))
-    toast.success('Status da forma de pagamento atualizado!')
+    setFormas(prev => prev.map(f => f.id === id ? { ...f, ativo: !atual } : f))
+    toast.success('Status atualizado!')
   }
 
   function iniciarEdicao(f: Forma) {
@@ -67,10 +96,7 @@ export default function PagamentosPage() {
       .update({ nome: nome.trim(), taxa: finalTaxa })
       .eq('id', editando.id)
     setSalvando(false)
-    if (error) {
-      toast.error('Erro ao editar: ' + error.message)
-      return
-    }
+    if (error) { toast.error('Erro ao editar: ' + error.message); return }
     setFormas(prev => prev.map(f => f.id === editando.id ? { ...f, nome: nome.trim(), taxa: finalTaxa } : f))
     toast.success('Forma de pagamento atualizada!')
     cancelarEdicao()
@@ -78,15 +104,17 @@ export default function PagamentosPage() {
 
   async function adicionar() {
     if (!nome.trim() || !empresaId) return
-    setSalvando(true)
-    const { data, error } = await createClient().from('formas_pagamento')
-      .insert({ empresa_id:empresaId, nome:nome.trim(), taxa:parseFloat(taxa)||0, ativo:true })
-      .select().single()
-    setSalvando(false)
-    if (error) {
-      toast.error('Erro ao adicionar: ' + error.message)
+    // Impede adicionar "Fiado" manualmente (é um recurso do sistema)
+    if (nome.trim().toLowerCase() === 'fiado') {
+      toast.error('O Fiado é uma modalidade do sistema. Ative-o abaixo se você tiver o plano PRO.')
       return
     }
+    setSalvando(true)
+    const { data, error } = await createClient().from('formas_pagamento')
+      .insert({ empresa_id: empresaId, nome: nome.trim(), taxa: parseFloat(taxa) || 0, ativo: true })
+      .select().single()
+    setSalvando(false)
+    if (error) { toast.error('Erro ao adicionar: ' + error.message); return }
     if (data) setFormas(prev => [...prev, data])
     setNome(''); setTaxa('')
     toast.success('Forma de pagamento adicionada!')
@@ -95,91 +123,157 @@ export default function PagamentosPage() {
   async function excluir(id: string) {
     if (!confirm('Excluir esta forma de pagamento?')) return
     const { error } = await createClient().from('formas_pagamento').delete().eq('id', id)
-    if (error) {
-      toast.error('Erro ao excluir: ' + error.message)
-      return
-    }
+    if (error) { toast.error('Erro ao excluir: ' + error.message); return }
     setFormas(prev => prev.filter(f => f.id !== id))
     toast.success('Forma de pagamento excluída!')
   }
 
-  const ICONS: Record<string,string> = { PIX:'📱', Dinheiro:'💵', Crédito:'💳', Débito:'💴', Fiado:'📒' }
-
   return (
-    <div className="anim-fade" style={{ display:'flex', flexDirection:'column', gap:'0.875rem', maxWidth:'560px' }}>
+    <div className="anim-fade" style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem', maxWidth: '560px' }}>
       <div className="pg-header">
-        <div><h1 className="pg-titulo">💳 Formas de Pagamento</h1>
-          <p className="pg-sub">Ative, desative ou adicione formas de pagamento</p></div>
+        <div>
+          <h1 className="pg-titulo">💳 Formas de Pagamento</h1>
+          <p className="pg-sub">Ative, desative ou adicione formas de pagamento</p>
+        </div>
       </div>
 
-      {/* Add / Edit Form */}
-      <div className="card" style={{ padding:'0.875rem', display:'flex', gap:'0.625rem', alignItems:'flex-end' }}>
-        <div style={{ flex:1 }}>
-          <label className="campo-label">{editando ? 'Editar forma' : 'Nova forma'}</label>
-          <input className="campo" style={{ marginTop:'0.375rem' }} placeholder="Ex: Transferência" value={nome} onChange={e=>setNome(e.target.value)}/>
+      {/* ── Fiado — Modalidade do Sistema ─────────────────────────── */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: '0.875rem',
+        padding: '0.875rem 1rem',
+        background: isPro ? 'rgba(0,191,165,0.04)' : 'var(--surface)',
+        border: `2px solid ${isPro ? 'var(--verde)' : 'var(--borda)'}`,
+        borderRadius: 'var(--radius)',
+        opacity: isPro ? 1 : 0.75,
+        position: 'relative',
+        overflow: 'hidden',
+      }}>
+        {/* Faixa diagonal SISTEMA */}
+        <div style={{
+          position: 'absolute', top: 0, right: 0,
+          background: isPro ? 'var(--verde)' : 'var(--borda-forte)',
+          color: isPro ? '#060A06' : '#fff',
+          fontSize: '0.52rem', fontWeight: 900, letterSpacing: '0.06em',
+          padding: '2px 10px', textTransform: 'uppercase',
+          borderBottomLeftRadius: '6px',
+        }}>SISTEMA</div>
+
+        <span style={{ fontSize: '1.5rem' }}>📒</span>
+
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <p style={{ fontWeight: 800, fontSize: '0.95rem' }}>Fiado</p>
+            {isPro ? (
+              <span style={{ fontSize: '0.58rem', background: 'var(--verde)', color: '#060A06', padding: '2px 7px', borderRadius: '999px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                ⭐ PRO
+              </span>
+            ) : (
+              <span style={{ fontSize: '0.58rem', background: 'rgba(234,179,8,0.15)', color: 'var(--amarelo)', border: '1px solid var(--amarelo)', padding: '2px 7px', borderRadius: '999px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                🔒 APENAS PRO
+              </span>
+            )}
+          </div>
+          <p style={{ fontSize: '0.75rem', color: 'var(--texto-desab)', marginTop: '2px' }}>
+            {isPro
+              ? 'Permite registrar vendas a prazo. Ative ou desative o uso no PDV.'
+              : 'Venda a prazo com controle de inadimplentes. Disponível apenas no plano Pro.'}
+          </p>
         </div>
-        <div style={{ width:'120px' }}>
+
+        {isPro ? (
+          /* Toggle para Pro */
+          <button
+            onClick={() => setFiadoAtivo(v => !v)}
+            title={fiadoAtivo ? 'Desativar Fiado no PDV' : 'Ativar Fiado no PDV'}
+            style={{
+              position: 'relative', width: '44px', height: '24px', borderRadius: '12px',
+              border: 'none', cursor: 'pointer',
+              background: fiadoAtivo ? 'var(--verde)' : '#666',
+              transition: 'background 0.2s', flexShrink: 0,
+            }}>
+            <span style={{
+              position: 'absolute', top: '2px', width: '20px', height: '20px', borderRadius: '50%',
+              background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+              left: fiadoAtivo ? '22px' : '2px', transition: 'left 0.2s',
+            }} />
+          </button>
+        ) : (
+          /* Botão de upgrade para Start */
+          <Link href="/configuracoes/planos" className="btn btn-primary"
+            style={{ fontSize: '0.68rem', padding: '0.35rem 0.75rem', background: 'var(--amarelo)', color: '#000', fontWeight: 800, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            <Crown size={12} /> Fazer Upgrade
+          </Link>
+        )}
+      </div>
+
+      {/* ── Add / Edit Form ─────────────────────────────────────────── */}
+      <div className="card" style={{ padding: '0.875rem', display: 'flex', gap: '0.625rem', alignItems: 'flex-end' }}>
+        <div style={{ flex: 1 }}>
+          <label className="campo-label">{editando ? 'Editar forma' : 'Nova forma'}</label>
+          <input className="campo" style={{ marginTop: '0.375rem' }} placeholder="Ex: Transferência" value={nome} onChange={e => setNome(e.target.value)} />
+        </div>
+        <div style={{ width: '120px' }}>
           <label className="campo-label">Taxa (%)</label>
-          <input className="campo" type="number" step="0.1" min="0" style={{ marginTop:'0.375rem' }} placeholder="0,0" value={taxa} onChange={e=>setTaxa(e.target.value)}/>
+          <input className="campo" type="number" step="0.1" min="0" style={{ marginTop: '0.375rem' }} placeholder="0,0" value={taxa} onChange={e => setTaxa(e.target.value)} />
         </div>
         <div style={{ display: 'flex', gap: '0.375rem' }}>
           {editando && (
-            <button onClick={cancelarEdicao} className="btn btn-ghost" style={{ height:'42px' }}>
+            <button onClick={cancelarEdicao} className="btn btn-ghost" style={{ height: '42px' }}>
               Cancelar
             </button>
           )}
-          <button onClick={editando ? salvarEdicao : adicionar} disabled={salvando||!nome.trim()} className="btn btn-primary"
-            style={{ display:'flex', alignItems:'center', gap:'0.375rem', height:'42px' }}>
-            {salvando ? <Loader2 size={14} style={{ animation:'spin 1s linear infinite' }}/> : (editando ? <Save size={14}/> : <Plus size={14}/>)}
+          <button onClick={editando ? salvarEdicao : adicionar} disabled={salvando || !nome.trim()} className="btn btn-primary"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', height: '42px' }}>
+            {salvando ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : (editando ? <Save size={14} /> : <Plus size={14} />)}
             {editando ? 'Salvar' : 'Adicionar'}
           </button>
         </div>
       </div>
 
+      {/* ── Lista de formas cadastradas ──────────────────────────────── */}
       {loading ? (
-        <div style={{ display:'flex', justifyContent:'center', padding:'2rem', gap:'0.75rem', color:'var(--texto-desab)' }}>
-          <Loader2 size={18} style={{ animation:'spin 1s linear infinite' }}/> Carregando...
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem', gap: '0.75rem', color: 'var(--texto-desab)' }}>
+          <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> Carregando...
         </div>
       ) : (
-        <div style={{ display:'flex', flexDirection:'column', gap:'0.375rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
           {formas.map(f => (
             <div key={f.id} style={{
-              display:'flex', alignItems:'center', gap:'0.75rem', padding:'0.75rem 1rem',
-              background:'var(--surface)', border:`1px solid ${f.ativo?'var(--borda)':'var(--borda-leve)'}`,
-              borderRadius:'var(--radius)', opacity: f.ativo ? 1 : 0.55, transition:'opacity 0.2s'
+              display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem',
+              background: 'var(--surface)', border: `1px solid ${f.ativo ? 'var(--borda)' : 'var(--borda-leve)'}`,
+              borderRadius: 'var(--radius)', opacity: f.ativo ? 1 : 0.55, transition: 'opacity 0.2s'
             }}>
-              <span style={{ fontSize:'1.25rem' }}>{ICONS[f.nome]||'💰'}</span>
-              <div style={{ flex:1 }}>
-                <p style={{ fontWeight:700 }}>{f.nome}</p>
-                {(f.taxa||0) > 0 && <p style={{ fontSize:'0.75rem', color:'var(--texto-desab)' }}>Taxa: {f.taxa}%</p>}
+              <span style={{ fontSize: '1.25rem' }}>{ICONS[f.nome] || '💰'}</span>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontWeight: 700 }}>{f.nome}</p>
+                {(f.taxa || 0) > 0 && <p style={{ fontSize: '0.75rem', color: 'var(--texto-desab)' }}>Taxa: {f.taxa}%</p>}
               </div>
               {/* Toggle ativo */}
               <button onClick={() => toggleAtivo(f.id, f.ativo)} style={{
-                position:'relative', width:'44px', height:'24px', borderRadius:'12px',
-                border:'none', cursor:'pointer', background:f.ativo?'var(--verde)':'#666', transition:'background 0.2s'
+                position: 'relative', width: '44px', height: '24px', borderRadius: '12px',
+                border: 'none', cursor: 'pointer', background: f.ativo ? 'var(--verde)' : '#666', transition: 'background 0.2s'
               }}>
                 <span style={{
-                  position:'absolute', top:'2px', width:'20px', height:'20px', borderRadius:'50%',
-                  background:'#fff', boxShadow:'0 1px 3px rgba(0,0,0,0.3)',
-                  left: f.ativo?'22px':'2px', transition:'left 0.2s'
-                }}/>
+                  position: 'absolute', top: '2px', width: '20px', height: '20px', borderRadius: '50%',
+                  background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                  left: f.ativo ? '22px' : '2px', transition: 'left 0.2s'
+                }} />
               </button>
               <button onClick={() => iniciarEdicao(f)} className="btn btn-secondary"
-                style={{ padding:'0.25rem 0.5rem', color:'var(--texto)' }}>
-                <Pencil size={13}/>
+                style={{ padding: '0.25rem 0.5rem', color: 'var(--texto)' }}>
+                <Pencil size={13} />
               </button>
               <button onClick={() => excluir(f.id)} className="btn btn-secondary"
-                style={{ padding:'0.25rem 0.5rem', color:'var(--vermelho)' }}>
-                <Trash2 size={13}/>
+                style={{ padding: '0.25rem 0.5rem', color: 'var(--vermelho)' }}>
+                <Trash2 size={13} />
               </button>
             </div>
           ))}
         </div>
       )}
 
-      <div className="alerta alerta-info" style={{ fontSize:'0.82rem' }}>
+      <div className="alerta alerta-info" style={{ fontSize: '0.82rem' }}>
         💡 Formas desativadas não aparecem no PDV. As taxas são apenas informativas.
-        <br/><span style={{fontSize:'0.75rem',color:'var(--texto-desab)',marginTop:'0.25rem',display:'block'}}>ℹ️ A forma de pagamento <strong>Fiado</strong> é exclusiva do plano <strong>PRO</strong>. Adicione-a manualmente caso tenha o plano PRO.</span>
       </div>
     </div>
   )
