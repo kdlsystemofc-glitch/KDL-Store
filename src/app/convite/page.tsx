@@ -110,11 +110,11 @@ export default function ConvitePage() {
   }
 
   const PAPEL_DESC: Record<string,string> = {
-    admin:      'Administrador — acesso total',
-    vendedor:   'Vendedor — vendas e clientes',
-    estoquista: 'Estoquista — produtos e estoque',
-    operador:   'Vendedor — vendas e clientes',
-    visualizador:'Estoquista — produtos e estoque',
+    admin:        'Administrador — acesso total',
+    operador:     'Operador — vendas, PDV, clientes e estoque',
+    visualizador: 'Operador — vendas, PDV, clientes e estoque',
+    vendedor:     'Operador — vendas, PDV, clientes e estoque',
+    estoquista:   'Operador — vendas, PDV, clientes e estoque',
   }
 
   return (

@@ -1,5 +1,5 @@
 export type TipoLoja = 'eletronicos' | 'moda' | 'varejo' | 'servicos' | 'multi'
-export type PapelUsuario = 'admin' | 'vendedor' | 'tecnico'
+export type PapelUsuario = 'admin' | 'operador' | 'visualizador' | 'vendedor' | 'estoquista'
 export type StatusVenda = 'concluida' | 'cancelada'
 export type StatusOS = 'aberta' | 'em_andamento' | 'concluida' | 'cancelada'
 export type StatusGarantia = 'ativa' | 'vencida' | 'utilizada'

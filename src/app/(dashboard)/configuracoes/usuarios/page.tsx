@@ -20,18 +20,17 @@ type Usuario = {
 
 /* ─── Constantes ─────────────────────────────────────── */
 const PAPEL_LABEL: Record<string, { label: string; emoji: string; desc: string }> = {
-  admin:      { label: 'Admin',      emoji: '👑', desc: 'Acesso total ao sistema' },
-  vendedor:   { label: 'Vendedor',   emoji: '🛒', desc: 'Vendas, clientes e produtos' },
-  estoquista: { label: 'Estoquista', emoji: '📦', desc: 'Estoque e produtos, sem financeiro' },
+  admin:    { label: 'Admin',    emoji: '👑', desc: 'Acesso total ao sistema, incluindo configurações e financeiro' },
+  operador: { label: 'Operador', emoji: '🛠️', desc: 'Acesso ao PDV, vendas, clientes e estoque. Sem acesso ao financeiro ou configurações.' },
 }
 
 const MAP_DB_TO_UI: Record<string, string> = {
-  admin: 'admin', operador: 'vendedor', visualizador: 'estoquista',
-  vendedor: 'vendedor', estoquista: 'estoquista',
+  admin: 'admin', operador: 'operador', visualizador: 'operador',
+  vendedor: 'operador', estoquista: 'operador',
 }
 
 const MAP_UI_TO_DB: Record<string, string> = {
-  admin: 'admin', vendedor: 'operador', estoquista: 'visualizador',
+  admin: 'admin', operador: 'operador',
 }
 
 /* ─── Validação de senha ─────────────────────────────── */
@@ -119,7 +118,7 @@ function ModalCriar({
   const [nome, setNome] = useState('')
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
-  const [papel, setPapel] = useState<'vendedor' | 'estoquista' | 'admin'>('vendedor')
+  const [papel, setPapel] = useState<'operador' | 'admin'>('operador')
   const [criando, setCriando] = useState(false)
   const limit = plano === 'pro' ? 5 : 1
   const atingiuLimite = totalUsuarios >= limit
@@ -189,26 +188,24 @@ function ModalCriar({
             {/* Selector de papel */}
             <div>
               <label className="campo-label">Papel no sistema</label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', marginTop: '0.375rem' }}>
-                {(['vendedor', 'estoquista', 'admin'] as const).map(p => {
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginTop: '0.375rem' }}>
+                {(['operador', 'admin'] as const).map(p => {
                   const info = PAPEL_LABEL[p]
                   const ativo = papel === p
                   return (
                     <button key={p} type="button" onClick={() => setPapel(p)}
                       style={{
-                        padding: '0.625rem 0.25rem', border: `2px solid ${ativo ? 'var(--verde)' : 'var(--borda)'}`,
+                        padding: '0.75rem 0.5rem', border: `2px solid ${ativo ? 'var(--verde)' : 'var(--borda)'}`,
                         borderRadius: 'var(--radius-sm)', background: ativo ? 'var(--verde-claro)' : 'var(--surface)',
                         cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center', transition: 'all 0.12s',
                       }}>
-                      <p style={{ fontSize: '1rem', marginBottom: '2px' }}>{info.emoji}</p>
-                      <p style={{ fontSize: '0.75rem', fontWeight: 800, color: ativo ? 'var(--verde-esc)' : 'var(--texto)' }}>{info.label}</p>
+                      <p style={{ fontSize: '1.25rem', marginBottom: '4px' }}>{info.emoji}</p>
+                      <p style={{ fontSize: '0.78rem', fontWeight: 800, color: ativo ? 'var(--verde-esc)' : 'var(--texto)' }}>{info.label}</p>
+                      <p style={{ fontSize: '0.68rem', color: 'var(--texto-desab)', marginTop: '2px', lineHeight: 1.3 }}>{info.desc}</p>
                     </button>
                   )
                 })}
               </div>
-              <p style={{ fontSize: '0.72rem', color: 'var(--texto-desab)', marginTop: '0.375rem' }}>
-                {PAPEL_LABEL[papel].desc}
-              </p>
             </div>
 
             {/* Aviso de primeiro login */}
@@ -531,7 +528,7 @@ export default function UsuariosPage() {
 
                 {/* Selector de papel */}
                 {!eVoce && (
-                  <select
+                    <select
                     className="campo"
                     value={u.papel}
                     disabled={salvando === u.id + '-papel'}
@@ -539,8 +536,7 @@ export default function UsuariosPage() {
                     style={{ width: 'auto', fontSize: '0.78rem', padding: '0.3rem 0.5rem', minWidth: '120px' }}
                   >
                     <option value="admin">👑 Admin</option>
-                    <option value="vendedor">🛒 Vendedor</option>
-                    <option value="estoquista">📦 Estoquista</option>
+                    <option value="operador">🛠️ Operador</option>
                   </select>
                 )}
 

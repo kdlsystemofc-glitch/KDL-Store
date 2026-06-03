@@ -99,8 +99,8 @@ export async function GET(request: Request) {
     // Mapeia papel do banco para a UI
     const MAP_DB_TO_UI: Record<string, string> = {
       admin: 'admin',
-      operador: 'vendedor',
-      visualizador: 'estoquista',
+      operador: 'operador',
+      visualizador: 'operador',
     }
     const uiPapel = MAP_DB_TO_UI[data.papel] || data.papel
 

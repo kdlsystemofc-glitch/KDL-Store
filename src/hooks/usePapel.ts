@@ -20,8 +20,8 @@ export function usePapel() {
   }, [])
 
   const isAdmin = papel === 'admin'
-  const isOperador = papel === 'admin' || papel === 'operador'
-  const isVisualizador = papel === 'visualizador'
+  const isOperador = papel === 'admin' || papel === 'operador' || papel === 'vendedor' || papel === 'estoquista' || papel === 'visualizador'
+  const isVisualizador = papel === 'visualizador' || papel === 'estoquista'
 
   return { papel, isAdmin, isOperador, isVisualizador, loading }
 }
