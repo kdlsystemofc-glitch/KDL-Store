@@ -105,6 +105,7 @@ export default function OrdensServicoPage() {
     orcamento: '',
     valor_servico: '',
     valor_pecas: '',
+    custo_pecas: '',
     tecnico: '',
     previsao: '',
     problema: '',
@@ -137,7 +138,7 @@ export default function OrdensServicoPage() {
       // 1. Carrega Ordens de Serviço
       const { data: dataOS } = await supabase
         .from('ordens_servico')
-        .select('id,numero,cliente_id,cliente_nome,cliente_tel,equipamento,defeito_relatado,status,orcamento,valor_servico,valor_pecas,tecnico,criado_em,previsao,problema,laudo,observacoes')
+        .select('id,numero,cliente_id,cliente_nome,cliente_tel,equipamento,defeito_relatado,status,orcamento,valor_servico,valor_pecas,custo_pecas,tecnico,criado_em,previsao,problema,laudo,observacoes')
         .eq('empresa_id', eid)
         .order('criado_em', { ascending: false })
         
@@ -230,6 +231,7 @@ export default function OrdensServicoPage() {
       orcamento:        form.orcamento ? parseFloat(form.orcamento) : null,
       valor_servico:    form.valor_servico ? parseFloat(form.valor_servico) : 0,
       valor_pecas:      form.valor_pecas ? parseFloat(form.valor_pecas) : 0,
+      custo_pecas:      form.custo_pecas ? parseFloat(form.custo_pecas) : 0,
       tecnico:          form.tecnico || null,
       previsao:         form.previsao || null,
       problema:         form.problema || null,
@@ -248,7 +250,7 @@ export default function OrdensServicoPage() {
     setForm({
       cliente_id: null, cliente_nome: '', cliente_tel: '', equipamento: '',
       defeito_relatado: '', orcamento: '', valor_servico: '', valor_pecas: '',
-      tecnico: '', previsao: '', problema: '', laudo: '', observacoes: ''
+      custo_pecas: '', tecnico: '', previsao: '', problema: '', laudo: '', observacoes: ''
     })
     carregar(empresaId)
   }
@@ -615,11 +617,17 @@ export default function OrdensServicoPage() {
                           value={form.valor_servico} onChange={e=>setForm(f=>({...f,valor_servico:e.target.value}))}/>
                       </div>
                       <div>
-                        <label className="campo-label">Valor Peças (R$)</label>
+                        <label className="campo-label">Valor Peças (R$) <span style={{fontSize:'0.65rem',color:'var(--texto-desab)'}}>(cobrado ao cliente)</span></label>
                         <input className="campo" type="number" step="0.01" placeholder="0,00"
                           value={form.valor_pecas} onChange={e=>setForm(f=>({...f,valor_pecas:e.target.value}))}/>
                       </div>
                     </div>
+                    <div>
+                      <label className="campo-label">Custo das Peças (R$) <span style={{fontSize:'0.65rem',color:'var(--amarelo)'}}>⚙ Interno/DRE</span></label>
+                      <input className="campo" type="number" step="0.01" placeholder="Custo real de aquisição das peças (não aparece no recibo)"
+                        value={form.custo_pecas} onChange={e=>setForm(f=>({...f,custo_pecas:e.target.value}))}/>
+                    </div>
+
                     <div>
                       <label className="campo-label">Observações Internas</label>
                       <textarea className="campo" rows={2} style={{ resize:'none' }}

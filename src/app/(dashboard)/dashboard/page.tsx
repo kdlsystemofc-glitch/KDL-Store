@@ -36,12 +36,13 @@ export default function DashboardPage() {
     const supabase = createClient()
     const hoje = new Date().toISOString().slice(0,10)
     const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
+    const fimMes = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().slice(0,10)
 
     const results = await Promise.allSettled([
       supabase.from('vendas').select('total').eq('empresa_id', eid).gte('criado_em', hoje).eq('status','concluida'),
       supabase.from('produtos').select('id,qtd_atual,qtd_minima').eq('empresa_id', eid).gt('qtd_minima',0),
       supabase.from('fiados').select('valor_aberto, data_vencimento').eq('empresa_id', eid).eq('status','aberto'),
-      supabase.from('despesas').select('valor').eq('empresa_id', eid).gte('data', inicioMes.slice(0,10)),
+      supabase.from('despesas').select('valor').eq('empresa_id', eid).gte('data', inicioMes.slice(0,10)).lte('data', fimMes),
       supabase.from('vendas').select('criado_em,total').eq('empresa_id', eid).eq('status','concluida')
         .gte('criado_em', new Date(Date.now()-6*86400000).toISOString()).order('criado_em'),
       supabase.from('clientes').select('ultima_compra').eq('empresa_id', eid).eq('ativo',true),
