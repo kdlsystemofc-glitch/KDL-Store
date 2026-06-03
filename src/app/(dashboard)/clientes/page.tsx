@@ -12,6 +12,7 @@ import { useSubscription } from '@/hooks/useSubscription'
 type Cliente = {
   id: string; nome: string; telefone: string | null; tipo: string
   ultima_compra: string | null; ativo: boolean
+  email: string | null; cpf: string | null; endereco: string | null; anotacoes: string | null; obs: string | null
 }
 
 export default function ClientesPage() {
@@ -29,7 +30,7 @@ export default function ClientesPage() {
     setLoading(true)
     const { data } = await createClient()
       .from('clientes')
-      .select('id,nome,telefone,tipo,ultima_compra,ativo')
+      .select('id,nome,telefone,tipo,ultima_compra,ativo,email,cpf,endereco,anotacoes,obs')
       .eq('empresa_id', eid)
       .order('nome')
     setClientes(data || [])
@@ -37,8 +38,15 @@ export default function ClientesPage() {
   }
 
   const filtrados = clientes.filter(c => {
-    const matchBusca = c.nome.toLowerCase().includes(busca.toLowerCase()) ||
-      (c.telefone || '').includes(busca)
+    const q = busca.toLowerCase().trim()
+    const matchBusca = !q ||
+      c.nome.toLowerCase().includes(q) ||
+      (c.telefone || '').replace(/\D/g,'').includes(q.replace(/\D/g,'')) ||
+      (c.email || '').toLowerCase().includes(q) ||
+      (c.cpf || '').replace(/\D/g,'').includes(q.replace(/\D/g,'')) ||
+      (c.endereco || '').toLowerCase().includes(q) ||
+      (c.anotacoes || '').toLowerCase().includes(q) ||
+      (c.obs || '').toLowerCase().includes(q)
     const matchFiltro = filtro === 'todos' ? true
       : filtro === 'inativos' ? !c.ativo
       : c.tipo === filtro && c.ativo
@@ -105,8 +113,8 @@ export default function ClientesPage() {
             {f.l}
           </button>
         ))}
-        <input className="campo" placeholder="BUSCAR POR NOME OU TELEFONE_"
-          style={{ flex:1, maxWidth:'280px' }}
+        <input className="campo" placeholder="BUSCAR: NOME, TELEFONE, CPF, E-MAIL..."
+          style={{ flex:1, maxWidth:'320px' }}
           value={busca} onChange={e => setBusca(e.target.value)} />
       </div>
 

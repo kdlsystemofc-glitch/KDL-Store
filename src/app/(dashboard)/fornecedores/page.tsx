@@ -267,10 +267,23 @@ export default function FornecedoresPage() {
     }
   }
 
-  const filtrados = fornecedores.filter(f =>
-    f.nome.toLowerCase().includes(busca.toLowerCase()) ||
-    (f.categoria || '').toLowerCase().includes(busca.toLowerCase())
-  )
+  const filtrados = fornecedores.filter(f => {
+    const q = busca.toLowerCase().trim()
+    if (!q) return true
+    return (
+      f.nome.toLowerCase().includes(q) ||
+      (f.contato || '').toLowerCase().includes(q) ||
+      (f.telefone || '').replace(/\D/g,'').includes(q.replace(/\D/g,'')) ||
+      (f.email || '').toLowerCase().includes(q) ||
+      (f.cnpj || '').replace(/\D/g,'').includes(q.replace(/\D/g,'')) ||
+      (f.categoria || '').toLowerCase().includes(q) ||
+      (f.cidade || '').toLowerCase().includes(q) ||
+      (f.estado || '').toLowerCase().includes(q) ||
+      (f.rua || '').toLowerCase().includes(q) ||
+      (f.bairro || '').toLowerCase().includes(q) ||
+      (f.anotacoes || '').toLowerCase().includes(q)
+    )
+  })
   const pendentes = pedidos.filter(p => p.status !== 'entregue').length
   const set = (k: keyof Fornecedor, v: unknown) => setEditando(e => e ? { ...e, [k]: v } : e)
 
@@ -608,8 +621,8 @@ export default function FornecedoresPage() {
         </div>
       ) : aba === 'lista' ? (
         <>
-          <input className="campo" placeholder="BUSCAR FORNECEDOR_"
-            style={{ maxWidth:'320px' }} value={busca} onChange={e=>setBusca(e.target.value)}/>
+          <input className="campo" placeholder="BUSCAR: NOME, CNPJ, E-MAIL, CIDADE..."
+            style={{ maxWidth:'360px' }} value={busca} onChange={e=>setBusca(e.target.value)}/>
           {filtrados.length === 0 ? (
             <div style={{ textAlign:'center', padding:'3rem', color:'var(--texto-desab)', border:'1px solid var(--borda)', background:'var(--surface)' }}>
               {busca ? (

@@ -6,6 +6,8 @@ import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
 import { X, Loader2, Plus, Camera, UserPlus } from 'lucide-react'
 import { BarcodeScannerModal, useHasCamera } from '@/components/BarcodeScannerModal'
+import { toast } from 'react-hot-toast'
+import { useSubscription } from '@/hooks/useSubscription'
 
 type ProdDB = { id:string; nome:string; sku:string|null; ean:string|null; preco_varejo:number; preco_atacado:number|null; preco_vip:number|null; preco_minimo:number|null; qtd_atual:number; tem_garantia:boolean; dias_garantia:number|null; texto_garantia:string|null }
 // CL1+P1: tipo para cliente vinculado
@@ -29,6 +31,7 @@ function getPreco(p: ProdDB, tipo: TipoCliente): number {
 
 export default function NovaPdvPage() {
   const { empresaId } = useEmpresaId()
+  const { plano } = useSubscription()
   const [catalogo,    setCatalogo]    = useState<ProdDB[]>([])
   const [fiadosAtivos, setFiadosAtivos] = useState<string[]>([])
   // CL1+P1: lista de clientes cadastrados para autocomplete
@@ -602,6 +605,10 @@ export default function NovaPdvPage() {
             <div className="pdv-formas-pagamento-grid">
               {formas.map(f=>(
                 <button key={f.id} onClick={()=>{
+                  if (f.nome.toLowerCase() === 'fiado' && plano !== 'pro') {
+                    toast.error('O Fiado é exclusivo do plano PRO! Faça upgrade em Configurações > Assinatura.')
+                    return
+                  }
                   setPagamento(f.nome)
                   setRepassarTaxa(f.taxa > 0) // Repassar por padrão se houver taxa
                   setParcelas(1)
@@ -622,7 +629,7 @@ export default function NovaPdvPage() {
                     alignItems:'center',
                     justifyContent:'center'
                   }}>
-                  <span>{f.nome}</span>
+                  <span>{f.nome} {f.nome.toLowerCase() === 'fiado' && plano !== 'pro' && '🔒'}</span>
                   {f.taxa > 0 && <span style={{fontSize:'0.58rem',opacity:0.8,marginTop:'2px'}}>({f.taxa}%)</span>}
                 </button>
               ))}

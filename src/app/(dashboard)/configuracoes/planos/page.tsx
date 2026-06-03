@@ -245,6 +245,53 @@ export default function PlanosPage() {
           )}
         </div>
       </div>
+
+      {/* Comparativo de Planos */}
+      <div className="card" style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <h2 style={{ fontSize: '1rem', fontWeight: 900, borderBottom: '2px solid var(--borda)', paddingBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+          📋 Comparativo de Recursos
+        </h2>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
+          {/* Start Plan Card */}
+          <div style={{ padding: '1.25rem', background: 'var(--surface-alt)', border: '1px solid var(--borda)', borderRadius: '6px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <span style={{ fontWeight: 800, fontSize: '1.15rem' }}>Plano Start</span>
+              <span style={{ fontWeight: 900, color: 'var(--verde)', fontSize: '1.15rem', fontFamily: 'monospace' }}>R$ 65/mês</span>
+            </div>
+            <p style={{ fontSize: '0.78rem', color: 'var(--texto-sec)', marginBottom: '1rem', lineHeight: 1.4 }}>Ideal para novas lojas que precisam de controle essencial de vendas e estoque.</p>
+            <ul style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.8rem', paddingLeft: '1.15rem', color: 'var(--texto)' }}>
+              <li>💻 PDV / Frente de Caixa ilimitado</li>
+              <li>📦 Estoque básico e histórico de movimentações</li>
+              <li>👥 Cadastro de clientes e fornecedores</li>
+              <li>🛠️ Ordens de Serviço (OS) completas</li>
+              <li>🛡️ Emissão de Garantias Digitais</li>
+              <li>👤 1 Usuário adicional (além do Administrador)</li>
+            </ul>
+          </div>
+
+          {/* Pro Plan Card */}
+          <div style={{ padding: '1.25rem', background: 'rgba(234, 179, 8, 0.03)', border: '1px solid rgba(234, 179, 8, 0.25)', borderRadius: '6px', position: 'relative' }}>
+            <div style={{ position: 'absolute', top: '-10px', right: '15px', background: 'var(--amarelo)', color: '#000', fontSize: '0.58rem', fontWeight: 900, padding: '2px 8px', borderRadius: '10px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>RECOMENDADO</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <span style={{ fontWeight: 800, fontSize: '1.15rem', display: 'flex', alignItems: 'center', gap: '4px' }}>Plano Pro ⭐</span>
+              <span style={{ fontWeight: 900, color: 'var(--amarelo)', fontSize: '1.15rem', fontFamily: 'monospace' }}>R$ 95/mês</span>
+            </div>
+            <p style={{ fontSize: '0.78rem', color: 'var(--texto-sec)', marginBottom: '1rem', lineHeight: 1.4 }}>Para lojas que buscam gestão profissional com controle de caixa e análise de lucros.</p>
+            <ul style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.8rem', paddingLeft: '1.15rem', color: 'var(--texto)' }}>
+              <li>✅ <strong>Tudo do plano Start</strong></li>
+              <li>💰 <strong>Financeiro Completo:</strong> DRE líquido e CMV real</li>
+              <li>📒 <strong>Controle de Fiado:</strong> Bloqueios automáticos no PDV</li>
+              <li>📊 <strong>Fechamento de Caixa:</strong> Sobras e faltas diárias</li>
+              <li>💸 <strong>Comissões de Equipe:</strong> Puxadores e equipe de vendas</li>
+              <li>📢 <strong>CRM Clientes Inativos:</strong> Prazos de inatividade</li>
+              <li>🖼️ <strong>Upload de Logo:</strong> Logos nos recibos e OS</li>
+              <li>📍 <strong>Endereço Estruturado:</strong> Emissão de recibos profissionais</li>
+              <li>👥 <strong>Multi-usuário:</strong> Até 5 usuários adicionais</li>
+            </ul>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

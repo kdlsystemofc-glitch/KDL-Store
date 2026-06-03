@@ -30,8 +30,8 @@ const Campo = ({ label, required, dica, children }: { label: string; required?: 
     <label style={{ fontSize:'0.82rem', fontWeight:600, color:'var(--texto-sec)' }}>
       {label}{required && <span style={{ color:'var(--vermelho)', marginLeft:'2px' }}>*</span>}
     </label>
-    {dica && <span style={{ fontSize:'0.72rem', color:'var(--texto-desab)', fontWeight:400, marginTop:'-2px', lineHeight:1.25 }}>{dica}</span>}
     {children}
+    {dica && <span style={{ fontSize:'0.7rem', color:'var(--texto-desab)', fontWeight:400, lineHeight:1.25, marginTop:'1px' }}>{dica}</span>}
   </div>
 )
 
