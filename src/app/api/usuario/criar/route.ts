@@ -13,7 +13,7 @@ function validarSenhaForte(senha: string): string | null {
 
 export async function POST(request: Request) {
   try {
-    const { email, nome, papel, senha, empresaId } = await request.json()
+    const { email, nome, papel, senha, empresaId, permissoes } = await request.json()
 
     if (!email || !nome?.trim() || !senha || !empresaId) {
       return NextResponse.json({ error: 'Nome, e-mail, senha e empresaId são obrigatórios' }, { status: 400 })
@@ -124,6 +124,7 @@ export async function POST(request: Request) {
         nome: nome.trim(),
         papel: dbPapel,
         status: 'ativo',
+        permissoes: permissoes || {},
       }, { onConflict: 'id' })
 
     if (profileError) {

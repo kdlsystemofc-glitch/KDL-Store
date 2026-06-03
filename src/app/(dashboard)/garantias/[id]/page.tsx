@@ -73,7 +73,7 @@ export default function DocumentoGarantiaPage() {
         }
 
         // Gera QR Code via API pública (sem dependência npm)
-        const url = typeof window !== 'undefined' ? window.location.href : `https://nexocommerce.app/garantias/${id}`
+        const url = typeof window !== 'undefined' ? `${window.location.origin}/garantia/${id}` : ''
         setQrSrc(`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(url)}&color=1a2a1a&bgcolor=f0f7f0`)
       } catch (e) {
         console.error(e)
@@ -111,11 +111,11 @@ export default function DocumentoGarantiaPage() {
   // ── Cálculos ──
   const hoje = new Date()
   hoje.setHours(0, 0, 0, 0)
-  const dtCompra = new Date(garantia.data_compra + 'T12:00:00')
-  const dtVenc   = new Date(garantia.data_vencimento + 'T12:00:00')
+  const dtCompra = new Date(garantia.data_compra + 'T00:00:00')
+  const dtVenc   = new Date(garantia.data_vencimento + 'T00:00:00')
 
-  const totalDias      = Math.max(1, Math.ceil((dtVenc.getTime() - dtCompra.getTime()) / 86400000))
-  const diasRestantes  = Math.ceil((dtVenc.getTime() - hoje.getTime()) / 86400000)
+  const totalDias      = Math.max(1, Math.round((dtVenc.getTime() - dtCompra.getTime()) / 86400000))
+  const diasRestantes  = Math.round((dtVenc.getTime() - hoje.getTime()) / 86400000)
   const diasDecorridos = Math.max(0, totalDias - Math.max(0, diasRestantes))
   const pctProgresso   = Math.min(100, Math.round((diasDecorridos / totalDias) * 100))
 
@@ -163,7 +163,7 @@ export default function DocumentoGarantiaPage() {
           {(garantia.cliente_tel || empresa?.whatsapp) && (
             <a
               href={`https://wa.me/55${(garantia.cliente_tel || '').replace(/\D/g, '')}?text=${encodeURIComponent(
-                `Olá ${garantia.cliente_nome || 'cliente'}! Segue seu certificado de garantia para o produto *${garantia.produto_nome}*.\n\nCódigo: *${authCode}*\nValidade: *${dtVenc.toLocaleDateString('pt-BR')}*\nVerifique online: ${typeof window !== 'undefined' ? window.location.href : ''}`
+                `Olá ${garantia.cliente_nome || 'cliente'}! Segue seu certificado de garantia para o produto *${garantia.produto_nome}*.\n\nCódigo: *${authCode}*\nValidade: *${dtVenc.toLocaleDateString('pt-BR')}*\nVerifique online: ${typeof window !== 'undefined' ? `${window.location.origin}/garantia/${id}` : ''}`
               )}`}
               target="_blank" rel="noopener noreferrer"
               className="btn"
@@ -565,7 +565,7 @@ export default function DocumentoGarantiaPage() {
           alignItems: 'center',
         }}>
           <p style={{ fontSize: '0.6rem', color: '#6b7280', margin: 0 }}>
-            Emitido digitalmente pelo sistema NexoCommerce · Documento com validade legal conforme CDC
+            Emitido digitalmente pelo sistema KDL Store · Documento com validade legal conforme CDC
           </p>
           <p style={{ fontSize: '0.6rem', color: '#9ca3af', margin: 0, fontFamily: 'monospace' }}>
             {authCode}

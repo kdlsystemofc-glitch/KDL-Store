@@ -41,7 +41,12 @@ export default function GarantiasPage() {
     setLoading(false)
   }
 
-  const diasRestantes = (data: string) => Math.ceil((new Date(data).getTime()-Date.now())/86400000)
+  const diasRestantes = (data: string) => {
+    const hoje = new Date()
+    hoje.setHours(0, 0, 0, 0)
+    const dtVenc = new Date(data + 'T00:00:00')
+    return Math.round((dtVenc.getTime() - hoje.getTime()) / 86400000)
+  }
 
   async function registrarDevolucao() {
     if (!devGarantia || !devMotivo.trim() || !empresaId) return
@@ -240,9 +245,9 @@ export default function GarantiasPage() {
                           style={{marginLeft:'0.375rem',fontSize:'0.65rem',color:'var(--verde)'}}>WA</a>
                       )}
                     </td>
-                    <td style={{fontSize:'0.72rem',color:'var(--texto-desab)',fontVariantNumeric:'tabular-nums'}}>{new Date(g.data_compra+'T12:00:00').toLocaleDateString('pt-BR')}</td>
+                    <td style={{fontSize:'0.72rem',color:'var(--texto-desab)',fontVariantNumeric:'tabular-nums'}}>{new Date(g.data_compra+'T00:00:00').toLocaleDateString('pt-BR')}</td>
                     <td style={{fontSize:'0.72rem',fontWeight:700,color:ativa&&dias<=30?'var(--amarelo)':ativa?'var(--verde)':'var(--vermelho)'}}>
-                      {new Date(g.data_vencimento+'T12:00:00').toLocaleDateString('pt-BR')}
+                      {new Date(g.data_vencimento+'T00:00:00').toLocaleDateString('pt-BR')}
                     </td>
                     <td style={{textAlign:'center',fontWeight:700,color:!ativa?'var(--vermelho)':dias<=30?'var(--amarelo)':'var(--verde)'}}>
                       {!ativa ? 'VENCIDA' : `${dias}d`}

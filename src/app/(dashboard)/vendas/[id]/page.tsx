@@ -16,6 +16,26 @@ type EmpresaInfo = { nome:string; cnpj:string|null; whatsapp:string|null; telefo
 
 const FORMA_ICON: Record<string,string> = { PIX:'📱', Dinheiro:'💵', Crédito:'💳', Débito:'💴', Fiado:'📒' }
 
+function formatarEndereco(enderecoStr: string | null): string {
+  if (!enderecoStr) return '—'
+  if (enderecoStr.trim().startsWith('{')) {
+    try {
+      const obj = JSON.parse(enderecoStr)
+      const partes = [
+        obj.rua && `${obj.rua}${obj.numero ? `, ${obj.numero}` : ''}`,
+        obj.complemento,
+        obj.bairro,
+        obj.cidade && `${obj.cidade}${obj.estado ? ` - ${obj.estado}` : ''}`,
+        obj.cep && `CEP ${obj.cep}`
+      ].filter(Boolean)
+      return partes.join(', ')
+    } catch (e) {
+      return enderecoStr
+    }
+  }
+  return enderecoStr
+}
+
 export default function VendaReciboPage() {
   const { id }          = useParams() as { id: string }
   const { empresaId }   = useEmpresaId()
@@ -77,7 +97,7 @@ export default function VendaReciboPage() {
             setNomeEmpresa(emp.nome || '')
             setEmpresa(emp as EmpresaInfo)
           }
-          const url = typeof window !== 'undefined' ? window.location.href : ''
+          const url = typeof window !== 'undefined' ? `${window.location.origin}/recibo/${id}` : ''
           setQrSrc(`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(url)}&color=14532d&bgcolor=ffffff`)
         }
         // Buscar garantias vinculadas a esta venda
@@ -536,7 +556,7 @@ export default function VendaReciboPage() {
                 <p style={{ fontWeight: 800, fontSize: '0.9rem', color: '#0f172a', margin: 0 }}>{clienteInfo.nome}</p>
                 {clienteInfo.cpf && <p style={{ fontSize: '0.75rem', color: '#475569', margin: 0 }}>CPF/CNPJ: <span style={{ fontFamily: 'monospace' }}>{clienteInfo.cpf}</span></p>}
                 {clienteInfo.telefone && <p style={{ fontSize: '0.75rem', color: '#475569', margin: 0 }}>WhatsApp: {clienteInfo.telefone}</p>}
-                {clienteInfo.endereco && <p style={{ fontSize: '0.72rem', color: '#64748b', margin: 0 }}>Endereço: {clienteInfo.endereco}</p>}
+                {clienteInfo.endereco && <p style={{ fontSize: '0.72rem', color: '#64748b', margin: 0 }}>Endereço: {formatarEndereco(clienteInfo.endereco)}</p>}
               </div>
             ) : (
               <div>
@@ -703,6 +723,7 @@ export default function VendaReciboPage() {
           <div>
             <p style={{ fontSize: '0.7rem', color: '#475569', margin: 0, fontWeight: 700 }}>Obrigado pela preferência!</p>
             <p style={{ fontSize: '0.62rem', color: '#64748b', margin: '2px 0 0' }}>Volte sempre e confira as novidades em nosso catálogo.</p>
+            <p style={{ fontSize: '0.55rem', color: '#94a3b8', margin: '4px 0 0', fontWeight: 600 }}>Nexocommerce — Desenvolvido por KDL Store</p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <div style={{ textAlign: 'right' }}>
@@ -730,13 +751,41 @@ export default function VendaReciboPage() {
 
       <style>{`
         @media print {
-          .no-print { display: none !important; }
-          body { background: white !important; margin: 0 !important; }
+          .no-print, header, aside, button, nav, footer { display: none !important; }
+          body {
+            background: white !important;
+            color: #000 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
           #recibo-print {
             box-shadow: none !important;
-            border: none !important;
+            border: 1px solid #000 !important;
             max-width: 100% !important;
+            width: 100% !important;
             border-radius: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #fff !important;
+            color: #000 !important;
+          }
+          /* Ensure header remains dark and text remains white during print */
+          #recibo-print > div:first-child {
+            background: #0f172a !important;
+            color: #ffffff !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          #recibo-print > div:first-child * {
+            color: #ffffff !important;
+          }
+          #recibo-print > div:nth-child(2) {
+            background: #f0fdf4 !important;
+            color: #15803d !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           @page { margin: 1cm; size: A4; }
         }

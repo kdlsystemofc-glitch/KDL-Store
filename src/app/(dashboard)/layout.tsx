@@ -2,33 +2,44 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, createContext } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
   LayoutDashboard, ShoppingCart, Package, Users, BarChart3,
-  Shield, FileBarChart2, Settings, Plus, LogOut, Menu, X
+  Shield, FileBarChart2, Settings, Plus, LogOut, Menu, X, Lock
 } from 'lucide-react'
 import { OperadorOnly } from '@/components/OperadorOnly'
+
+/* ─ Contexto de Permissões para operadores ─ */
+export const PermissionsContext = createContext<{
+  papel: string
+  permissoes: Record<string, 'read' | 'write' | 'none'>
+  temPermissao: (modulo: string, acao?: 'read' | 'write') => boolean
+}>({
+  papel: '',
+  permissoes: {},
+  temPermissao: () => true
+})
 
 /* ─ Itens de navegação por plano ─ */
 
 // ── Módulos disponíveis para AMBOS os planos ──
 const baseItems = [
-  { href: '/dashboard',     label: 'Dashboard',           icon: LayoutDashboard },
-  { href: '/vendas',        label: 'Histórico de Vendas', icon: ShoppingCart },
-  { href: '/produtos',      label: 'Produtos / Estoque',  icon: Package },
-  { href: '/clientes',      label: 'Clientes e Fornecedores', icon: Users },
-  { href: '/financeiro',    label: 'Financeiro',          icon: BarChart3 },
-  { href: '/garantias',     label: 'Ops Extras',          icon: Shield },
+  { href: '/dashboard',     label: 'Dashboard',           icon: LayoutDashboard, modulo: 'dashboard' },
+  { href: '/vendas',        label: 'Histórico de Vendas', icon: ShoppingCart, modulo: 'vendas' },
+  { href: '/produtos',      label: 'Produtos / Estoque',  icon: Package, modulo: 'produtos' },
+  { href: '/clientes',      label: 'Clientes e Fornecedores', icon: Users, modulo: 'clientes' },
+  { href: '/financeiro',    label: 'Financeiro',          icon: BarChart3, modulo: 'financeiro' },
+  { href: '/garantias',     label: 'Ops Extras',          icon: Shield, modulo: 'garantias' },
 ]
 
 // ── Módulos EXCLUSIVOS do plano Pro ──
 const proItems = [
-  { href: '/relatorios',    label: 'Relatórios',          icon: FileBarChart2 },
+  { href: '/relatorios',    label: 'Relatórios',          icon: FileBarChart2, modulo: 'relatorios' },
 ]
 
 function Sidebar({
-  isOpen, onClose, nomeLoja, inicialUsuario, planoAtivo, papel
+  isOpen, onClose, nomeLoja, inicialUsuario, planoAtivo, papel, nomeUsuario, permissoes
 }: {
   isOpen: boolean
   onClose: () => void
@@ -36,6 +47,8 @@ function Sidebar({
   inicialUsuario: string
   planoAtivo: string
   papel: string
+  nomeUsuario: string
+  permissoes: Record<string, 'read' | 'write' | 'none'>
 }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -66,12 +79,13 @@ function Sidebar({
     transition: 'background 0.12s, color 0.12s',
   }
 
-  const configItem = { href: '/configuracoes', label: 'Configurações', icon: Settings }
+  const configItem = { href: '/configuracoes', label: 'Configurações', icon: Settings, modulo: 'configuracoes' }
 
   const itensSidebar = [...baseItems, ...proItems, configItem].filter(item => {
-       if (item.href === '/configuracoes' && papel !== 'admin') return false
-       return true
-    })
+    if (item.href === '/configuracoes' && papel !== 'admin') return false
+    if (papel === 'operador' && item.modulo && permissoes[item.modulo] === 'none') return false
+    return true
+  })
 
   return (
     <>
@@ -133,33 +147,35 @@ function Sidebar({
 
         {/* ── Botão Nova Venda ── */}
         <OperadorOnly>
-          <div style={{ padding: '0.75rem 0.625rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-            <Link
-              href="/vendas/nova"
-              onClick={onClose}
-              style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-                width: '100%', padding: '0.6rem',
-                background: 'var(--verde)', color: '#fff',
-                fontWeight: 700, fontSize: '0.82rem', borderRadius: 'var(--r-lg)',
-                textDecoration: 'none', border: 'none',
-                boxShadow: 'var(--sombra-cta)',
-                fontFamily: "'Nunito Sans', sans-serif",
-                transition: 'transform 0.12s',
-                position: 'relative',
-              }}
-            >
-              <Plus size={15} />
-              Nova Venda
-              <span style={{
-                position: 'absolute', right: '8px',
-                fontSize: '0.52rem', fontWeight: 900,
-                background: 'rgba(0,0,0,0.2)', color: 'rgba(255,255,255,0.85)',
-                padding: '1px 5px', borderRadius: '4px', letterSpacing: '0.04em',
-                fontFamily: 'monospace',
-              }}>F2</span>
-            </Link>
-          </div>
+          {(!permissoes || permissoes['pdv'] !== 'none') && (
+            <div style={{ padding: '0.75rem 0.625rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+              <Link
+                href="/vendas/nova"
+                onClick={onClose}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                  width: '100%', padding: '0.6rem',
+                  background: 'var(--verde)', color: '#fff',
+                  fontWeight: 700, fontSize: '0.82rem', borderRadius: 'var(--r-lg)',
+                  textDecoration: 'none', border: 'none',
+                  boxShadow: 'var(--sombra-cta)',
+                  fontFamily: "'Nunito Sans', sans-serif",
+                  transition: 'transform 0.12s',
+                  position: 'relative',
+                }}
+              >
+                <Plus size={15} />
+                Nova Venda
+                <span style={{
+                  position: 'absolute', right: '8px',
+                  fontSize: '0.52rem', fontWeight: 900,
+                  background: 'rgba(0,0,0,0.2)', color: 'rgba(255,255,255,0.85)',
+                  padding: '1px 5px', borderRadius: '4px', letterSpacing: '0.04em',
+                  fontFamily: 'monospace',
+                }}>F2</span>
+              </Link>
+            </div>
+          )}
         </OperadorOnly>
 
         {/* ── Nav Items ── */}
@@ -201,7 +217,10 @@ function Sidebar({
             {inicialUsuario}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontSize: '0.72rem', color: 'rgba(240,235,245,0.5)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <p style={{ fontSize: '0.8rem', color: '#fff', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
+              {nomeUsuario}
+            </p>
+            <p style={{ fontSize: '0.68rem', color: 'rgba(240,235,245,0.4)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: '1px 0 0' }}>
               {nomeLoja}
             </p>
           </div>
@@ -233,10 +252,38 @@ function avaliarSenhaForte(s: string) {
   }
 }
 
+function obterModuloDaRota(path: string): string | null {
+  if (path.startsWith('/dashboard')) return 'dashboard'
+  if (path.startsWith('/vendas/nova')) return 'pdv'
+  if (path.startsWith('/vendas')) return 'vendas'
+  if (path.startsWith('/produtos')) return 'produtos'
+  if (path.startsWith('/estoque')) return 'estoque'
+  if (path.startsWith('/catalogo')) return 'catalogo'
+  if (path.startsWith('/clientes/inativos')) return 'clientes_inativos'
+  if (path.startsWith('/clientes')) return 'clientes'
+  if (path.startsWith('/fornecedores')) return 'fornecedores'
+  if (path.startsWith('/financeiro/despesas')) return 'despesas'
+  if (path.startsWith('/financeiro/fechamento')) return 'fechamento'
+  if (path.startsWith('/financeiro/fiado')) return 'fiado'
+  if (path.startsWith('/financeiro')) return 'financeiro'
+  if (path.startsWith('/ordens-de-servico')) return 'ordens_servico'
+  if (path.startsWith('/garantias')) return 'garantias'
+  if (path.startsWith('/comissoes')) return 'comissoes'
+  if (path.startsWith('/relatorios')) return 'relatorios'
+  return null
+}
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
-  const [headerInfo, setHeaderInfo] = useState({ inicial: 'U', nomeLoja: 'Carregando...', plano: 'start', papel: '' })
+  const [headerInfo, setHeaderInfo] = useState({
+    inicial: 'U',
+    nomeLoja: 'Carregando...',
+    plano: 'start',
+    papel: '',
+    nomeUsuario: 'Carregando...',
+    permissoes: {} as Record<string, 'read' | 'write' | 'none'>
+  })
   const [precisaTrocarSenha, setPrecisaTrocarSenha] = useState(false)
   const [novaSenha, setNovaSenha] = useState('')
   const [verNovaSenha, setVerNovaSenha] = useState(false)
@@ -272,7 +319,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         setPrecisaTrocarSenha(true)
       }
 
-      const { data: profile } = await supabase.from('profiles').select('nome, empresa_id, papel').eq('id', userId).single()
+      const { data: profile } = await supabase.from('profiles').select('nome, empresa_id, papel, permissoes').eq('id', userId).single()
       if (profile?.empresa_id) {
         const { data: empresa } = await supabase.from('empresas').select('nome, plano').eq('id', profile.empresa_id).single()
         setHeaderInfo({
@@ -280,6 +327,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           nomeLoja: empresa?.nome || 'Minha Loja',
           plano: empresa?.plano || 'start',
           papel: profile.papel || '',
+          nomeUsuario: profile.nome || user.email || 'Usuário',
+          permissoes: profile.permissoes || {},
         })
       }
 
@@ -288,10 +337,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         .on('postgres_changes', {
           event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${userId}`,
         }, async (payload) => {
-          const novo = payload.new as { status?: string; empresa_id?: string | null }
+          const novo = payload.new as { status?: string; empresa_id?: string | null; nome?: string; papel?: string; permissoes?: Record<string, 'read' | 'write' | 'none'> }
           if (novo.status === 'congelado' || novo.status === 'excluido' || !novo.empresa_id) {
             await supabase.auth.signOut()
             router.push('/login')
+          } else {
+            setHeaderInfo(prev => ({
+              ...prev,
+              papel: novo.papel || prev.papel,
+              nomeUsuario: novo.nome || prev.nomeUsuario,
+              inicial: (novo.nome || prev.nomeUsuario || 'U').charAt(0).toUpperCase(),
+              permissoes: novo.permissoes || prev.permissoes || {},
+            }))
           }
         })
         .on('postgres_changes', {
@@ -321,8 +378,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     )
   }
 
+  const temPermissao = (modulo: string, acao?: 'read' | 'write') => {
+    if (headerInfo.papel === 'admin') return true
+    const perm = headerInfo.permissoes?.[modulo]
+    if (!perm || perm === 'none') return false
+    if (acao === 'write' && perm !== 'write') return false
+    return true
+  }
+
+  const pathname = usePathname()
+  const moduloAtual = obterModuloDaRota(pathname)
+  const temAcessoModulo = !moduloAtual || temPermissao(moduloAtual, 'read')
+
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--fundo)' }}>
+    <PermissionsContext.Provider value={{ papel: headerInfo.papel, permissoes: headerInfo.permissoes, temPermissao }}>
+      <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--fundo)' }}>
       {/* Modal de Troca de Senha Obrigatória no Primeiro Acesso */}
       {precisaTrocarSenha && (
         <div style={{
@@ -455,6 +525,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         inicialUsuario={headerInfo.inicial}
         planoAtivo={headerInfo.plano}
         papel={headerInfo.papel}
+        nomeUsuario={headerInfo.nomeUsuario}
+        permissoes={headerInfo.permissoes}
       />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
@@ -510,10 +582,51 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </header>
         <SubscriptionBanner />
         <main style={{ flex: 1, overflowY: 'auto', padding: '1.25rem 1.5rem' }}>
-          {children}
+          {temAcessoModulo ? children : (
+            <div style={{
+              display: 'flex', height: '80%',
+              alignItems: 'center', justifyContent: 'center',
+              flexDirection: 'column', gap: '1rem',
+              padding: '2rem', textAlign: 'center',
+            }}>
+              <div style={{
+                width: '64px', height: '64px', borderRadius: '50%',
+                background: 'rgba(255, 76, 76, 0.1)', display: 'flex',
+                alignItems: 'center', justifyContent: 'center',
+                color: 'var(--vermelho)', marginBottom: '0.5rem'
+              }}>
+                <Lock size={32} />
+              </div>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--vermelho)' }}>Acesso Restrito</h2>
+              <p style={{ fontSize: '0.88rem', color: 'var(--texto-desab)', maxWidth: '400px', lineHeight: '1.5', margin: '0 0 1rem 0' }}>
+                Seu usuário não possui permissão para acessar o módulo <strong>{
+                  moduloAtual === 'pdv' ? 'PDV - Frente de Caixa' :
+                  moduloAtual === 'vendas' ? 'Histórico de Vendas' :
+                  moduloAtual === 'produtos' ? 'Produtos' :
+                  moduloAtual === 'estoque' ? 'Estoque' :
+                  moduloAtual === 'catalogo' ? 'Catálogo' :
+                  moduloAtual === 'clientes_inativos' ? 'Clientes Sumidos' :
+                  moduloAtual === 'clientes' ? 'Clientes' :
+                  moduloAtual === 'fornecedores' ? 'Fornecedores' :
+                  moduloAtual === 'despesas' ? 'Despesas' :
+                  moduloAtual === 'fechamento' ? 'Fechamento de Caixa' :
+                  moduloAtual === 'fiado' ? 'Fiados' :
+                  moduloAtual === 'financeiro' ? 'Financeiro' :
+                  moduloAtual === 'ordens_servico' ? 'Ordens de Serviço' :
+                  moduloAtual === 'garantias' ? 'Garantias' :
+                  moduloAtual === 'comissoes' ? 'Comissões' :
+                  moduloAtual === 'relatorios' ? 'Relatórios' : moduloAtual
+                }</strong>. Entre em contato com o administrador.
+              </p>
+              <button onClick={() => router.push('/dashboard')} className="btn btn-secondary" style={{ padding: '0.5rem 1rem' }}>
+                Voltar para o Dashboard
+              </button>
+            </div>
+          )}
         </main>
       </div>
     </div>
+    </PermissionsContext.Provider>
   )
 }
 

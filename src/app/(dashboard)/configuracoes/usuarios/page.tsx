@@ -16,6 +16,7 @@ type Usuario = {
   papel: string
   status: string
   criado_em: string
+  permissoes?: Record<string, 'read' | 'write' | 'none'>
 }
 
 /* ─── Constantes ─────────────────────────────────────── */
@@ -129,10 +130,30 @@ function ModalCriar({
     if (!senhaValida(senha)) { toast.error('Senha não atende os requisitos de segurança.'); return }
     setCriando(true)
     try {
+      const permissoesPadrao: Record<string, 'read' | 'write' | 'none'> = {
+        dashboard: 'read',
+        pdv: 'write',
+        vendas: 'read',
+        produtos: 'read',
+        estoque: 'none',
+        catalogo: 'none',
+        clientes: 'write',
+        clientes_inativos: 'none',
+        fornecedores: 'none',
+        pedidos_compra: 'none',
+        financeiro: 'none',
+        despesas: 'none',
+        fiado: 'none',
+        fechamento: 'none',
+        ordens_servico: 'write',
+        garantias: 'write',
+        comissoes: 'none',
+        relatorios: 'none',
+      }
       const res = await fetch('/api/usuario/criar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), nome: nome.trim(), senha, papel, empresaId }),
+        body: JSON.stringify({ email: email.trim(), nome: nome.trim(), senha, papel, empresaId, permissoes: permissoesPadrao }),
       })
       const json = await res.json()
       if (!res.ok) { toast.error(json.error || 'Erro ao cadastrar'); return }
@@ -354,6 +375,7 @@ export default function UsuariosPage() {
   const [plano, setPlano] = useState('start')
   const [modalCriar, setModalCriar] = useState(false)
   const [modalReset, setModalReset] = useState<Usuario | null>(null)
+  const [modalPermissoes, setModalPermissoes] = useState<Usuario | null>(null)
   const [salvando, setSalvando] = useState<string | null>(null)
 
   useEffect(() => { if (empresaId) carregar(empresaId) }, [empresaId])
@@ -362,7 +384,7 @@ export default function UsuariosPage() {
     setLoading(true)
     const supabase = createClient()
     const [profilesRes, userRes, subRes] = await Promise.all([
-      supabase.from('profiles').select('id,nome,papel,status,criado_em').eq('empresa_id', eid).order('criado_em'),
+      supabase.from('profiles').select('id,nome,papel,status,criado_em,permissoes').eq('empresa_id', eid).order('criado_em'),
       supabase.auth.getUser(),
       supabase.from('subscriptions').select('plano').eq('empresa_id', eid).maybeSingle(),
     ])
@@ -372,6 +394,7 @@ export default function UsuariosPage() {
       (profilesRes.data || []).map((u: Record<string, unknown>) => ({
         ...u,
         papel: MAP_DB_TO_UI[u.papel as string] || (u.papel as string),
+        permissoes: (u.permissoes || {}) as Record<string, 'read' | 'write' | 'none'>,
       })) as Usuario[]
     )
     setLoading(false)
@@ -384,6 +407,22 @@ export default function UsuariosPage() {
     setUsuarios(prev => prev.map(u => u.id === uid ? { ...u, papel: novoPapel } : u))
     setSalvando(null)
     toast.success('Papel atualizado.')
+  }
+
+  async function salvarPermissoes(uid: string, novasPermissoes: Record<string, 'read' | 'write' | 'none'>) {
+    setSalvando(uid + '-perms')
+    const { error } = await createClient()
+      .from('profiles')
+      .update({ permissoes: novasPermissoes })
+      .eq('id', uid)
+    if (error) {
+      toast.error('Erro ao salvar permissões: ' + error.message)
+    } else {
+      toast.success('Permissões salvas com sucesso!')
+      setUsuarios(prev => prev.map(u => u.id === uid ? { ...u, permissoes: novasPermissoes } : u))
+      setModalPermissoes(null)
+    }
+    setSalvando(null)
   }
 
   async function toggleFreeze(uid: string, statusAtual: string) {
@@ -428,6 +467,14 @@ export default function UsuariosPage() {
           onClose={() => setModalReset(null)}
           onSuccess={() => setModalReset(null)}
           empresaId={empresaId}
+        />
+      )}
+      {modalPermissoes && (
+        <ModalPermissoes
+          usuario={modalPermissoes}
+          onClose={() => setModalPermissoes(null)}
+          onSave={perms => salvarPermissoes(modalPermissoes.id, perms)}
+          salvando={salvando === modalPermissoes.id + '-perms'}
         />
       )}
 
@@ -568,6 +615,19 @@ export default function UsuariosPage() {
                       <span className="hidden sm:inline">Senha</span>
                     </button>
 
+                    {/* Permissões */}
+                    {u.papel === 'operador' && (
+                      <button
+                        onClick={() => setModalPermissoes(u)}
+                        className="btn btn-secondary"
+                        title="Personalizar acessos"
+                        style={{ padding: '0.375rem 0.625rem', fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                      >
+                        <ShieldCheck size={12} />
+                        <span className="hidden sm:inline">Acessos</span>
+                      </button>
+                    )}
+
                     {/* Excluir */}
                     <button
                       onClick={() => excluir(u.id, u.nome)}
@@ -620,6 +680,123 @@ export default function UsuariosPage() {
               {req}
             </div>
           ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ─── Modulos e Componente de Permissões ─── */
+type PermissaoNivel = 'write' | 'read' | 'none'
+
+const MODULOS_PERMISSAO = [
+  { id: 'dashboard', label: 'Dashboard / Resumo', desc: 'Visualizar faturamento, gráficos e alertas iniciais' },
+  { id: 'pdv', label: 'PDV (Frente de Caixa)', desc: 'Realizar novas vendas' },
+  { id: 'vendas', label: 'Histórico de Vendas', desc: 'Visualizar e cancelar vendas passadas' },
+  { id: 'produtos', label: 'Cadastro de Produtos', desc: 'Visualizar, criar e editar produtos do catálogo' },
+  { id: 'estoque', label: 'Ajustes de Estoque', desc: 'Realizar entradas/saídas manuais de estoque e ver logs' },
+  { id: 'catalogo', label: 'Configuração da Loja Pública', desc: 'Configurar a loja virtual e itens públicos' },
+  { id: 'clientes', label: 'Cadastro de Clientes', desc: 'Visualizar, cadastrar e editar clientes' },
+  { id: 'clientes_inativos', label: 'Clientes Sumidos (CRM)', desc: 'Visualizar clientes sem compra recente' },
+  { id: 'fornecedores', label: 'Cadastro de Fornecedores', desc: 'Visualizar e gerenciar fornecedores' },
+  { id: 'pedidos_compra', label: 'Pedidos de Compra', desc: 'Criar e receber pedidos de mercadoria' },
+  { id: 'financeiro', label: 'DRE / Resumo Financeiro', desc: 'Visualizar faturamento total, CMV e lucro do mês' },
+  { id: 'despesas', label: 'Lançamento de Despesas', desc: 'Ver e cadastrar saídas e custos' },
+  { id: 'fiado', label: 'Controle de Fiados', desc: 'Ver débitos de clientes e receber pagamentos' },
+  { id: 'fechamento', label: 'Fechamento de Caixa', desc: 'Visualizar e imprimir fechamento diário' },
+  { id: 'ordens_servico', label: 'Ordens de Serviço', desc: 'Gerenciar ordens de serviço e orçamentos' },
+  { id: 'garantias', label: 'Termos de Garantia', desc: 'Emitir certificados e registrar devoluções' },
+  { id: 'comissoes', label: 'Comissões & Ranking', desc: 'Ver taxas, comissões pendentes e ranking' },
+  { id: 'relatorios', label: 'Relatórios Analíticos', desc: 'Visualizar relatórios gerenciais e rankings de vendas' },
+]
+
+function ModalPermissoes({
+  usuario, onClose, onSave, salvando
+}: {
+  usuario: Usuario
+  onClose: () => void
+  onSave: (perms: Record<string, 'read' | 'write' | 'none'>) => void
+  salvando: boolean
+}) {
+  const [perms, setPerms] = useState<Record<string, 'read' | 'write' | 'none'>>(() => {
+    const initial: Record<string, 'read' | 'write' | 'none'> = {}
+    MODULOS_PERMISSAO.forEach(m => {
+      initial[m.id] = usuario.permissoes?.[m.id] || 'none'
+    })
+    return initial
+  })
+
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div className="card anim-pop" style={{ width: '100%', maxWidth: '600px', padding: '1.75rem', maxHeight: '90vh', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--borda)', paddingBottom: '0.75rem', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ width: 36, height: 36, borderRadius: '10px', background: 'rgba(0, 191, 165, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ShieldCheck size={18} color="var(--verde)" />
+            </div>
+            <div>
+              <p style={{ fontWeight: 900, fontSize: '1rem' }}>Permissões de Acesso</p>
+              <p style={{ fontSize: '0.72rem', color: 'var(--texto-desab)' }}>Colaborador: {usuario.nome}</p>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--texto-desab)' }}>
+            <X size={18} />
+          </button>
+        </div>
+
+        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.75rem', paddingRight: '0.25rem' }}>
+          {MODULOS_PERMISSAO.map(m => {
+            const atual = perms[m.id] || 'none'
+            return (
+              <div key={m.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0.75rem', background: 'var(--fundo)', borderRadius: '8px', border: '1px solid var(--borda)', gap: '1rem' }}>
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--texto)' }}>{m.label}</p>
+                  <p style={{ fontSize: '0.68rem', color: 'var(--texto-desab)' }}>{m.desc}</p>
+                </div>
+                <div style={{ display: 'flex', gap: '4px', background: 'var(--surface)', padding: '2px', borderRadius: '6px', border: '1px solid var(--borda)', flexShrink: 0 }}>
+                  {([
+                    { val: 'write', label: 'Editar', color: 'var(--verde)' },
+                    { val: 'read', label: 'Ver', color: 'var(--amarelo)' },
+                    { val: 'none', label: 'Bloquear', color: 'var(--vermelho)' },
+                  ] as const).map(opt => {
+                    const sel = atual === opt.val
+                    return (
+                      <button
+                        key={opt.val}
+                        type="button"
+                        onClick={() => setPerms(prev => ({ ...prev, [m.id]: opt.val }))}
+                        style={{
+                          fontSize: '0.68rem', fontWeight: 700, padding: '3px 8px', borderRadius: '4px',
+                          border: 'none', cursor: 'pointer',
+                          background: sel ? opt.color : 'transparent',
+                          color: sel ? '#000' : 'var(--texto-desab)',
+                          transition: 'all 0.1s',
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', borderTop: '1px solid var(--borda)', paddingTop: '0.75rem', flexShrink: 0 }}>
+          <button onClick={onClose} className="btn btn-ghost">Cancelar</button>
+          <button
+            onClick={() => onSave(perms)}
+            disabled={salvando}
+            className="btn btn-primary"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}
+          >
+            {salvando ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <ShieldCheck size={14} />}
+            Salvar Alterações
+          </button>
         </div>
       </div>
     </div>
