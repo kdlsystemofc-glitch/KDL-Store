@@ -19,6 +19,8 @@ type OS = {
   orcamento: number | null;
   valor_servico: number;
   valor_pecas: number;
+  custo_pecas: number;
+  forma_pagamento: string | null;
   tecnico: string | null;
   criado_em: string;
   previsao: string | null;
@@ -131,6 +133,10 @@ export default function OSDetalhePage({ params: propsParams }: { params: { id: s
   const [showShare, setShowShare] = useState(false)
   const [erroEdit, setErroEdit] = useState<string | null>(null)
   const [linkCopiado, setLinkCopiado] = useState(false)
+
+  // Modal de pagamento na entrega
+  const [showEntregaModal, setShowEntregaModal] = useState(false)
+  const [entregaFormaPagamento, setEntregaFormaPagamento] = useState('PIX')
   
   // Templates configuráveis de WhatsApp (persistidos no localStorage por empresa)
   const [tmplAbertura,  setTmplAbertura]  = useState(DEFAULT_TMPL.abertura)
@@ -150,6 +156,8 @@ export default function OSDetalhePage({ params: propsParams }: { params: { id: s
     orcamento: '',
     valor_servico: '',
     valor_pecas: '',
+    custo_pecas: '',
+    forma_pagamento: '',
     tecnico: '',
     previsao: '',
     problema: '',
@@ -237,6 +245,8 @@ export default function OSDetalhePage({ params: propsParams }: { params: { id: s
           orcamento:        osData.orcamento ? String(osData.orcamento) : '',
           valor_servico:    osData.valor_servico ? String(osData.valor_servico) : '',
           valor_pecas:      osData.valor_pecas ? String(osData.valor_pecas) : '',
+          custo_pecas:      osData.custo_pecas ? String(osData.custo_pecas) : '',
+          forma_pagamento:  osData.forma_pagamento || '',
           tecnico:          osData.tecnico || '',
           previsao:         osData.previsao || '',
           problema:         osData.problema || '',
@@ -271,6 +281,12 @@ export default function OSDetalhePage({ params: propsParams }: { params: { id: s
 
   async function atualizarStatus(novoStatus: string) {
     if (!os || !empresaId) return
+    // Se vai marcar como entregue, exibe modal de pagamento primeiro
+    if (novoStatus === 'entregue') {
+      setEntregaFormaPagamento('PIX')
+      setShowEntregaModal(true)
+      return
+    }
     setSalvando(true)
     
     const newLog = {
@@ -294,6 +310,35 @@ export default function OSDetalhePage({ params: propsParams }: { params: { id: s
     
     setOs({ ...os, status: novoStatus, historico: updatedHistory })
     setForm(f => ({ ...f, status: novoStatus }))
+  }
+
+  async function confirmarEntrega() {
+    if (!os) return
+    setSalvando(true)
+    const novoStatus = 'entregue'
+    const newLog = {
+      data: new Date().toISOString(),
+      usuario: loggedUser,
+      status: novoStatus,
+      status_label: STATUS_LABEL[novoStatus] || novoStatus
+    }
+    const updatedHistory = [newLog, ...(os.historico || [])]
+    const { error } = await createClient()
+      .from('ordens_servico')
+      .update({
+        status: novoStatus,
+        forma_pagamento: entregaFormaPagamento,
+        historico: updatedHistory
+      })
+      .eq('id', os.id)
+    setSalvando(false)
+    setShowEntregaModal(false)
+    if (error) {
+      alert('Erro ao registrar entrega: ' + error.message)
+      return
+    }
+    setOs({ ...os, status: novoStatus, forma_pagamento: entregaFormaPagamento, historico: updatedHistory })
+    setForm(f => ({ ...f, status: novoStatus, forma_pagamento: entregaFormaPagamento }))
   }
 
   async function salvarEdicao() {
@@ -325,6 +370,8 @@ export default function OSDetalhePage({ params: propsParams }: { params: { id: s
         orcamento:        form.orcamento ? parseFloat(form.orcamento) : null,
         valor_servico:    form.valor_servico ? parseFloat(form.valor_servico) : 0,
         valor_pecas:      form.valor_pecas ? parseFloat(form.valor_pecas) : 0,
+        custo_pecas:      form.custo_pecas ? parseFloat(form.custo_pecas) : 0,
+        forma_pagamento:  form.forma_pagamento || null,
         tecnico:          form.tecnico || null,
         previsao:         form.previsao || null,
         problema:         form.problema || null,
@@ -1092,8 +1139,28 @@ export default function OSDetalhePage({ params: propsParams }: { params: { id: s
                   <input className="campo" type="number" step="0.01" value={form.valor_servico} onChange={e=>setForm(f=>({...f,valor_servico:e.target.value}))}/>
                 </div>
                 <div>
-                  <label className="campo-label">Peças (R$)</label>
+                  <label className="campo-label">Peças (R$) <span style={{fontSize:'0.65rem',color:'var(--texto-desab)'}}>(cobrado ao cliente)</span></label>
                   <input className="campo" type="number" step="0.01" value={form.valor_pecas} onChange={e=>setForm(f=>({...f,valor_pecas:e.target.value}))}/>
+                </div>
+              </div>
+              {/* Custo real das peças (interno, para DRE) */}
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.625rem' }}>
+                <div>
+                  <label className="campo-label">Custo das Peças (R$) <span style={{fontSize:'0.65rem',color:'var(--amarelo)'}}>⚙ Interno/DRE</span></label>
+                  <input className="campo" type="number" step="0.01" placeholder="0,00"
+                    value={form.custo_pecas} onChange={e=>setForm(f=>({...f,custo_pecas:e.target.value}))}/>
+                </div>
+                <div>
+                  <label className="campo-label">Forma de Pagamento</label>
+                  <select className="campo" value={form.forma_pagamento} onChange={e=>setForm(f=>({...f,forma_pagamento:e.target.value}))}>
+                    <option value="">— Não informado —</option>
+                    <option value="PIX">PIX</option>
+                    <option value="Dinheiro">Dinheiro</option>
+                    <option value="Cartão de Crédito">Cartão de Crédito</option>
+                    <option value="Cartão de Débito">Cartão de Débito</option>
+                    <option value="Fiado">Fiado</option>
+                    <option value="Transferência">Transferência Bancária</option>
+                  </select>
                 </div>
               </div>
 
@@ -1118,6 +1185,47 @@ export default function OSDetalhePage({ params: propsParams }: { params: { id: s
               </div>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal de Forma de Pagamento para Entrega ── */}
+      {showEntregaModal && (
+        <div style={{ position:'fixed', inset:0, zIndex:200, background:'rgba(0,0,0,0.85)', display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' }}
+          onClick={e=>{if(e.target===e.currentTarget){setShowEntregaModal(false)}}}>
+          <div className="anim-pop" style={{ width:'100%', maxWidth:'380px', background:'var(--surface)', border:'1px solid var(--borda-forte)', borderRadius:'8px', padding:'1.5rem', display:'flex', flexDirection:'column', gap:'1.25rem' }}>
+            <div style={{ textAlign:'center' }}>
+              <span style={{ fontSize:'2rem' }}>📦</span>
+              <h2 style={{ fontSize:'1.1rem', fontWeight:900, color:'var(--verde)', marginTop:'0.5rem' }}>Registrar Entrega</h2>
+              <p style={{ fontSize:'0.8rem', color:'var(--texto-desab)', marginTop:'4px' }}>Selecione como o cliente pagou antes de finalizar a OS.</p>
+            </div>
+            <div>
+              <label className="campo-label">Forma de Pagamento *</label>
+              <select
+                className="campo"
+                value={entregaFormaPagamento}
+                onChange={e => setEntregaFormaPagamento(e.target.value)}
+                style={{ marginTop:'0.375rem' }}
+              >
+                <option value="PIX">PIX</option>
+                <option value="Dinheiro">Dinheiro</option>
+                <option value="Cartão de Crédito">Cartão de Crédito</option>
+                <option value="Cartão de Débito">Cartão de Débito</option>
+                <option value="Fiado">Fiado</option>
+                <option value="Transferência">Transferência Bancária</option>
+              </select>
+            </div>
+            <div style={{ display:'flex', gap:'0.625rem' }}>
+              <button onClick={()=>setShowEntregaModal(false)} className="btn btn-secondary" style={{ flex:1 }}>Cancelar</button>
+              <button
+                onClick={confirmarEntrega}
+                disabled={salvando}
+                className="btn btn-primary"
+                style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:'0.5rem' }}
+              >
+                {salvando ? 'Salvando...' : '✅ Confirmar Entrega'}
+              </button>
+            </div>
           </div>
         </div>
       )}

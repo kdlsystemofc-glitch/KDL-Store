@@ -362,7 +362,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     })
   }, [])  // eslint-disable-line
 
-  if (!isMounted) {
+  if (!isMounted || headerInfo.papel === '') {
     return (
       <div style={{
         display: 'flex', height: '100vh', width: '100vw',

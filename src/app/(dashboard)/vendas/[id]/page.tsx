@@ -723,7 +723,7 @@ export default function VendaReciboPage() {
           <div>
             <p style={{ fontSize: '0.7rem', color: '#475569', margin: 0, fontWeight: 700 }}>Obrigado pela preferência!</p>
             <p style={{ fontSize: '0.62rem', color: '#64748b', margin: '2px 0 0' }}>Volte sempre e confira as novidades em nosso catálogo.</p>
-            <p style={{ fontSize: '0.55rem', color: '#94a3b8', margin: '4px 0 0', fontWeight: 600 }}>Nexocommerce — Desenvolvido por KDL Store</p>
+            <p style={{ fontSize: '0.55rem', color: '#94a3b8', margin: '4px 0 0', fontWeight: 600 }}>KDL Store</p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <div style={{ textAlign: 'right' }}>
@@ -770,6 +770,7 @@ export default function VendaReciboPage() {
             padding: 0 !important;
             background: #fff !important;
             color: #000 !important;
+            overflow: visible !important;
           }
           /* Ensure header remains dark and text remains white during print */
           #recibo-print > div:first-child {

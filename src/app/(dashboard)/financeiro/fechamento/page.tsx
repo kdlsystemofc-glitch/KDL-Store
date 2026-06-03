@@ -11,6 +11,7 @@ import { ProOnly } from '@/components/ProOnly'
 
 
 type Venda = { total:number; forma_pagamento:string; criado_em:string }
+type OsEntrada = { orcamento:number|null; valor_servico:number; valor_pecas:number; forma_pagamento:string|null; atualizado_em:string }
 type Despesa = { descricao:string; categoria:string|null; valor:number }
 
 export default function FechamentoPage() {
@@ -18,6 +19,7 @@ export default function FechamentoPage() {
   const [tipo,     setTipo]     = useState<'diario'|'mensal'>('diario')
   const [loading,  setLoading]  = useState(true)
   const [vendas,   setVendas]   = useState<Venda[]>([])
+  const [osEntradas, setOsEntradas] = useState<OsEntrada[]>([])
   const [despesas, setDespesas] = useState<Despesa[]>([])
   const [saldoFisico,setSaldoFisico] = useState('')
   const [fechado,  setFechado]  = useState(false)
@@ -37,16 +39,21 @@ export default function FechamentoPage() {
       supabase.from('vendas').select('total,forma_pagamento,criado_em').eq('empresa_id', eid).eq('status','concluida').gte('criado_em', desde).lte('criado_em', ate + 'T23:59:59'),
       // Apenas despesas com BAIXA DADA (status='pago') no período — pendentes e futuras ficam fora
       supabase.from('despesas').select('descricao,categoria,valor').eq('empresa_id', eid).eq('status','pago').gte('data', desde).lte('data', ate),
+      // OS entregues no período — entram no fechamento de caixa pelo atualizado_em
+      supabase.from('ordens_servico').select('orcamento,valor_servico,valor_pecas,forma_pagamento,atualizado_em').eq('empresa_id', eid).eq('status','entregue').gte('atualizado_em', desde).lte('atualizado_em', ate + 'T23:59:59'),
     ])
     const getRes = (i: number): any => results[i].status === 'fulfilled' ? (results[i] as PromiseFulfilledResult<any>).value || {} : {}
     const { data: v } = getRes(0)
     const { data: d } = getRes(1)
+    const { data: os } = getRes(2)
     setVendas(v||[])
+    setOsEntradas(os||[])
     setDespesas(d||[])
     setLoading(false)
   }
 
   const totalReceita = vendas.reduce((a,v)=>a+v.total,0)
+    + osEntradas.reduce((a,o)=>a+(o.orcamento ?? (o.valor_servico + o.valor_pecas)),0)
   const totalDesp    = despesas.reduce((a,d)=>a+d.valor,0)
   const saldoEsperado = totalReceita - totalDesp
   const saldoNum     = parseFloat(saldoFisico.replace(',','.')) || 0
@@ -54,6 +61,11 @@ export default function FechamentoPage() {
 
   const porForma: Record<string,number> = {}
   vendas.forEach(v=>{ porForma[v.forma_pagamento]=(porForma[v.forma_pagamento]||0)+v.total })
+  osEntradas.forEach(o=>{
+    const chave = o.forma_pagamento || 'Serviço OS'
+    const valor = o.orcamento ?? (o.valor_servico + o.valor_pecas)
+    porForma[chave] = (porForma[chave]||0) + valor
+  })
 
   const labelPeriodo = tipo==='diario'
     ? `Hoje — ${new Date().toLocaleDateString('pt-BR')}`

@@ -44,8 +44,8 @@ export default function FinanceiroPage() {
       supabase.from('estoque_movimentacoes').select('quantidade,produto_id,produtos(preco_custo)').eq('empresa_id', eid).eq('tipo','brinde').gte('criado_em', inicioMes),
       // [5] CMV — custo de mercadoria vendida no mês (apenas vendas concluídas)
       supabase.from('itens_venda').select('quantidade,produtos(preco_custo),vendas!inner(status,empresa_id)').eq('empresa_id', eid).gte('criado_em', inicioMes).eq('vendas.status','concluida').eq('vendas.empresa_id', eid),
-      // [6] OS concluídas/entregues no mês (faturamento de serviços)
-      supabase.from('ordens_servico').select('valor_servico,valor_pecas,criado_em').eq('empresa_id', eid).in('status',['concluido','entregue']).gte('criado_em', inicioMes),
+      // [6] OS concluídas/entregues no mês (faturamento de serviços + custo peças para DRE)
+      supabase.from('ordens_servico').select('valor_servico,valor_pecas,custo_pecas,criado_em').eq('empresa_id', eid).in('status',['concluido','entregue']).gte('criado_em', inicioMes),
       // [7] OS 15 dias para gráfico
       supabase.from('ordens_servico').select('valor_servico,valor_pecas,criado_em').eq('empresa_id', eid).in('status',['concluido','entregue']).gte('criado_em', inicio15d),
     ])
@@ -78,12 +78,17 @@ export default function FinanceiroPage() {
       return a + Math.abs(m.quantidade) * custo
     }, 0)
 
-    // CMV = soma de (quantidade × preco_custo)
-    const totalCMV = (itensMes||[]).reduce((a: number, iv: any) => {
+    // CMV = soma de (quantidade × preco_custo) das vendas + custo_pecas das OS
+    const totalCMVVendas = (itensMes||[]).reduce((a: number, iv: any) => {
       const prod = iv.produtos as any
       const custo = Array.isArray(prod) ? (prod[0]?.preco_custo || 0) : (prod?.preco_custo || 0)
       return a + (iv.quantidade || 0) * custo
     }, 0)
+    // Custo de peças das OS entregues/concluídas (registrado manualmente)
+    const totalCMVPecasOS = (osMes||[]).reduce((a: number, os: any) => {
+      return a + (os.custo_pecas || 0)
+    }, 0)
+    const totalCMV = totalCMVVendas + totalCMVPecasOS
 
     setReceitaVendas(totalReceitaVendas)
     setReceitaOS(totalReceitaOS)
@@ -244,7 +249,7 @@ export default function FinanceiroPage() {
                 {l:'(+) RECEITA DE VENDAS',          v:receitaVendas,   c:'var(--verde)',     neg:false, sub:true},
                 {l:'(+) RECEITA DE SERVIÇOS (OS)',    v:receitaOS,       c:'#60a5fa',          neg:false, sub:true},
                 {l:'(=) RECEITA BRUTA TOTAL',         v:receita,         c:'var(--verde)',     neg:false, sub:false},
-                {l:'(-) CMV (CUSTO MERCADORIA)',       v:cmv,             c:'var(--vermelho)',  neg:true,  sub:true},
+                {l:'(-) CMV + CUSTO PEÇAS (OS)',       v:cmv,             c:'var(--vermelho)',  neg:true,  sub:true},
                 {l:'(-) BRINDES CONCEDIDOS',           v:brindes,         c:'var(--amarelo)',  neg:true,  sub:true},
                 {l:'(-) DESPESAS TOTAIS',              v:despesas,        c:'var(--vermelho)', neg:true,  sub:true},
                 {l:'(=) LUCRO LÍQUIDO ESTIMADO',       v:lucroLiquido,    c:lucroLiquido>=0?'var(--verde)':'var(--vermelho)', neg:false, sub:false},
