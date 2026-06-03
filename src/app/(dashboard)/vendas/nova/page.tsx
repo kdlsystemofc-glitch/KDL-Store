@@ -64,6 +64,8 @@ export default function NovaPdvPage() {
   const [parcelas,    setParcelas]    = useState(1)
   const [jurosCredito, setJurosCredito] = useState(false)
   const hasCamera = useHasCamera()
+  const [comissionados, setComissionados] = useState<{ id: string; nome: string }[]>([])
+  const [comissionadoId, setComissionadoId] = useState<string | null>(null)
 
   const carregar = useCallback(async (eid: string) => {
     const supabase = createClient()
@@ -101,10 +103,18 @@ export default function NovaPdvPage() {
       finalPagtos.push({ id: 'fiado-id', nome: 'Fiado', taxa: 0, ativo: true })
     }
 
+    const { data: coms } = await supabase
+      .from('comissoes')
+      .select('id,nome')
+      .eq('empresa_id', eid)
+      .eq('status', 'ativo')
+      .order('nome')
+
     setCatalogo(data || [])
     setFiadosAtivos((fAbertos || []).map(f => f.cliente_nome.toLowerCase().trim()))
     setClientesDB(clis || [])
     setFormas(finalPagtos)
+    setComissionados(coms || [])
   }, [])
 
   useEffect(() => { if (empresaId) carregar(empresaId) }, [empresaId, carregar])
@@ -237,6 +247,9 @@ export default function NovaPdvPage() {
       finalObs += (finalObs ? ' | ' : '') + `Com juros de 1.99% a.m. (+${formatCurrency(total - principal)})`
     }
 
+    const selectedComissionado = comissionados.find(c => c.id === comissionadoId)
+    const comissionadoNome = selectedComissionado ? selectedComissionado.nome : null
+
     const { data: vendaId, error } = await supabase.rpc('checkout_venda_transaction', {
       p_empresa_id: empresaId,
       // CL1+P1: passa o UUID real do cliente quando selecionado
@@ -245,8 +258,8 @@ export default function NovaPdvPage() {
       p_forma_pagamento: pagamento + (isCredito ? ` (${parcelas}x)` : ''),
       p_total: total,
       p_desconto: descontoValor,
-      p_comissionado_id: null,
-      p_comissionado_nome: null,
+      p_comissionado_id: comissionadoId,
+      p_comissionado_nome: comissionadoNome,
       p_registrado_nome: nomeOperador,
       p_obs: finalObs || null,
       p_itens: payloadItens,
@@ -289,7 +302,7 @@ export default function NovaPdvPage() {
       {pagamento==='Fiado' && <p style={{color:'var(--amarelo)',fontWeight:700}}>📒 Registrado no fiado de {cliente}</p>}
       <div style={{display:'flex',gap:'0.625rem',flexWrap:'wrap',justifyContent:'center',marginTop:'0.5rem'}}>
         <Link href={`/vendas/${vendaId}`} className="btn btn-secondary">🧾 Ver Recibo</Link>
-        <button className="btn btn-primary" onClick={()=>{setItens([]);setFase('pdv');setPagamento('');setDesconto(0);setDescontoTipo('R$');setTroco('');setCliente('');setClienteId(null);setClienteSugs([]);setPrazoDias(null);setRepassarTaxa(false);setParcelas(1);setJurosCredito(false);setTipoCliente('varejo')}}>
+        <button className="btn btn-primary" onClick={()=>{setItens([]);setFase('pdv');setPagamento('');setDesconto(0);setDescontoTipo('R$');setTroco('');setCliente('');setClienteId(null);setClienteSugs([]);setPrazoDias(null);setRepassarTaxa(false);setParcelas(1);setJurosCredito(false);setTipoCliente('varejo');setComissionadoId(null)}}>
           + Nova Venda
         </button>
       </div>
@@ -598,6 +611,21 @@ export default function NovaPdvPage() {
             )}
           </div>
 
+          {/* Comissionado / Indicador (opcional) */}
+          <div className="card" style={{padding:'0.75rem',border:'1px solid var(--borda)',borderRadius:'var(--radius)'}}>
+            <label className="campo-label">Indicador / Comissionado (opcional)</label>
+            <select
+              className="campo"
+              style={{marginTop:'0.375rem', width:'100%'}}
+              value={comissionadoId || ''}
+              onChange={e => setComissionadoId(e.target.value || null)}
+            >
+              <option value="">— Sem comissionado —</option>
+              {comissionados.map(c => (
+                <option key={c.id} value={c.id}>{c.nome}</option>
+              ))}
+            </select>
+          </div>
 
           {/* Pagamento */}
           <div style={{border:'1px solid var(--borda-forte)',borderTop:'2px solid var(--borda-forte)',background:'var(--surface)',padding:'0.625rem'}}>
