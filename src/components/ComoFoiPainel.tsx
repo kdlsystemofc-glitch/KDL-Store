@@ -123,7 +123,18 @@ export function ComoFoiPainel() {
     const results = await Promise.allSettled([
       sb.from('vendas').select('id, criado_em, total, cliente_nome, status, itens_venda(produto_id,quantidade,preco_unitario,brinde)').eq('empresa_id',eid).eq('status','concluida').gte('criado_em',i).lt('criado_em',f).order('criado_em', { ascending: false }),
       sb.from('vendas').select('total').eq('empresa_id',eid).eq('status','concluida').gte('criado_em',pi).lt('criado_em',pf),
-      sb.from('despesas').select('id, criado_em, descricao, valor').eq('empresa_id',eid).gte('criado_em',i).lt('criado_em',f).order('criado_em', { ascending: false }),
+      // Filtra despesas pelo campo `data` (data de vencimento/competência),
+      // não pelo `criado_em` (quando foi lançado no sistema).
+      // Ajuste: para períodos de 'hoje'/'ontem', f já aponta para o dia seguinte (limite exclusivo).
+      // Para 'semana'/'mes'/'ano', f é o momento atual, então somamos +1 dia para incluir hoje.
+      (() => {
+        const endDt = new Date(f)
+        const needsNudge = aba === 'semana' || aba === 'mes' || aba === 'ano'
+        if (needsNudge) endDt.setDate(endDt.getDate() + 1)
+        const iDate = i.slice(0, 10)
+        const fDate = endDt.toISOString().slice(0, 10)
+        return sb.from('despesas').select('id, data, descricao, valor').eq('empresa_id',eid).gte('data',iDate).lt('data',fDate).order('data', { ascending: false })
+      })(),
       sb.from('fiados').select('valor_aberto').eq('empresa_id',eid).eq('status','aberto').gte('criado_em',i).lt('criado_em',f),
       sb.from('vendas').select('id').eq('empresa_id',eid).eq('status','concluida').not('comissionado_id','is',null).gte('criado_em',i).lt('criado_em',f),
     ])
@@ -373,7 +384,7 @@ export function ComoFoiPainel() {
                       {dados.listaVendas.length===0 && <tr><td colSpan={3} style={{padding:'1rem',textAlign:'center'}}>Nenhuma venda</td></tr>}
                       {dados.listaVendas.map((v:any) => (
                         <tr key={v.id} style={{borderBottom:'1px solid var(--borda-leve)'}}>
-                          <td style={{padding:'0.75rem',fontSize:'0.85rem',fontWeight:600}}>{new Date(v.criado_em).toLocaleDateString('pt-BR')} {new Date(v.criado_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</td>
+                          <td style={{padding:'0.75rem',fontSize:'0.85rem',fontWeight:600}}>{new Date((v.data || v.criado_em) + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
                           <td style={{padding:'0.75rem',fontSize:'0.85rem'}}>{v.cliente_nome || 'Cliente Balcão'}</td>
                           <td style={{padding:'0.75rem',fontSize:'0.9rem',fontWeight:800,fontFamily:'monospace',textAlign:'right',color:'var(--verde)'}}>{formatCurrency(v.total)}</td>
                         </tr>

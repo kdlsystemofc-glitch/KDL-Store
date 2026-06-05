@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 const inp: React.CSSProperties = {
@@ -17,8 +17,10 @@ const lbl: React.CSSProperties = {
   color: 'var(--muted)', marginBottom: '0.3rem',
 }
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const motivo = searchParams.get('motivo')
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [showPwd, setShowPwd] = useState(false)
@@ -74,6 +76,16 @@ export default function LoginPage() {
       <p style={{ color: 'var(--muted)', marginBottom: '1.75rem', fontSize: '0.85rem' }}>
         Digite suas credenciais para acessar o sistema
       </p>
+
+      {motivo === 'bloqueado' && (
+        <div style={{
+          background: '#fdf2f1', border: '1px solid #f1a99e', borderLeft: '3px solid var(--laranja)',
+          padding: '0.625rem 0.875rem', marginBottom: '1rem', color: 'var(--laranja)',
+          fontSize: '0.82rem', fontWeight: 600, borderRadius: 'var(--r-sm)',
+        }}>
+          Seu acesso foi congelado ou excluído. Entre em contato com o administrador.
+        </div>
+      )}
 
       {erro && (
         <div style={{
@@ -165,5 +177,13 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div style={{color:'var(--texto-desab)',fontSize:'0.85rem'}}>Carregando...</div>}>
+      <LoginForm />
+    </Suspense>
   )
 }

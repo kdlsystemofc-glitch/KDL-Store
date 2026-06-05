@@ -239,6 +239,50 @@ export default function VendaReciboPage() {
     setShowCanc(false)
   }
 
+  function printReceipt() {
+    const el = document.getElementById('recibo-print')
+    if (!el) { window.print(); return }
+    const num = venda ? String(venda.numero).padStart(4, '0') : '0000'
+    const win = window.open('', '_blank', 'width=900,height=700,scrollbars=yes')
+    if (!win) { window.print(); return }
+    win.document.write(`
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Recibo #${num}</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 1cm;
+      font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+      background: #fff;
+      color: #1a1a1a;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    img { max-width: 100%; }
+    table { border-collapse: collapse; width: 100%; }
+    @page { margin: 0.5cm; size: A4 portrait; }
+    @media print {
+      body { padding: 0; }
+    }
+  </style>
+</head>
+<body>
+${el.outerHTML}
+<script>
+  window.addEventListener('load', function() {
+    window.focus();
+    setTimeout(function() { window.print(); window.close(); }, 300);
+  });
+<\/script>
+</body>
+</html>`)
+    win.document.close()
+  }
+
   if (loading) return (
     <div style={{display:'flex',justifyContent:'center',padding:'3rem',color:'var(--texto-desab)'}}>Carregando recibo...</div>
   )
@@ -743,7 +787,7 @@ export default function VendaReciboPage() {
 
       <div style={{display:'flex',gap:'0.5rem',justifyContent:'center'}} className="no-print">
         <Link href="/vendas" className="btn btn-ghost">← Voltar</Link>
-        <button onClick={() => window.print()} className="btn btn-secondary" style={{display:'flex',alignItems:'center',gap:'0.375rem'}}>
+        <button onClick={printReceipt} className="btn btn-secondary" style={{display:'flex',alignItems:'center',gap:'0.375rem'}}>
           <Printer size={14}/> Imprimir Recibo
         </button>
         <Link href="/vendas/nova" className="btn btn-primary">+ Nova Venda</Link>
@@ -751,28 +795,40 @@ export default function VendaReciboPage() {
 
       <style>{`
         @media print {
-          .no-print, header, aside, button, nav, footer { display: none !important; }
+          /* Visibility trick: esconde tudo e exibe apenas o recibo.
+             Garante que sidebar, navbar e outros elementos do layout
+             do Next.js sejam completamente ignorados na impressao. */
+          body * {
+            visibility: hidden !important;
+            box-shadow: none !important;
+            text-shadow: none !important;
+          }
+          #recibo-print,
+          #recibo-print * {
+            visibility: visible !important;
+          }
           body {
             background: white !important;
-            color: #000 !important;
             margin: 0 !important;
             padding: 0 !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
           #recibo-print {
-            box-shadow: none !important;
-            border: 1px solid #000 !important;
-            max-width: 100% !important;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            right: 0 !important;
             width: 100% !important;
+            max-width: 100% !important;
+            border: none !important;
+            box-shadow: none !important;
             border-radius: 0 !important;
-            margin: 0 !important;
-            padding: 0 !important;
+            overflow: visible !important;
             background: #fff !important;
             color: #000 !important;
-            overflow: visible !important;
           }
-          /* Ensure header remains dark and text remains white during print */
+          /* Mantem o header escuro do recibo */
           #recibo-print > div:first-child {
             background: #0f172a !important;
             color: #ffffff !important;
@@ -781,14 +837,17 @@ export default function VendaReciboPage() {
           }
           #recibo-print > div:first-child * {
             color: #ffffff !important;
-          }
-          #recibo-print > div:nth-child(2) {
-            background: #f0fdf4 !important;
-            color: #15803d !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
-          @page { margin: 1cm; size: A4; }
+          #recibo-print > div:nth-child(2) {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          @page {
+            margin: 0.5cm;
+            size: A4 portrait;
+          }
         }
       `}</style>
     </div>

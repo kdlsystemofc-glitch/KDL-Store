@@ -32,7 +32,7 @@ export default async function LojaPublicaPage({ params }: { params: Promise<{ sl
 
   const { data: empresa } = await supabaseAdmin
     .from('empresas')
-    .select('id, nome, telefone, whatsapp, instagram, cidade, estado, catalogo_cor_primaria, catalogo_cor_secundaria, catalogo_descricao, catalogo_template, catalogo_fonte, catalogo_logo_url, catalogo_mostrar_carrinho, catalogo_formas_envio')
+    .select('id, nome, telefone, whatsapp, instagram, cidade, estado, logo_url, catalogo_cor_primaria, catalogo_cor_secundaria, catalogo_descricao, catalogo_template, catalogo_fonte, catalogo_logo_url, catalogo_mostrar_carrinho, catalogo_formas_envio')
     .eq('slug', slug)
     .single()
 
@@ -61,7 +61,7 @@ export default async function LojaPublicaPage({ params }: { params: Promise<{ sl
         catalogo_descricao: empresa.catalogo_descricao,
         catalogo_template: empresa.catalogo_template || 'moderno',
         catalogo_fonte: empresa.catalogo_fonte || 'Inter',
-        catalogo_logo_url: empresa.catalogo_logo_url || null,
+        catalogo_logo_url: empresa.catalogo_logo_url || empresa.logo_url || null,
         catalogo_mostrar_carrinho: empresa.catalogo_mostrar_carrinho !== false,
         catalogo_formas_envio: empresa.catalogo_formas_envio || null,
       }}

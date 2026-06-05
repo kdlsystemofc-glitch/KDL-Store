@@ -115,7 +115,10 @@ export default function ClientesPage() {
         ))}
         <input className="campo" placeholder="BUSCAR: NOME, TELEFONE, CPF, E-MAIL..."
           style={{ flex:1, maxWidth:'320px' }}
-          value={busca} onChange={e => setBusca(e.target.value)} />
+          value={busca} onChange={e => {
+            setBusca(e.target.value)
+            if (filtro !== 'todos') setFiltro('todos')
+          }} />
       </div>
 
       {loading ? (

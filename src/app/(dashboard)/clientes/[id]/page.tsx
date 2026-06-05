@@ -71,12 +71,15 @@ export default function ClientePerfilPage() {
 
   useEffect(() => { if (id) carregar(id) }, [id])
 
-  // Sync endereço structured state whenever we enter edit mode
+  // Sync endereço structured state ONLY when entering/leaving edit mode.
+  // Intentionally excludes `cliente` from deps to prevent address reset when
+  // the user edits other fields (nome, telefone, etc.) which also call setCliente.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (editando && cliente) {
       setEnd(parseEndereco(cliente.endereco))
     }
-  }, [editando, cliente])
+  }, [editando])
 
   async function carregar(cid: string) {
     setLoading(true)

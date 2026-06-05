@@ -57,9 +57,21 @@ export async function middleware(request: NextRequest) {
   // ── 4. Subscription guard: verificar se tem assinatura ativa ──
   const { data: profile } = await supabase
     .from('profiles')
-    .select('empresa_id')
+    .select('empresa_id, status')
     .eq('id', user.id)
     .single()
+
+  if (profile?.status === 'congelado' || profile?.status === 'excluido') {
+    await supabase.auth.signOut()
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    url.search = '?motivo=bloqueado'
+    const redirectResponse = NextResponse.redirect(url)
+    supabaseResponse.cookies.getAll().forEach(cookie => {
+      redirectResponse.cookies.set(cookie.name, cookie.value, cookie)
+    })
+    return redirectResponse
+  }
 
   let hasActiveSubscription = false
   let userPlan = 'start'
