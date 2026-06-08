@@ -13,6 +13,7 @@ import { ProOnly } from '@/components/ProOnly'
 type Venda = { total:number; forma_pagamento:string; criado_em:string }
 type OsEntrada = { orcamento:number|null; valor_servico:number; valor_pecas:number; forma_pagamento:string|null; atualizado_em:string }
 type Despesa = { descricao:string; categoria:string|null; valor:number }
+type FechManual = { descricao:string; tipo:string; valor:number; forma_pagamento:string|null }
 
 export default function FechamentoPage() {
   const { empresaId } = useEmpresaId()
@@ -21,6 +22,7 @@ export default function FechamentoPage() {
   const [vendas,   setVendas]   = useState<Venda[]>([])
   const [osEntradas, setOsEntradas] = useState<OsEntrada[]>([])
   const [despesas, setDespesas] = useState<Despesa[]>([])
+  const [fechManuais, setFechManuais] = useState<FechManual[]>([])
   const [saldoFisico,setSaldoFisico] = useState('')
   const [fechado,  setFechado]  = useState(false)
 
@@ -37,24 +39,31 @@ export default function FechamentoPage() {
     const supabase = createClient()
     const results = await Promise.allSettled([
       supabase.from('vendas').select('total,forma_pagamento,criado_em').eq('empresa_id', eid).eq('status','concluida').gte('criado_em', desde).lte('criado_em', ate + 'T23:59:59'),
-      // Apenas despesas com BAIXA DADA (status='pago') no período — pendentes e futuras ficam fora
-      supabase.from('despesas').select('descricao,categoria,valor').eq('empresa_id', eid).eq('status','pago').gte('data', desde).lte('data', ate),
+      // Despesas do período — filtra por data (sem status, pois a coluna não existe na tabela)
+      supabase.from('despesas').select('descricao,categoria,valor').eq('empresa_id', eid).gte('data', desde).lte('data', ate),
       // OS entregues no período — entram no fechamento de caixa pelo atualizado_em
       supabase.from('ordens_servico').select('orcamento,valor_servico,valor_pecas,forma_pagamento,atualizado_em').eq('empresa_id', eid).eq('status','entregue').gte('atualizado_em', desde).lte('atualizado_em', ate + 'T23:59:59'),
+      // Entradas/saídas manuais (recebimentos de fiado, ajustes, etc.)
+      supabase.from('fechamentos_manuais').select('descricao,tipo,valor,forma_pagamento').eq('empresa_id', eid).gte('data', desde).lte('data', ate),
     ])
     const getRes = (i: number): any => results[i].status === 'fulfilled' ? (results[i] as PromiseFulfilledResult<any>).value || {} : {}
     const { data: v } = getRes(0)
     const { data: d } = getRes(1)
     const { data: os } = getRes(2)
+    const { data: fm } = getRes(3)
     setVendas(v||[])
     setOsEntradas(os||[])
     setDespesas(d||[])
+    setFechManuais(fm||[])
     setLoading(false)
   }
 
+  const entradasManuais = fechManuais.filter(f => f.tipo === 'entrada').reduce((a,f) => a + f.valor, 0)
+  const saidasManuais   = fechManuais.filter(f => f.tipo === 'saida').reduce((a,f) => a + f.valor, 0)
   const totalReceita = vendas.reduce((a,v)=>a+v.total,0)
     + osEntradas.reduce((a,o)=>a+(o.orcamento ?? (o.valor_servico + o.valor_pecas)),0)
-  const totalDesp    = despesas.reduce((a,d)=>a+d.valor,0)
+    + entradasManuais
+  const totalDesp    = despesas.reduce((a,d)=>a+d.valor,0) + saidasManuais
   const saldoEsperado = totalReceita - totalDesp
   const saldoNum     = parseFloat(saldoFisico.replace(',','.')) || 0
   const diferenca    = saldoNum - saldoEsperado
@@ -65,6 +74,11 @@ export default function FechamentoPage() {
     const chave = o.forma_pagamento || 'Serviço OS'
     const valor = o.orcamento ?? (o.valor_servico + o.valor_pecas)
     porForma[chave] = (porForma[chave]||0) + valor
+  })
+  // Entradas manuais (fiados recebidos, ajustes) agrupadas por forma de pagamento
+  fechManuais.filter(f => f.tipo === 'entrada').forEach(f => {
+    const chave = f.forma_pagamento || 'Dinheiro'
+    porForma[chave] = (porForma[chave] || 0) + f.valor
   })
 
   const labelPeriodo = tipo==='diario'
@@ -142,14 +156,24 @@ export default function FechamentoPage() {
             <div className="card" style={{padding:0,overflow:'hidden'}}>
               <div className="sec-header"><span>💸 Saídas (Despesas)</span></div>
               <div style={{padding:'0.875rem',display:'flex',flexDirection:'column',gap:'0.375rem'}}>
-                {despesas.length===0 ? (
+                {despesas.length === 0 && saidasManuais === 0 ? (
                   <p style={{color:'var(--texto-desab)',fontSize:'0.85rem'}}>Nenhuma despesa no período</p>
-                ) : despesas.map((d,i)=>(
-                  <div key={i} style={{display:'flex',justifyContent:'space-between',padding:'0.375rem 0',borderBottom:'1px solid var(--borda-leve)'}}>
-                    <span style={{fontSize:'0.85rem'}}>{d.descricao}{d.categoria&&<span style={{color:'var(--texto-desab)',fontSize:'0.75rem'}}> · {d.categoria}</span>}</span>
-                    <span style={{fontWeight:700,fontFamily:'monospace',color:'var(--vermelho)'}}>{formatCurrency(d.valor)}</span>
-                  </div>
-                ))}
+                ) : (
+                  <>
+                    {despesas.map((d,i)=>(
+                      <div key={i} style={{display:'flex',justifyContent:'space-between',padding:'0.375rem 0',borderBottom:'1px solid var(--borda-leve)'}}>
+                        <span style={{fontSize:'0.85rem'}}>{d.descricao}{d.categoria&&<span style={{color:'var(--texto-desab)',fontSize:'0.75rem'}}> · {d.categoria}</span>}</span>
+                        <span style={{fontWeight:700,fontFamily:'monospace',color:'var(--vermelho)'}}>{formatCurrency(d.valor)}</span>
+                      </div>
+                    ))}
+                    {fechManuais.filter(f => f.tipo === 'saida').map((f,i)=>(
+                      <div key={`sm-${i}`} style={{display:'flex',justifyContent:'space-between',padding:'0.375rem 0',borderBottom:'1px solid var(--borda-leve)'}}>
+                        <span style={{fontSize:'0.85rem'}}>{f.descricao} <span style={{color:'var(--texto-desab)',fontSize:'0.75rem'}}>· Ajuste Manual</span></span>
+                        <span style={{fontWeight:700,fontFamily:'monospace',color:'var(--vermelho)'}}>{formatCurrency(f.valor)}</span>
+                      </div>
+                    ))}
+                  </>
+                )}
                 <div style={{display:'flex',justifyContent:'space-between',padding:'0.5rem 0',borderTop:'2px solid var(--borda)',marginTop:'0.25rem'}}>
                   <span style={{fontWeight:800}}>Total Saídas</span>
                   <span style={{fontWeight:900,fontFamily:'monospace',fontSize:'1.1rem',color:'var(--vermelho)'}}>{formatCurrency(totalDesp)}</span>

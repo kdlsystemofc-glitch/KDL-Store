@@ -17,7 +17,7 @@ type Fornecedor = {
   pedido_minimo: number | null; anotacoes: string | null; ativo: boolean
 }
 type Pedido = {
-  id: string; fornecedor_id: string; produto: string; quantidade: number
+  id: string; fornecedor_id: string | null; produto: string; quantidade: number
   status: string; total: number; obs: string | null; criado_em: string
   fornecedores: { nome: string }[] | null
 }
@@ -50,6 +50,16 @@ export default function FornecedoresPage() {
   const [salvandoPed,  setSalvandoPed]  = useState(false)
   const [abaModal,     setAbaModal]     = useState<'dados'|'produtos'|'pedidos'>('dados')
   const [selectedProdParaVincular, setSelectedProdParaVincular] = useState('')
+  // Detalhe / edição de pedido
+  const [pedidoDetalhe, setPedidoDetalhe] = useState<Pedido | null>(null)
+  const [editandoPedido, setEditandoPedido] = useState(false)
+  const [salvandoEditPed, setSalvandoEditPed] = useState(false)
+  const [editPedProduto, setEditPedProduto] = useState('')
+  const [editPedQtd, setEditPedQtd] = useState('')
+  const [editPedPreco, setEditPedPreco] = useState('')
+  const [editPedObs, setEditPedObs] = useState('')
+  const [editPedFornId, setEditPedFornId] = useState('')
+  const [avancarLoading, setAvancarLoading] = useState<string | null>(null)
 
   // Autocomplete de produtos em estoque
   const [produtosDB,   setProdutosDB]   = useState<{ id: string; nome: string; sku: string | null; qtd_atual: number; preco_varejo: number; fornecedor_id: string | null }[]>([])
@@ -144,82 +154,113 @@ export default function FornecedoresPage() {
   async function avancarStatus(id: string, atual: string) {
     const fluxo: Record<string, string> = { rascunho: 'enviado', enviado: 'recebido' }
     const next = fluxo[atual]
-    if (!next) return // já está no estado final ou desconhecido
+    if (!next) return
+    if (avancarLoading === id) return // evita duplo-click
     const p = pedidos.find(o => o.id === id)
     if (!p || !empresaId) return
 
     const supabase = createClient()
-    setLoading(true)
+    setAvancarLoading(id)
 
     // 1. Atualiza status do pedido de fornecedor
     const { error } = await supabase.from('pedidos_fornecedor').update({ status: next }).eq('id', id)
     if (error) {
-      toast.error('Erro ao atualizar status do pedido: ' + error.message)
-      setLoading(false)
+      toast.error('Erro ao atualizar status: ' + error.message)
+      setAvancarLoading(null)
       return
     }
 
-    // 2. Tenta encontrar o produto no estoque para dar entrada
-    try {
-      const { data: prod } = await supabase
-        .from('produtos')
-        .select('id,qtd_atual')
-        .eq('empresa_id', empresaId)
-        .eq('nome', p.produto)
-        .maybeSingle()
-
-      if (prod) {
-        const quantidadeSomada = parseFloat(String(p.quantidade)) || 0
-        const novaQtd = (prod.qtd_atual || 0) + quantidadeSomada
-        // Atualiza a quantidade do produto
-        await supabase.from('produtos').update({ qtd_atual: novaQtd }).eq('id', prod.id)
-
-        // Registra a movimentação de entrada no estoque
-        const fornNome = Array.isArray(p.fornecedores) ? p.fornecedores[0]?.nome : (p.fornecedores as any)?.nome || 'Fornecedor'
-        await supabase.from('estoque_movimentacoes').insert({
-          empresa_id: empresaId,
-          produto_id: prod.id,
-          tipo: 'entrada',
-          quantidade: quantidadeSomada,
-          obs: `Entrada via Pedido de Compra (Fornecedor: ${fornNome})`
-        })
-        toast.success(`Estoque do produto "${p.produto}" atualizado (+${quantidadeSomada})`)
-      }
-    } catch (err) {
-      console.error('Erro ao atualizar estoque:', err)
-    }
-
-    // 3. Lança a despesa correspondente se o valor total do pedido for > 0
-    if (p.total && p.total > 0) {
+    // 2. Apenas ao receber: atualizar estoque e criar despesa
+    if (next === 'recebido') {
       try {
         const fornNome = Array.isArray(p.fornecedores) ? p.fornecedores[0]?.nome : (p.fornecedores as any)?.nome || 'Fornecedor'
-        const { data: desps } = await supabase.from('despesas').select('numero_base').eq('empresa_id', empresaId)
-        const maxBase = Math.max(0, ...(desps || []).map(d => d.numero_base ?? 0))
-        const nextBase = maxBase + 1
 
-        await supabase.from('despesas').insert({
-          empresa_id: empresaId,
-          descricao: `Compra de insumo/produto - ${p.produto} (${fornNome})`,
-          categoria: 'Fornecedor',
-          tipo: 'variavel',
-          valor: p.total,
-          data: new Date().toISOString().slice(0, 10),
-          recorrente: false,
-          status: 'pendente',
-          forma_pagamento: 'Boleto',
-          observacao: `Lançado automaticamente ao receber o Pedido de Compra #${p.id.substring(0,8).toUpperCase()}. ${p.obs || ''}`,
-          numero_base: nextBase,
-          identificador: String(nextBase)
-        })
-        toast.success('Despesa de compra gerada no financeiro!')
-      } catch (e) {
-        console.error('Erro ao gerar despesa de compra:', e)
+        // 2a. Estoque
+        const { data: prod } = await supabase
+          .from('produtos')
+          .select('id,qtd_atual')
+          .eq('empresa_id', empresaId)
+          .eq('nome', p.produto)
+          .maybeSingle()
+
+        if (prod) {
+          const qtdSomada = parseFloat(String(p.quantidade)) || 0
+          await supabase.from('produtos').update({ qtd_atual: (prod.qtd_atual || 0) + qtdSomada }).eq('id', prod.id)
+          await supabase.from('estoque_movimentacoes').insert({
+            empresa_id: empresaId,
+            produto_id: prod.id,
+            tipo: 'entrada',
+            quantidade: qtdSomada,
+            obs: `Entrada via Pedido de Compra (Fornecedor: ${fornNome})`
+          })
+          toast.success(`Estoque de "${p.produto}" atualizado (+${qtdSomada})`)
+        }
+
+        // 2b. Despesa — guarda de idempotência: só cria se não existir despesa para este pedido
+        if (p.total && p.total > 0) {
+          const marcador = `PED-${p.id.substring(0, 8).toUpperCase()}`
+          const { data: despExist } = await supabase
+            .from('despesas')
+            .select('id')
+            .eq('empresa_id', empresaId)
+            .ilike('descricao', `%${marcador}%`)
+            .maybeSingle()
+
+          if (!despExist) {
+            await supabase.from('despesas').insert({
+              empresa_id: empresaId,
+              descricao: `[${marcador}] Compra de insumo - ${p.produto} (${fornNome})`,
+              categoria: 'Fornecedor',
+              tipo: 'variavel',
+              valor: p.total,
+              data: new Date().toISOString().slice(0, 10),
+              recorrente: false,
+            })
+            toast.success('Despesa de compra lançada no financeiro!')
+          }
+        }
+
+        toast.success('Pedido recebido! Estoque e financeiro atualizados.')
+      } catch (err) {
+        console.error('Erro ao processar recebimento:', err)
+        toast.error('Pedido marcado como recebido, mas houve erro ao atualizar estoque/despesa.')
       }
+    } else {
+      toast.success('Pedido marcado como enviado!')
     }
 
-    toast.success('Pedido recebido e finalizado com sucesso!')
     setPedidos(prev => prev.map(item => item.id === id ? { ...item, status: next } : item))
-    setLoading(false)
+    if (pedidoDetalhe?.id === id) setPedidoDetalhe(prev => prev ? { ...prev, status: next } : null)
+    setAvancarLoading(null)
+  }
+
+  async function salvarEdicaoPedido() {
+    if (!pedidoDetalhe || !empresaId) return
+    setSalvandoEditPed(true)
+    const totalCalc = (parseFloat(editPedQtd) || 1) * (parseFloat(editPedPreco) || 0)
+    const { error } = await createClient().from('pedidos_fornecedor').update({
+      produto: editPedProduto.trim(),
+      quantidade: parseFloat(editPedQtd) || 1,
+      total: totalCalc,
+      obs: editPedObs || null,
+      fornecedor_id: editPedFornId || null,
+    }).eq('id', pedidoDetalhe.id)
+    setSalvandoEditPed(false)
+    if (error) { toast.error('Erro ao salvar: ' + error.message); return }
+    toast.success('Pedido atualizado!')
+    const updated = { ...pedidoDetalhe, produto: editPedProduto.trim(), quantidade: parseFloat(editPedQtd) || 1, total: totalCalc, obs: editPedObs || null, fornecedor_id: editPedFornId || null }
+    setPedidos(prev => prev.map(p => p.id === pedidoDetalhe.id ? updated : p))
+    setPedidoDetalhe(updated)
+    setEditandoPedido(false)
+  }
+
+  async function cancelarPedido(id: string) {
+    if (!confirm('Cancelar este pedido de compra?')) return
+    const { error } = await createClient().from('pedidos_fornecedor').update({ status: 'cancelado' }).eq('id', id)
+    if (error) { toast.error('Erro: ' + error.message); return }
+    toast.success('Pedido cancelado.')
+    setPedidos(prev => prev.map(p => p.id === id ? { ...p, status: 'cancelado' } : p))
+    setPedidoDetalhe(null)
   }
 
   // FO2: cria novo pedido ao fornecedor
@@ -313,10 +354,121 @@ export default function FornecedoresPage() {
     )
   })
   const pendentes = pedidos.filter(p => p.status !== 'recebido' && p.status !== 'cancelado').length
+  const kpiPedidos = {
+    rascunho: pedidos.filter(p => p.status === 'rascunho').length,
+    enviado: pedidos.filter(p => p.status === 'enviado').length,
+    recebido: pedidos.filter(p => p.status === 'recebido').length,
+    totalAberto: pedidos.filter(p => p.status !== 'recebido' && p.status !== 'cancelado').reduce((a,p) => a + (p.total || 0), 0),
+  }
   const set = (k: keyof Fornecedor, v: unknown) => setEditando(e => e ? { ...e, [k]: v } : e)
 
   return (
     <div className="anim-fade" style={{ display:'flex', flexDirection:'column', gap:'0.75rem' }}>
+
+      {/* Modal Detalhe / Edição de Pedido */}
+      {pedidoDetalhe && (
+        <div style={{ position:'fixed', inset:0, zIndex:200, background:'rgba(0,0,0,0.75)', display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' }}
+          onClick={e => { if(e.target===e.currentTarget) setPedidoDetalhe(null) }}>
+          <div className="card anim-pop" style={{ width:'100%', maxWidth:'460px', padding:'1.5rem' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1rem' }}>
+              <p style={{ fontWeight:900, fontSize:'1rem' }}>
+                📋 Pedido de Compra <span style={{ fontSize:'0.7rem', color:'var(--texto-desab)', fontFamily:'monospace' }}>#{pedidoDetalhe.id.substring(0,8).toUpperCase()}</span>
+              </p>
+              <button onClick={() => setPedidoDetalhe(null)} className="btn-icon"><X size={16}/></button>
+            </div>
+
+            {/* Status badge */}
+            <div style={{ marginBottom:'1rem' }}>
+              <span className={pedidoDetalhe.status === 'recebido' ? 'status-ok' : pedidoDetalhe.status === 'cancelado' ? 'status-neutro' : pedidoDetalhe.status === 'enviado' ? 'status-alerta' : 'status-aviso'}
+                style={{ fontSize:'0.75rem' }}>
+                {pedidoDetalhe.status === 'recebido' ? '● RECEBIDO' : pedidoDetalhe.status === 'cancelado' ? '✕ CANCELADO' : pedidoDetalhe.status === 'enviado' ? '◐ ENVIADO' : '○ RASCUNHO'}
+              </span>
+              <span style={{ marginLeft:'0.75rem', fontSize:'0.75rem', color:'var(--texto-desab)' }}>
+                Criado em {new Date(pedidoDetalhe.criado_em).toLocaleDateString('pt-BR')}
+              </span>
+            </div>
+
+            {editandoPedido ? (
+              <div style={{ display:'flex', flexDirection:'column', gap:'0.625rem' }}>
+                <div>
+                  <label className="campo-label">Produto / Descrição *</label>
+                  <input className="campo" style={{ marginTop:'0.25rem' }} value={editPedProduto} onChange={e=>setEditPedProduto(e.target.value)} />
+                </div>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.5rem' }}>
+                  <div>
+                    <label className="campo-label">Quantidade</label>
+                    <input className="campo" style={{ marginTop:'0.25rem' }} type="number" min="0.01" step="0.01" value={editPedQtd} onChange={e=>setEditPedQtd(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="campo-label">Preço Unitário (R$)</label>
+                    <input className="campo" style={{ marginTop:'0.25rem' }} type="number" min="0" step="0.01" value={editPedPreco} onChange={e=>setEditPedPreco(e.target.value)} />
+                  </div>
+                </div>
+                <div>
+                  <label className="campo-label">Fornecedor</label>
+                  <select className="campo" style={{ marginTop:'0.25rem' }} value={editPedFornId} onChange={e=>setEditPedFornId(e.target.value)}>
+                    <option value="">— Selecionar —</option>
+                    {fornecedores.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="campo-label">Observações / Previsão</label>
+                  <textarea className="campo" style={{ marginTop:'0.25rem', minHeight:'64px', resize:'vertical' }} value={editPedObs} onChange={e=>setEditPedObs(e.target.value)} />
+                </div>
+                <div style={{ display:'flex', gap:'0.5rem', justifyContent:'flex-end', marginTop:'0.5rem' }}>
+                  <button onClick={() => setEditandoPedido(false)} className="btn btn-secondary">Cancelar</button>
+                  <button onClick={salvarEdicaoPedido} disabled={salvandoEditPed} className="btn btn-primary">
+                    {salvandoEditPed ? 'Salvando...' : '💾 Salvar'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display:'flex', flexDirection:'column', gap:'0.5rem' }}>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.5rem' }}>
+                  <div className="card" style={{ padding:'0.75rem', background:'var(--surface-2)' }}>
+                    <p style={{ fontSize:'0.72rem', color:'var(--texto-desab)', marginBottom:'0.25rem' }}>Produto</p>
+                    <p style={{ fontWeight:700 }}>{pedidoDetalhe.produto}</p>
+                  </div>
+                  <div className="card" style={{ padding:'0.75rem', background:'var(--surface-2)' }}>
+                    <p style={{ fontSize:'0.72rem', color:'var(--texto-desab)', marginBottom:'0.25rem' }}>Fornecedor</p>
+                    <p style={{ fontWeight:700 }}>{(Array.isArray(pedidoDetalhe.fornecedores) ? pedidoDetalhe.fornecedores[0]?.nome : (pedidoDetalhe.fornecedores as any)?.nome) || '—'}</p>
+                  </div>
+                  <div className="card" style={{ padding:'0.75rem', background:'var(--surface-2)' }}>
+                    <p style={{ fontSize:'0.72rem', color:'var(--texto-desab)', marginBottom:'0.25rem' }}>Quantidade</p>
+                    <p style={{ fontWeight:700, fontFamily:'monospace' }}>{pedidoDetalhe.quantidade}x</p>
+                  </div>
+                  <div className="card" style={{ padding:'0.75rem', background:'var(--surface-2)' }}>
+                    <p style={{ fontSize:'0.72rem', color:'var(--texto-desab)', marginBottom:'0.25rem' }}>Valor Total</p>
+                    <p style={{ fontWeight:900, fontFamily:'monospace', color:'var(--verde)', fontSize:'1.1rem' }}>{pedidoDetalhe.total ? formatCurrency(pedidoDetalhe.total) : '—'}</p>
+                  </div>
+                </div>
+                {pedidoDetalhe.obs && (
+                  <div className="card" style={{ padding:'0.75rem', background:'var(--surface-2)' }}>
+                    <p style={{ fontSize:'0.72rem', color:'var(--texto-desab)', marginBottom:'0.25rem' }}>Obs / Previsão</p>
+                    <p style={{ fontSize:'0.85rem' }}>{pedidoDetalhe.obs}</p>
+                  </div>
+                )}
+                <div style={{ display:'flex', gap:'0.5rem', justifyContent:'flex-end', marginTop:'0.75rem', flexWrap:'wrap' }}>
+                  {pedidoDetalhe.status === 'rascunho' && (
+                    <button onClick={() => setEditandoPedido(true)} className="btn btn-secondary" style={{ fontSize:'0.8rem' }}>✏️ Editar</button>
+                  )}
+                  {pedidoDetalhe.status !== 'recebido' && pedidoDetalhe.status !== 'cancelado' && (
+                    <>
+                      <button
+                        onClick={() => avancarStatus(pedidoDetalhe.id, pedidoDetalhe.status)}
+                        disabled={avancarLoading === pedidoDetalhe.id}
+                        className="btn btn-primary" style={{ fontSize:'0.8rem' }}>
+                        {avancarLoading === pedidoDetalhe.id ? '...' : pedidoDetalhe.status === 'enviado' ? '📦 Dar Entrada' : '📤 Marcar como Enviado'}
+                      </button>
+                      <button onClick={() => cancelarPedido(pedidoDetalhe.id)} className="btn btn-secondary" style={{ fontSize:'0.8rem', color:'var(--vermelho)' }}>✕ Cancelar Pedido</button>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* FO2: Modal Novo Pedido */}
       {showPedido && (
@@ -830,7 +982,22 @@ export default function FornecedoresPage() {
           )}
         </>
       ) : (
-        <div className="tabela-wrap">
+        <>
+          {/* KPIs de Pedidos */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'0.5rem', marginBottom:'0.5rem' }}>
+            {[
+              { l:'Rascunho', v: kpiPedidos.rascunho, c:'var(--texto-desab)' },
+              { l:'Enviado', v: kpiPedidos.enviado, c:'var(--amarelo)' },
+              { l:'Recebido', v: kpiPedidos.recebido, c:'var(--verde)' },
+              { l:'Valor em Aberto', v: formatCurrency(kpiPedidos.totalAberto), c: kpiPedidos.totalAberto > 0 ? 'var(--azul)' : 'var(--verde)' },
+            ].map(k => (
+              <div key={k.l} className="card" style={{ padding:'0.625rem' }}>
+                <p style={{ fontSize:'0.68rem', color:'var(--texto-desab)', marginBottom:'0.2rem', textTransform:'uppercase', letterSpacing:'0.04em' }}>{k.l}</p>
+                <p style={{ fontWeight:900, fontSize:'1.25rem', color:k.c, fontFamily:'monospace' }}>{k.v}</p>
+              </div>
+            ))}
+          </div>
+          <div className="tabela-wrap">
           <table className="tabela">
             <thead>
               <tr>
@@ -858,16 +1025,31 @@ export default function FornecedoresPage() {
                   <td style={{ fontSize:'0.72rem', color:'var(--texto-desab)', maxWidth:'200px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={p.obs || ''}>{p.obs || '—'}</td>
                   <td style={{ fontSize:'0.72rem', fontVariantNumeric:'tabular-nums' }}>{new Date(p.criado_em).toLocaleDateString('pt-BR')}</td>
                   <td style={{ textAlign:'center' }}>
-                    <span className={p.status === 'recebido' ? 'status-ok' : p.status === 'enviado' ? 'status-alerta' : 'status-neutro'}
+                    <span className={p.status === 'recebido' ? 'status-ok' : p.status === 'cancelado' ? 'status-neutro' : p.status === 'enviado' ? 'status-alerta' : 'status-aviso'}
                       style={{ fontSize:'0.7rem' }}>
-                      {p.status === 'recebido' ? '● RECEBIDO' : p.status === 'enviado' ? '◐ ENVIADO' : '○ PENDENTE'}
+                      {p.status === 'recebido' ? '● RECEBIDO' : p.status === 'cancelado' ? '✕ CANCELADO' : p.status === 'enviado' ? '◐ ENVIADO' : '○ RASCUNHO'}
                     </span>
                   </td>
-                  <td style={{ textAlign:'center' }}>
-                    {p.status !== 'recebido' && (
-                      <button onClick={() => avancarStatus(p.id, p.status)}
+                  <td style={{ textAlign:'center', display:'flex', gap:'0.25rem', justifyContent:'center' }}>
+                    <button
+                      onClick={() => {
+                        setPedidoDetalhe(p)
+                        setEditandoPedido(false)
+                        setEditPedProduto(p.produto)
+                        setEditPedQtd(String(p.quantidade))
+                        setEditPedPreco(p.total && p.quantidade ? String((p.total / p.quantidade).toFixed(2)) : '')
+                        setEditPedObs(p.obs || '')
+                        setEditPedFornId(p.fornecedor_id || '')
+                      }}
+                      className="btn btn-secondary" style={{ fontSize:'0.62rem', padding:'0.15rem 0.4rem' }}>
+                      🔍 VER
+                    </button>
+                    {p.status !== 'recebido' && p.status !== 'cancelado' && (
+                      <button
+                        onClick={() => avancarStatus(p.id, p.status)}
+                        disabled={avancarLoading === p.id}
                         className="btn btn-secondary" style={{ fontSize:'0.62rem', padding:'0.15rem 0.4rem', fontWeight:700 }}>
-                        {p.status === 'enviado' ? '📦 DAR ENTRADA' : '📤 ENVIAR'}
+                        {avancarLoading === p.id ? '...' : p.status === 'enviado' ? '📦 DAR ENTRADA' : '📤 ENVIAR'}
                       </button>
                     )}
                   </td>
@@ -875,7 +1057,8 @@ export default function FornecedoresPage() {
               ))}
             </tbody>
           </table>
-        </div>
+          </div>
+        </>
       )}
     </div>
   )
