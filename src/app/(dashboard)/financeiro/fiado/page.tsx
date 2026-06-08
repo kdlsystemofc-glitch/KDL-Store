@@ -9,7 +9,7 @@ import { OperadorOnly } from '@/components/OperadorOnly'
 import { ProOnly } from '@/components/ProOnly'
 import toast from 'react-hot-toast'
 
-type Fiado = { id:string; cliente_nome:string; cliente_tel:string|null; valor_aberto:number; criado_em:string; status:string; data_vencimento:string|null }
+type Fiado = { id:string; cliente_nome:string; cliente_tel:string|null; valor_aberto:number; criado_em:string; status:string; data_vencimento:string|null; pago_em:string|null; valor_original:number|null }
 type FormaPag = { id: string; nome: string }
 
 type PagtoItem = { forma: string; valor: string }
@@ -18,7 +18,7 @@ export default function FiadoPage() {
   const { empresaId } = useEmpresaId()
   const [fiados,  setFiados]  = useState<Fiado[]>([])
   const [loading, setLoading] = useState(true)
-  const [filtro,  setFiltro]  = useState<'todos'|'vencidos'|'hoje'|'avencer'>('todos')
+  const [filtro,  setFiltro]  = useState<'todos'|'vencidos'|'hoje'|'avencer'|'historico'>('todos')
 
   // Modal amortização
   const [fiadoPagando, setFiadoPagando] = useState<Fiado | null>(null)
@@ -32,7 +32,7 @@ export default function FiadoPage() {
     setLoading(true)
     const { data } = await createClient()
       .from('fiados')
-      .select('id,cliente_nome,cliente_tel,valor_aberto,criado_em,status,data_vencimento')
+      .select('id,cliente_nome,cliente_tel,valor_aberto,criado_em,status,data_vencimento,pago_em,valor_original')
       .eq('empresa_id', eid)
       .order('criado_em', { ascending: false })
     setFiados(data||[])
@@ -297,6 +297,7 @@ export default function FiadoPage() {
             { v:'vencidos', l:'VENCIDOS' },
             { v:'hoje',     l:'VENCENDO HOJE' },
             { v:'avencer',  l:'A VENCER' },
+            { v:'historico', l:'📜 HISTÓRICO' },
           ] as const).map(f => (
             <button key={f.v} onClick={() => setFiltro(f.v)}
               className={filtro === f.v ? 'btn btn-primary' : 'btn btn-secondary'}
@@ -310,6 +311,62 @@ export default function FiadoPage() {
           <div style={{display:'flex',justifyContent:'center',padding:'3rem',gap:'0.75rem',color:'var(--texto-desab)'}}>
             <Loader2 size={20} style={{animation:'spin 1s linear infinite'}}/> Carregando...
           </div>
+        ) : filtro === 'historico' ? (
+          /* ── ABA HISTÓRICO DE FIADOS QUITADOS ─────────── */
+          pagos.length === 0 ? (
+            <div style={{textAlign:'center',padding:'3rem',color:'var(--texto-desab)'}}>
+              <p style={{fontSize:'2rem',marginBottom:'0.5rem'}}>📜</p>
+              <p style={{fontWeight:700}}>Nenhum fiado quitado ainda.</p>
+            </div>
+          ) : (
+            <div className="tabela-wrap">
+              <table className="tabela">
+                <thead>
+                  <tr style={{background:'#1e3a2e'}}>
+                    <th>Cliente</th>
+                    <th style={{textAlign:'right'}}>Valor Original</th>
+                    <th style={{textAlign:'center'}}>Vencimento</th>
+                    <th>Criado Em</th>
+                    <th>Pago Em</th>
+                    <th style={{textAlign:'center'}}>Dias p/ Pagar</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...pagos].sort((a,b) => {
+                    if (!a.pago_em && !b.pago_em) return 0
+                    if (!a.pago_em) return 1
+                    if (!b.pago_em) return -1
+                    return new Date(b.pago_em).getTime() - new Date(a.pago_em).getTime()
+                  }).map(f => {
+                    const diasParaPagar = f.pago_em
+                      ? Math.max(0, Math.floor((new Date(f.pago_em).getTime() - new Date(f.criado_em).getTime()) / 86400000))
+                      : null
+                    return (
+                      <tr key={f.id}>
+                        <td style={{fontWeight:700}}>{f.cliente_nome}</td>
+                        <td style={{textAlign:'right',fontWeight:700,fontFamily:'monospace',color:'var(--verde)'}}>
+                          {f.valor_original ? formatCurrency(f.valor_original) : formatCurrency(f.valor_aberto)}
+                        </td>
+                        <td style={{textAlign:'center',fontSize:'0.78rem',color:'var(--texto-desab)'}}>
+                          {f.data_vencimento ? new Date(f.data_vencimento+'T12:00:00').toLocaleDateString('pt-BR') : '—'}
+                        </td>
+                        <td style={{fontSize:'0.78rem',color:'var(--texto-desab)'}}>{new Date(f.criado_em).toLocaleDateString('pt-BR')}</td>
+                        <td style={{fontSize:'0.78rem',color:'var(--verde)',fontWeight:700}}>
+                          {f.pago_em ? new Date(f.pago_em).toLocaleDateString('pt-BR') : '—'}
+                        </td>
+                        <td style={{textAlign:'center'}}>
+                          {diasParaPagar !== null
+                            ? <span style={{fontWeight:700,fontFamily:'monospace',fontSize:'0.85rem',color: diasParaPagar > 30 ? 'var(--vermelho)' : diasParaPagar > 7 ? 'var(--amarelo)' : 'var(--verde)'}}>{diasParaPagar}d</span>
+                            : '—'
+                          }
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )
         ) : abertosDb.length===0 ? (
           <div style={{textAlign:'center',padding:'3rem',color:'var(--texto-desab)'}}>
             <p style={{fontSize:'2rem',marginBottom:'0.5rem'}}>🎉</p>

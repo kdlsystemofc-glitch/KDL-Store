@@ -60,7 +60,13 @@ export default function FechamentoPage() {
 
   const entradasManuais = fechManuais.filter(f => f.tipo === 'entrada').reduce((a,f) => a + f.valor, 0)
   const saidasManuais   = fechManuais.filter(f => f.tipo === 'saida').reduce((a,f) => a + f.valor, 0)
-  const totalReceita = vendas.reduce((a,v)=>a+v.total,0)
+
+  // Fiado NÃO entra no saldo de caixa imediato (só entra quando recebido via amortização)
+  const vendasCaixa = vendas.filter(v => v.forma_pagamento !== 'Fiado')
+  const vendasFiado = vendas.filter(v => v.forma_pagamento === 'Fiado')
+  const totalFiadoEmitido = vendasFiado.reduce((a,v) => a + v.total, 0)
+
+  const totalReceita = vendasCaixa.reduce((a,v)=>a+v.total,0)
     + osEntradas.reduce((a,o)=>a+(o.orcamento ?? (o.valor_servico + o.valor_pecas)),0)
     + entradasManuais
   const totalDesp    = despesas.reduce((a,d)=>a+d.valor,0) + saidasManuais
@@ -69,7 +75,8 @@ export default function FechamentoPage() {
   const diferenca    = saldoNum - saldoEsperado
 
   const porForma: Record<string,number> = {}
-  vendas.forEach(v=>{ porForma[v.forma_pagamento]=(porForma[v.forma_pagamento]||0)+v.total })
+  // Apenas vendas que entram no caixa (sem Fiado)
+  vendasCaixa.forEach(v=>{ porForma[v.forma_pagamento]=(porForma[v.forma_pagamento]||0)+v.total })
   osEntradas.forEach(o=>{
     const chave = o.forma_pagamento || 'Serviço OS'
     const valor = o.orcamento ?? (o.valor_servico + o.valor_pecas)
@@ -137,7 +144,7 @@ export default function FechamentoPage() {
             <div className="card" style={{padding:0,overflow:'hidden'}}>
               <div className="sec-header"><span>💰 Entradas — {labelPeriodo}</span></div>
               <div style={{padding:'0.875rem',display:'flex',flexDirection:'column',gap:'0.375rem'}}>
-                {Object.entries(porForma).length===0 ? (
+                {Object.entries(porForma).length===0 && totalFiadoEmitido === 0 ? (
                   <p style={{color:'var(--texto-desab)',fontSize:'0.85rem'}}>Nenhuma venda no período</p>
                 ) : Object.entries(porForma).map(([forma,val])=>(
                   <div key={forma} style={{display:'flex',justifyContent:'space-between',padding:'0.375rem 0',borderBottom:'1px solid var(--borda-leve)'}}>
@@ -145,6 +152,16 @@ export default function FechamentoPage() {
                     <span style={{fontWeight:800,fontFamily:'monospace',color:'var(--verde)'}}>{formatCurrency(val)}</span>
                   </div>
                 ))}
+                {/* Fiados emitidos: informativo, NÃO entra no saldo */}
+                {totalFiadoEmitido > 0 && (
+                  <div style={{display:'flex',justifyContent:'space-between',padding:'0.375rem 0',borderBottom:'1px solid var(--borda-leve)',opacity:0.65}}>
+                    <span style={{display:'flex',alignItems:'center',gap:'0.35rem',fontSize:'0.82rem',color:'var(--texto-sec)'}}>
+                      📒 Fiados Emitidos
+                      <span style={{fontSize:'0.65rem',background:'var(--surface-alt)',border:'1px solid var(--borda)',padding:'0 4px',borderRadius:'3px',color:'var(--texto-desab)'}}>não entra no caixa</span>
+                    </span>
+                    <span style={{fontWeight:700,fontFamily:'monospace',color:'var(--texto-desab)',textDecoration:'line-through'}}>{formatCurrency(totalFiadoEmitido)}</span>
+                  </div>
+                )}
                 <div style={{display:'flex',justifyContent:'space-between',padding:'0.5rem 0',borderTop:'2px solid var(--borda)',marginTop:'0.25rem'}}>
                   <span style={{fontWeight:800}}>Total Entradas</span>
                   <span style={{fontWeight:900,fontFamily:'monospace',fontSize:'1.1rem',color:'var(--verde)'}}>{formatCurrency(totalReceita)}</span>

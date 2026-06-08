@@ -19,7 +19,8 @@ type Fornecedor = {
 type Pedido = {
   id: string; fornecedor_id: string | null; produto: string; quantidade: number
   status: string; total: number; obs: string | null; criado_em: string
-  fornecedores: { nome: string }[] | null
+  fornecedores: { nome: string; telefone: string | null; email: string | null }[] | null
+  numero?: number | null
 }
 
 const CATEGORIAS_FORN = ['Eletrônicos','Acessórios','Autopeças','Serviços','Embalagens','Outros']
@@ -76,7 +77,7 @@ export default function FornecedoresPage() {
         .select('id,nome,contato,telefone,email,cnpj,categoria,endereco,cep,rua,numero,bairro,complemento,cidade,estado,prazo_entrega,pedido_minimo,anotacoes,ativo')
         .eq('empresa_id', eid).order('nome'),
       supabase.from('pedidos_fornecedor')
-        .select('id,fornecedor_id,produto,quantidade,status,total,obs,criado_em,fornecedores(nome)')
+        .select('id,fornecedor_id,produto,quantidade,status,total,obs,criado_em,numero,fornecedores(nome,telefone,email)')
         .eq('empresa_id', eid).order('criado_em', { ascending: false }),
       supabase.from('produtos')
         .select('id,nome,sku,qtd_atual,preco_varejo,fornecedor_id')
@@ -359,96 +360,161 @@ export default function FornecedoresPage() {
     enviado: pedidos.filter(p => p.status === 'enviado').length,
     recebido: pedidos.filter(p => p.status === 'recebido').length,
     totalAberto: pedidos.filter(p => p.status !== 'recebido' && p.status !== 'cancelado').reduce((a,p) => a + (p.total || 0), 0),
+    totalGasto: pedidos.filter(p => p.status === 'recebido').reduce((a,p) => a + (p.total || 0), 0),
   }
   const set = (k: keyof Fornecedor, v: unknown) => setEditando(e => e ? { ...e, [k]: v } : e)
 
   return (
     <div className="anim-fade" style={{ display:'flex', flexDirection:'column', gap:'0.75rem' }}>
 
-      {/* Modal Detalhe / Edição de Pedido */}
+      {/* Modal Detalhe / Ordem de Compra */}
       {pedidoDetalhe && (
         <div style={{ position:'fixed', inset:0, zIndex:200, background:'rgba(0,0,0,0.75)', display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' }}
           onClick={e => { if(e.target===e.currentTarget) setPedidoDetalhe(null) }}>
-          <div className="card anim-pop" style={{ width:'100%', maxWidth:'460px', padding:'1.5rem' }}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1rem' }}>
-              <p style={{ fontWeight:900, fontSize:'1rem' }}>
-                📋 Pedido de Compra <span style={{ fontSize:'0.7rem', color:'var(--texto-desab)', fontFamily:'monospace' }}>#{pedidoDetalhe.id.substring(0,8).toUpperCase()}</span>
-              </p>
-              <button onClick={() => setPedidoDetalhe(null)} className="btn-icon"><X size={16}/></button>
+          <div className="card anim-pop" style={{ width:'100%', maxWidth:'520px', padding:0, overflow:'hidden' }}>
+
+            {/* Cabeçalho da Ordem de Compra */}
+            <div style={{ background:'var(--verde)', padding:'1rem 1.5rem', display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+              <div>
+                <p style={{ fontWeight:900, fontSize:'1.1rem', color:'#060A06', letterSpacing:'0.04em' }}>ORDEM DE COMPRA</p>
+                <p style={{ fontSize:'0.75rem', color:'rgba(0,0,0,0.6)', marginTop:'0.2rem', fontFamily:'monospace' }}>
+                  #{pedidoDetalhe.numero ? String(pedidoDetalhe.numero).padStart(4,'0') : pedidoDetalhe.id.substring(0,8).toUpperCase()}
+                  &nbsp;·&nbsp;{new Date(pedidoDetalhe.criado_em).toLocaleDateString('pt-BR')}
+                </p>
+              </div>
+              <button onClick={() => setPedidoDetalhe(null)} className="btn-icon" style={{ color:'#060A06' }}><X size={18}/></button>
             </div>
 
-            {/* Status badge */}
-            <div style={{ marginBottom:'1rem' }}>
-              <span className={pedidoDetalhe.status === 'recebido' ? 'status-ok' : pedidoDetalhe.status === 'cancelado' ? 'status-neutro' : pedidoDetalhe.status === 'enviado' ? 'status-alerta' : 'status-aviso'}
-                style={{ fontSize:'0.75rem' }}>
-                {pedidoDetalhe.status === 'recebido' ? '● RECEBIDO' : pedidoDetalhe.status === 'cancelado' ? '✕ CANCELADO' : pedidoDetalhe.status === 'enviado' ? '◐ ENVIADO' : '○ RASCUNHO'}
-              </span>
-              <span style={{ marginLeft:'0.75rem', fontSize:'0.75rem', color:'var(--texto-desab)' }}>
-                Criado em {new Date(pedidoDetalhe.criado_em).toLocaleDateString('pt-BR')}
-              </span>
-            </div>
+            <div style={{ padding:'1.25rem', display:'flex', flexDirection:'column', gap:'0.875rem' }}>
 
-            {editandoPedido ? (
-              <div style={{ display:'flex', flexDirection:'column', gap:'0.625rem' }}>
-                <div>
-                  <label className="campo-label">Produto / Descrição *</label>
-                  <input className="campo" style={{ marginTop:'0.25rem' }} value={editPedProduto} onChange={e=>setEditPedProduto(e.target.value)} />
-                </div>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.5rem' }}>
-                  <div>
-                    <label className="campo-label">Quantidade</label>
-                    <input className="campo" style={{ marginTop:'0.25rem' }} type="number" min="0.01" step="0.01" value={editPedQtd} onChange={e=>setEditPedQtd(e.target.value)} />
+              {/* Status */}
+              <div style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}>
+                <span className={pedidoDetalhe.status === 'recebido' ? 'status-ok' : pedidoDetalhe.status === 'cancelado' ? 'status-neutro' : pedidoDetalhe.status === 'enviado' ? 'status-alerta' : 'status-aviso'}
+                  style={{ fontSize:'0.75rem' }}>
+                  {pedidoDetalhe.status === 'recebido' ? '● RECEBIDO' : pedidoDetalhe.status === 'cancelado' ? '✕ CANCELADO' : pedidoDetalhe.status === 'enviado' ? '◐ ENVIADO' : '○ RASCUNHO'}
+                </span>
+              </div>
+
+              {/* Fornecedor */}
+              {(() => {
+                const forn = Array.isArray(pedidoDetalhe.fornecedores)
+                  ? pedidoDetalhe.fornecedores[0]
+                  : (pedidoDetalhe.fornecedores as any)
+                return forn ? (
+                  <div style={{ background:'var(--surface-2)', padding:'0.75rem', borderRadius:'var(--radius-sm)' }}>
+                    <p style={{ fontSize:'0.68rem', color:'var(--texto-desab)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'0.25rem' }}>FORNECEDOR</p>
+                    <p style={{ fontWeight:700 }}>{forn.nome}</p>
+                    {forn.telefone && <p style={{ fontSize:'0.78rem', color:'var(--texto-sec)' }}>📱 {forn.telefone}</p>}
+                    {forn.email && <p style={{ fontSize:'0.78rem', color:'var(--texto-sec)' }}>✉️ {forn.email}</p>}
                   </div>
-                  <div>
-                    <label className="campo-label">Preço Unitário (R$)</label>
-                    <input className="campo" style={{ marginTop:'0.25rem' }} type="number" min="0" step="0.01" value={editPedPreco} onChange={e=>setEditPedPreco(e.target.value)} />
-                  </div>
+                ) : null
+              })()}
+
+              {/* Tabela de itens */}
+              <div style={{ border:'1px solid var(--borda)', borderRadius:'var(--radius-sm)', overflow:'hidden' }}>
+                <div style={{ background:'var(--surface-alt)', padding:'0.5rem 0.75rem', borderBottom:'1px solid var(--borda)' }}>
+                  <p style={{ fontSize:'0.7rem', fontWeight:800, textTransform:'uppercase', letterSpacing:'0.06em', color:'var(--texto-sec)' }}>ITENS DO PEDIDO</p>
                 </div>
-                <div>
-                  <label className="campo-label">Fornecedor</label>
-                  <select className="campo" style={{ marginTop:'0.25rem' }} value={editPedFornId} onChange={e=>setEditPedFornId(e.target.value)}>
-                    <option value="">— Selecionar —</option>
-                    {fornecedores.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="campo-label">Observações / Previsão</label>
-                  <textarea className="campo" style={{ marginTop:'0.25rem', minHeight:'64px', resize:'vertical' }} value={editPedObs} onChange={e=>setEditPedObs(e.target.value)} />
-                </div>
-                <div style={{ display:'flex', gap:'0.5rem', justifyContent:'flex-end', marginTop:'0.5rem' }}>
-                  <button onClick={() => setEditandoPedido(false)} className="btn btn-secondary">Cancelar</button>
-                  <button onClick={salvarEdicaoPedido} disabled={salvandoEditPed} className="btn btn-primary">
-                    {salvandoEditPed ? 'Salvando...' : '💾 Salvar'}
-                  </button>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr auto auto', gap:'0', fontSize:'0.75rem' }}>
+                  <div style={{ padding:'0.375rem 0.75rem', fontWeight:700, borderBottom:'1px solid var(--borda-leve)', color:'var(--texto-desab)', fontSize:'0.65rem', textTransform:'uppercase' }}>Produto</div>
+                  <div style={{ padding:'0.375rem 0.75rem', fontWeight:700, borderBottom:'1px solid var(--borda-leve)', color:'var(--texto-desab)', fontSize:'0.65rem', textAlign:'center', textTransform:'uppercase' }}>Qtd</div>
+                  <div style={{ padding:'0.375rem 0.75rem', fontWeight:700, borderBottom:'1px solid var(--borda-leve)', color:'var(--texto-desab)', fontSize:'0.65rem', textAlign:'right', textTransform:'uppercase' }}>Total</div>
+                  <div style={{ padding:'0.5rem 0.75rem', fontWeight:600 }}>{pedidoDetalhe.produto}</div>
+                  <div style={{ padding:'0.5rem 0.75rem', textAlign:'center', fontFamily:'monospace', fontWeight:700 }}>{pedidoDetalhe.quantidade}x</div>
+                  <div style={{ padding:'0.5rem 0.75rem', textAlign:'right', fontFamily:'monospace', fontWeight:900, color:'var(--verde)' }}>{pedidoDetalhe.total ? formatCurrency(pedidoDetalhe.total) : '—'}</div>
                 </div>
               </div>
-            ) : (
-              <div style={{ display:'flex', flexDirection:'column', gap:'0.5rem' }}>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.5rem' }}>
-                  <div className="card" style={{ padding:'0.75rem', background:'var(--surface-2)' }}>
-                    <p style={{ fontSize:'0.72rem', color:'var(--texto-desab)', marginBottom:'0.25rem' }}>Produto</p>
-                    <p style={{ fontWeight:700 }}>{pedidoDetalhe.produto}</p>
+
+              {pedidoDetalhe.obs && (
+                <div style={{ background:'var(--surface-2)', padding:'0.625rem', borderRadius:'var(--radius-sm)', fontSize:'0.82rem', color:'var(--texto-sec)' }}>
+                  <span style={{ fontWeight:700 }}>Obs: </span>{pedidoDetalhe.obs}
+                </div>
+              )}
+
+              {/* Botões de envio */}
+              {pedidoDetalhe.status !== 'cancelado' && (() => {
+                const forn = Array.isArray(pedidoDetalhe.fornecedores)
+                  ? pedidoDetalhe.fornecedores[0]
+                  : (pedidoDetalhe.fornecedores as any)
+                const pedNum = pedidoDetalhe.numero ? String(pedidoDetalhe.numero).padStart(4,'0') : pedidoDetalhe.id.substring(0,8).toUpperCase()
+                const msgWA = encodeURIComponent(
+                  `Olá! Segue a Ordem de Compra #${pedNum} para faturamento:\n\n` +
+                  `📦 PRODUTO: ${pedidoDetalhe.produto}\n` +
+                  `🔢 QUANTIDADE: ${pedidoDetalhe.quantidade}x\n` +
+                  `💰 VALOR TOTAL: ${pedidoDetalhe.total ? formatCurrency(pedidoDetalhe.total) : 'A combinar'}\n` +
+                  (pedidoDetalhe.obs ? `\n📝 OBS: ${pedidoDetalhe.obs}` : '') +
+                  `\n\nAguardo confirmação. Obrigado!`
+                )
+                const mailBody = encodeURIComponent(
+                  `Olá,\n\nSegue Ordem de Compra #${pedNum}.\n\nProduto: ${pedidoDetalhe.produto}\nQuantidade: ${pedidoDetalhe.quantidade}x\nValor Total: ${pedidoDetalhe.total ? formatCurrency(pedidoDetalhe.total) : 'A combinar'}\n${pedidoDetalhe.obs ? `\nObs: ${pedidoDetalhe.obs}` : ''}\n\nAtenciosamente.`
+                )
+                const mailSubject = encodeURIComponent(`Ordem de Compra #${pedNum} - ${pedidoDetalhe.produto}`)
+                return (
+                  <div style={{ display:'flex', gap:'0.5rem', flexWrap:'wrap' }}>
+                    {forn?.telefone && (
+                      <a
+                        href={`https://wa.me/55${forn.telefone.replace(/\D/g,'')}?text=${msgWA}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="btn btn-secondary"
+                        style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:'0.375rem', fontSize:'0.78rem', background:'#25D366', color:'#fff', border:'none' }}>
+                        💬 WhatsApp
+                      </a>
+                    )}
+                    {forn?.email && (
+                      <a
+                        href={`mailto:${forn.email}?subject=${mailSubject}&body=${mailBody}`}
+                        className="btn btn-secondary"
+                        style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:'0.375rem', fontSize:'0.78rem' }}>
+                        ✉️ E-mail
+                      </a>
+                    )}
+                    <button
+                      onClick={() => window.print()}
+                      className="btn btn-secondary"
+                      style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:'0.375rem', fontSize:'0.78rem' }}>
+                      🖨️ Imprimir
+                    </button>
                   </div>
-                  <div className="card" style={{ padding:'0.75rem', background:'var(--surface-2)' }}>
-                    <p style={{ fontSize:'0.72rem', color:'var(--texto-desab)', marginBottom:'0.25rem' }}>Fornecedor</p>
-                    <p style={{ fontWeight:700 }}>{(Array.isArray(pedidoDetalhe.fornecedores) ? pedidoDetalhe.fornecedores[0]?.nome : (pedidoDetalhe.fornecedores as any)?.nome) || '—'}</p>
+                )
+              })()}
+
+              {/* Ações de edição */}
+              {editandoPedido ? (
+                <div style={{ display:'flex', flexDirection:'column', gap:'0.625rem' }}>
+                  <div>
+                    <label className="campo-label">Produto / Descrição *</label>
+                    <input className="campo" style={{ marginTop:'0.25rem' }} value={editPedProduto} onChange={e=>setEditPedProduto(e.target.value)} />
                   </div>
-                  <div className="card" style={{ padding:'0.75rem', background:'var(--surface-2)' }}>
-                    <p style={{ fontSize:'0.72rem', color:'var(--texto-desab)', marginBottom:'0.25rem' }}>Quantidade</p>
-                    <p style={{ fontWeight:700, fontFamily:'monospace' }}>{pedidoDetalhe.quantidade}x</p>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.5rem' }}>
+                    <div>
+                      <label className="campo-label">Quantidade</label>
+                      <input className="campo" style={{ marginTop:'0.25rem' }} type="number" min="0.01" step="0.01" value={editPedQtd} onChange={e=>setEditPedQtd(e.target.value)} />
+                    </div>
+                    <div>
+                      <label className="campo-label">Preço Unitário (R$)</label>
+                      <input className="campo" style={{ marginTop:'0.25rem' }} type="number" min="0" step="0.01" value={editPedPreco} onChange={e=>setEditPedPreco(e.target.value)} />
+                    </div>
                   </div>
-                  <div className="card" style={{ padding:'0.75rem', background:'var(--surface-2)' }}>
-                    <p style={{ fontSize:'0.72rem', color:'var(--texto-desab)', marginBottom:'0.25rem' }}>Valor Total</p>
-                    <p style={{ fontWeight:900, fontFamily:'monospace', color:'var(--verde)', fontSize:'1.1rem' }}>{pedidoDetalhe.total ? formatCurrency(pedidoDetalhe.total) : '—'}</p>
+                  <div>
+                    <label className="campo-label">Fornecedor</label>
+                    <select className="campo" style={{ marginTop:'0.25rem' }} value={editPedFornId} onChange={e=>setEditPedFornId(e.target.value)}>
+                      <option value="">— Selecionar —</option>
+                      {fornecedores.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="campo-label">Observações / Previsão</label>
+                    <textarea className="campo" style={{ marginTop:'0.25rem', minHeight:'64px', resize:'vertical' }} value={editPedObs} onChange={e=>setEditPedObs(e.target.value)} />
+                  </div>
+                  <div style={{ display:'flex', gap:'0.5rem', justifyContent:'flex-end', marginTop:'0.5rem' }}>
+                    <button onClick={() => setEditandoPedido(false)} className="btn btn-secondary">Cancelar</button>
+                    <button onClick={salvarEdicaoPedido} disabled={salvandoEditPed} className="btn btn-primary">
+                      {salvandoEditPed ? 'Salvando...' : '💾 Salvar'}
+                    </button>
                   </div>
                 </div>
-                {pedidoDetalhe.obs && (
-                  <div className="card" style={{ padding:'0.75rem', background:'var(--surface-2)' }}>
-                    <p style={{ fontSize:'0.72rem', color:'var(--texto-desab)', marginBottom:'0.25rem' }}>Obs / Previsão</p>
-                    <p style={{ fontSize:'0.85rem' }}>{pedidoDetalhe.obs}</p>
-                  </div>
-                )}
-                <div style={{ display:'flex', gap:'0.5rem', justifyContent:'flex-end', marginTop:'0.75rem', flexWrap:'wrap' }}>
+              ) : (
+                <div style={{ display:'flex', gap:'0.5rem', justifyContent:'flex-end', flexWrap:'wrap' }}>
                   {pedidoDetalhe.status === 'rascunho' && (
                     <button onClick={() => setEditandoPedido(true)} className="btn btn-secondary" style={{ fontSize:'0.8rem' }}>✏️ Editar</button>
                   )}
@@ -464,8 +530,8 @@ export default function FornecedoresPage() {
                     </>
                   )}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -984,16 +1050,17 @@ export default function FornecedoresPage() {
       ) : (
         <>
           {/* KPIs de Pedidos */}
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'0.5rem', marginBottom:'0.5rem' }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:'0.5rem', marginBottom:'0.5rem' }}>
             {[
               { l:'Rascunho', v: kpiPedidos.rascunho, c:'var(--texto-desab)' },
               { l:'Enviado', v: kpiPedidos.enviado, c:'var(--amarelo)' },
               { l:'Recebido', v: kpiPedidos.recebido, c:'var(--verde)' },
               { l:'Valor em Aberto', v: formatCurrency(kpiPedidos.totalAberto), c: kpiPedidos.totalAberto > 0 ? 'var(--azul)' : 'var(--verde)' },
+              { l:'Total Gasto (Recebido)', v: formatCurrency(kpiPedidos.totalGasto), c:'var(--verde)' },
             ].map(k => (
               <div key={k.l} className="card" style={{ padding:'0.625rem' }}>
-                <p style={{ fontSize:'0.68rem', color:'var(--texto-desab)', marginBottom:'0.2rem', textTransform:'uppercase', letterSpacing:'0.04em' }}>{k.l}</p>
-                <p style={{ fontWeight:900, fontSize:'1.25rem', color:k.c, fontFamily:'monospace' }}>{k.v}</p>
+                <p style={{ fontSize:'0.65rem', color:'var(--texto-desab)', marginBottom:'0.2rem', textTransform:'uppercase', letterSpacing:'0.04em' }}>{k.l}</p>
+                <p style={{ fontWeight:900, fontSize:'1.1rem', color:k.c, fontFamily:'monospace' }}>{k.v}</p>
               </div>
             ))}
           </div>

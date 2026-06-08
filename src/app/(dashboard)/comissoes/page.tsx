@@ -14,6 +14,7 @@ type VendaComissao = {
   comissionado_nome:string; comissionado_id:string
   valor_comissao: number
   comissao_paga: boolean
+  comissao_despesa_id?: string | null // ID da despesa gerada ao pagar a comissão
 }
 
 export default function ComissoesPage() {
@@ -40,7 +41,7 @@ export default function ComissoesPage() {
     const [{ data: comissoesData }, vendasData] = await Promise.all([
       supabase.from('comissoes').select('*').eq('empresa_id', eid).order('criado_em', { ascending: false }),
       supabase.from('vendas')
-        .select('id,numero,total,forma_pagamento,criado_em,comissionado_id,comissionado_nome,valor_comissao,comissao_paga')
+        .select('id,numero,total,forma_pagamento,criado_em,comissionado_id,comissionado_nome,valor_comissao,comissao_paga,comissao_despesa_id')
         .eq('empresa_id', eid)
         .eq('status', 'concluida')
         .not('comissionado_id', 'is', null)
@@ -76,6 +77,7 @@ export default function ComissoesPage() {
           comissionado_id:  v.comissionado_id,
           valor_comissao,
           comissao_paga:    v.comissao_paga ?? false,
+          comissao_despesa_id: v.comissao_despesa_id ?? null,
         }
       })
       setVendas(result)
@@ -84,9 +86,46 @@ export default function ComissoesPage() {
     setLoading(false)
   }
 
-  async function marcarPago(id: string, pago: boolean) {
-    await createClient().from('vendas').update({ comissao_paga: !pago }).eq('id', id)
-    setVendas(prev => prev.map(v => v.id === id ? { ...v, comissao_paga: !pago } : v))
+  async function marcarPago(venda: VendaComissao) {
+    const supabase = createClient()
+    const novoPago = !venda.comissao_paga
+
+    // 1. Atualiza o status na venda
+    await supabase.from('vendas').update({ comissao_paga: novoPago }).eq('id', venda.id)
+
+    if (novoPago) {
+      // 2a. PAGANDO → cria despesa no financeiro
+      const { data: despesa } = await supabase.from('despesas').insert({
+        empresa_id: empresaId,
+        descricao: `Comissão paga — Venda #${String(venda.numero).padStart(4,'0')} (${venda.comissionado_nome})`,
+        categoria: 'Comissões',
+        tipo: 'variavel',
+        valor: venda.valor_comissao,
+        data: new Date().toISOString().slice(0, 10),
+        recorrente: false,
+      }).select('id').single()
+
+      // 3. Salva o ID da despesa na venda para poder excluir depois
+      const despesaId = despesa?.id ?? null
+      if (despesaId) {
+        await supabase.from('vendas').update({ comissao_despesa_id: despesaId }).eq('id', venda.id)
+      }
+
+      setVendas(prev => prev.map(v => v.id === venda.id
+        ? { ...v, comissao_paga: true, comissao_despesa_id: despesaId }
+        : v
+      ))
+    } else {
+      // 2b. DESMARCANDO → remove a despesa correspondente
+      if (venda.comissao_despesa_id) {
+        await supabase.from('despesas').delete().eq('id', venda.comissao_despesa_id)
+        await supabase.from('vendas').update({ comissao_despesa_id: null }).eq('id', venda.id)
+      }
+      setVendas(prev => prev.map(v => v.id === venda.id
+        ? { ...v, comissao_paga: false, comissao_despesa_id: null }
+        : v
+      ))
+    }
   }
 
   async function salvar() {
@@ -321,7 +360,7 @@ export default function ComissoesPage() {
                             {formatCurrency(v.valor_comissao)}
                           </td>
                           <td style={{ textAlign: 'center' }}>
-                            <button onClick={() => marcarPago(v.id, v.comissao_paga)}
+                            <button onClick={() => marcarPago(v)}
                               className="btn btn-secondary"
                               style={{ fontSize: '0.62rem', padding: '0.15rem 0.5rem', color: v.comissao_paga ? 'var(--verde)' : 'var(--amarelo)', border: `1px solid ${v.comissao_paga ? 'var(--verde)' : 'var(--amarelo)'}` }}>
                               {v.comissao_paga ? '✔ PAGO' : '○ PENDENTE'}
