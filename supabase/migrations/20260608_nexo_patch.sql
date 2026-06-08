@@ -23,8 +23,8 @@ ALTER TABLE fiados
 -- Backfill: para fiados já marcados como "pago" sem pago_em,
 -- usa criado_em como fallback (não será exato, mas preserva dados existentes)
 UPDATE fiados
-SET pago_em = updated_at
-WHERE status = 'pago' AND pago_em IS NULL AND updated_at IS NOT NULL;
+SET pago_em = criado_em
+WHERE status = 'pago' AND pago_em IS NULL;
 
 -- Backfill valor_original: copia valor_aberto para fiados antigos sem valor_original
 -- (em fiados já quitados, valor_aberto pode ser 0, então este backfill é apenas aproximado)

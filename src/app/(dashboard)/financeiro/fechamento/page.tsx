@@ -61,6 +61,10 @@ export default function FechamentoPage() {
   const entradasManuais = fechManuais.filter(f => f.tipo === 'entrada').reduce((a,f) => a + f.valor, 0)
   const saidasManuais   = fechManuais.filter(f => f.tipo === 'saida').reduce((a,f) => a + f.valor, 0)
 
+  // Fiado recebido (amortizações)
+  const fiadoRecebimentos = fechManuais.filter(f => f.tipo === 'entrada' && f.descricao.startsWith('Recebimento fiado'))
+  const totalFiadoRecebido = fiadoRecebimentos.reduce((a,f) => a + f.valor, 0)
+
   // Fiado NÃO entra no saldo de caixa imediato (só entra quando recebido via amortização)
   const vendasCaixa = vendas.filter(v => v.forma_pagamento !== 'Fiado')
   const vendasFiado = vendas.filter(v => v.forma_pagamento === 'Fiado')
@@ -152,7 +156,7 @@ export default function FechamentoPage() {
                     <span style={{fontWeight:800,fontFamily:'monospace',color:'var(--verde)'}}>{formatCurrency(val)}</span>
                   </div>
                 ))}
-                {/* Fiados emitidos: informativo, NÃO entra no saldo */}
+                 {/* Fiados emitidos: informativo, NÃO entra no saldo */}
                 {totalFiadoEmitido > 0 && (
                   <div style={{display:'flex',justifyContent:'space-between',padding:'0.375rem 0',borderBottom:'1px solid var(--borda-leve)',opacity:0.65}}>
                     <span style={{display:'flex',alignItems:'center',gap:'0.35rem',fontSize:'0.82rem',color:'var(--texto-sec)'}}>
@@ -160,6 +164,29 @@ export default function FechamentoPage() {
                       <span style={{fontSize:'0.65rem',background:'var(--surface-alt)',border:'1px solid var(--borda)',padding:'0 4px',borderRadius:'3px',color:'var(--texto-desab)'}}>não entra no caixa</span>
                     </span>
                     <span style={{fontWeight:700,fontFamily:'monospace',color:'var(--texto-desab)',textDecoration:'line-through'}}>{formatCurrency(totalFiadoEmitido)}</span>
+                  </div>
+                )}
+                {/* Detalhe de Fiados Recebidos */}
+                {fiadoRecebimentos.length > 0 && (
+                  <div style={{ marginTop: '0.75rem', padding: '0.625rem', background: 'var(--surface-alt)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--borda)' }}>
+                    <p style={{ fontSize: '0.8rem', fontWeight: 800, marginBottom: '0.375rem', color: 'var(--texto-sec)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      📒 Detalhe de Fiados Recebidos:
+                    </p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      {fiadoRecebimentos.map((f, idx) => (
+                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', borderBottom: idx < fiadoRecebimentos.length - 1 ? '1px dashed var(--borda-leve)' : 'none', padding: '2px 0' }}>
+                          <span>
+                            {f.descricao.replace('Recebimento fiado — ', '')}{' '}
+                            <span style={{ color: 'var(--texto-desab)', fontSize: '0.72rem' }}>({f.forma_pagamento || 'Dinheiro'})</span>
+                          </span>
+                          <span style={{ fontWeight: 700, fontFamily: 'monospace', color: 'var(--verde)' }}>{formatCurrency(f.valor)}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--borda)', marginTop: '0.375rem', paddingTop: '0.375rem', fontSize: '0.8rem', fontWeight: 700 }}>
+                      <span>Subtotal Recebido</span>
+                      <span style={{ fontFamily: 'monospace', color: 'var(--verde)' }}>{formatCurrency(totalFiadoRecebido)}</span>
+                    </div>
                   </div>
                 )}
                 <div style={{display:'flex',justifyContent:'space-between',padding:'0.5rem 0',borderTop:'2px solid var(--borda)',marginTop:'0.25rem'}}>

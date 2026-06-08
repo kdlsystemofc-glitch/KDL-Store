@@ -19,6 +19,8 @@ export default function FiadoPage() {
   const [fiados,  setFiados]  = useState<Fiado[]>([])
   const [loading, setLoading] = useState(true)
   const [filtro,  setFiltro]  = useState<'todos'|'vencidos'|'hoje'|'avencer'|'historico'>('todos')
+  const [amortizacoes, setAmortizacoes] = useState<{data: string; descricao: string; valor: number; forma_pagamento: string|null}[]>([])
+  const [expandedFiados, setExpandedFiados] = useState<Record<string, boolean>>({})
 
   // Modal amortização
   const [fiadoPagando, setFiadoPagando] = useState<Fiado | null>(null)
@@ -28,14 +30,28 @@ export default function FiadoPage() {
 
   useEffect(() => { if (empresaId) { carregar(empresaId); carregarFormas(empresaId) } }, [empresaId])
 
+  const toggleExpand = (id: string) => {
+    setExpandedFiados(prev => ({ ...prev, [id]: !prev[id] }))
+  }
+
   async function carregar(eid: string) {
     setLoading(true)
-    const { data } = await createClient()
-      .from('fiados')
-      .select('id,cliente_nome,cliente_tel,valor_aberto,criado_em,status,data_vencimento,pago_em,valor_original')
-      .eq('empresa_id', eid)
-      .order('criado_em', { ascending: false })
-    setFiados(data||[])
+    const supabase = createClient()
+    const [resFiados, resFm] = await Promise.all([
+      supabase
+        .from('fiados')
+        .select('id,cliente_nome,cliente_tel,valor_aberto,criado_em,status,data_vencimento,pago_em,valor_original')
+        .eq('empresa_id', eid)
+        .order('criado_em', { ascending: false }),
+      supabase
+        .from('fechamentos_manuais')
+        .select('data,descricao,valor,forma_pagamento')
+        .eq('empresa_id', eid)
+        .eq('tipo', 'entrada')
+        .like('descricao', 'Recebimento fiado — %')
+    ])
+    setFiados(resFiados.data||[])
+    setAmortizacoes((resFm.data as any)||[])
     setLoading(false)
   }
 
@@ -107,6 +123,7 @@ export default function FiadoPage() {
       }
 
       setFiadoPagando(null)
+      carregar(empresaId)
     } catch (e) {
       console.error(e)
       toast.error('Erro ao registrar pagamento')
@@ -341,9 +358,30 @@ export default function FiadoPage() {
                     const diasParaPagar = f.pago_em
                       ? Math.max(0, Math.floor((new Date(f.pago_em).getTime() - new Date(f.criado_em).getTime()) / 86400000))
                       : null
+                    const clientAmortizacoes = amortizacoes.filter(a => a.descricao === `Recebimento fiado — ${f.cliente_nome}`)
+
                     return (
                       <tr key={f.id}>
-                        <td style={{fontWeight:700}}>{f.cliente_nome}</td>
+                        <td style={{fontWeight:700}}>
+                          <div>{f.cliente_nome}</div>
+                          {clientAmortizacoes.length > 0 && (
+                            <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: 'var(--texto-desab)', marginTop: '0.25rem' }}>
+                              <span style={{ cursor: 'pointer', textDecoration: 'underline', color: 'var(--azul)' }} onClick={() => toggleExpand(f.id)}>
+                                {expandedFiados[f.id] ? 'Ocultar pagamentos ▲' : `Ver histórico (${clientAmortizacoes.length} pgto) ▼`}
+                              </span>
+                              {expandedFiados[f.id] && (
+                                <div style={{ padding: '0.375rem', background: 'var(--surface-alt)', borderRadius: '4px', marginTop: '0.25rem', border: '1px solid var(--borda)', display: 'flex', flexDirection: 'column', gap: '2px', textAlign: 'left' }}>
+                                  {clientAmortizacoes.map((am, idx) => (
+                                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', borderBottom: idx < clientAmortizacoes.length - 1 ? '1px dashed var(--borda-leve)' : 'none', padding: '2px 0' }}>
+                                      <span>📅 {new Date(am.data + 'T12:00:00').toLocaleDateString('pt-BR')} ({am.forma_pagamento})</span>
+                                      <span style={{ fontWeight: 'bold', color: 'var(--verde)' }}>{formatCurrency(am.valor)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </td>
                         <td style={{textAlign:'right',fontWeight:700,fontFamily:'monospace',color:'var(--verde)'}}>
                           {f.valor_original ? formatCurrency(f.valor_original) : formatCurrency(f.valor_aberto)}
                         </td>
@@ -404,13 +442,37 @@ export default function FiadoPage() {
                     else vencText += ` (${dias}d)`
                   }
 
+                  const clientAmortizacoes = amortizacoes.filter(a => a.descricao === `Recebimento fiado — ${f.cliente_nome}`)
+
                   return (
                     <tr key={f.id}>
                       <td style={{fontWeight:700}}>
-                        {f.cliente_nome}
+                        <div>{f.cliente_nome}</div>
+                        {clientAmortizacoes.length > 0 && (
+                          <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: 'var(--texto-desab)', marginTop: '0.25rem' }}>
+                            <span style={{ cursor: 'pointer', textDecoration: 'underline', color: 'var(--azul)' }} onClick={() => toggleExpand(f.id)}>
+                              {expandedFiados[f.id] ? 'Ocultar pagamentos ▲' : `Ver histórico (${clientAmortizacoes.length} pgto) ▼`}
+                            </span>
+                            {expandedFiados[f.id] && (
+                              <div style={{ padding: '0.375rem', background: 'var(--surface-alt)', borderRadius: '4px', marginTop: '0.25rem', border: '1px solid var(--borda)', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                {clientAmortizacoes.map((am, idx) => (
+                                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', borderBottom: idx < clientAmortizacoes.length - 1 ? '1px dashed var(--borda-leve)' : 'none', padding: '2px 0' }}>
+                                    <span>📅 {new Date(am.data + 'T12:00:00').toLocaleDateString('pt-BR')} ({am.forma_pagamento})</span>
+                                    <span style={{ fontWeight: 'bold', color: 'var(--verde)' }}>{formatCurrency(am.valor)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td style={{textAlign:'right',fontWeight:900,color:'var(--vermelho)',fontFamily:'monospace',fontSize:'1.1rem'}}>
-                        {formatCurrency(f.valor_aberto)}
+                        <div>{formatCurrency(f.valor_aberto)}</div>
+                        {f.valor_original && f.valor_original > f.valor_aberto && (
+                          <div style={{ fontSize: '0.75rem', color: 'var(--texto-desab)', fontWeight: 'normal', textDecoration: 'line-through' }}>
+                            Orig: {formatCurrency(f.valor_original)}
+                          </div>
+                        )}
                       </td>
                       <td style={{textAlign:'center',fontWeight:700,color:vencColor}}>
                         {vencText}
