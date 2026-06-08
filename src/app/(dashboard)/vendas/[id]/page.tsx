@@ -138,7 +138,7 @@ export default function VendaReciboPage() {
       fornecedor_id: fornSel,
       produto:       fornItem.trim(),
       quantidade:    finalQty,
-      status:        'aguardando',
+      status:        'rascunho',
       venda_id:      venda.id,
       total:         finalCusto,
       obs:           `Venda #${String(venda.numero).padStart(4,'0')} — ${venda.cliente_nome || 'Anônimo'}${fornGarantia ? ' [GARANTIA]' : ''}`,

@@ -142,7 +142,7 @@ export default function FornecedoresPage() {
   }
 
   async function avancarStatus(id: string, atual: string) {
-    const fluxo: Record<string, string> = { pendente: 'enviado', enviado: 'recebido' }
+    const fluxo: Record<string, string> = { rascunho: 'enviado', enviado: 'recebido' }
     const next = fluxo[atual]
     if (!next) return // já está no estado final ou desconhecido
     const p = pedidos.find(o => o.id === id)
@@ -240,7 +240,7 @@ export default function FornecedoresPage() {
       quantidade: parseInt(pedQtd) || 1,
       total: totalCalculado,
       obs: obsFinal || null,
-      status: 'pendente' // 'pendente' | 'enviado' | 'recebido' | 'cancelado'
+      status: 'rascunho' // 'rascunho' | 'enviado' | 'recebido' | 'cancelado'
     }).select('id,fornecedor_id,produto,quantidade,status,total,obs,criado_em,fornecedores(nome)').single()
     
     setSalvandoPed(false)
@@ -312,7 +312,7 @@ export default function FornecedoresPage() {
       (f.anotacoes || '').toLowerCase().includes(q)
     )
   })
-  const pendentes = pedidos.filter(p => p.status !== 'entregue').length
+  const pendentes = pedidos.filter(p => p.status !== 'recebido' && p.status !== 'cancelado').length
   const set = (k: keyof Fornecedor, v: unknown) => setEditando(e => e ? { ...e, [k]: v } : e)
 
   return (
