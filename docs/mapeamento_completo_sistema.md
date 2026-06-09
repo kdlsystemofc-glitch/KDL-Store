@@ -1,10 +1,11 @@
 # MAPEAMENTO COMPLETO DO SISTEMA — KDL STORE
-**Versão:** 2.0  
-**Gerado em:** 2026-05-20 · **Última atualização:** 2026-06-02  
+**Versão:** 2.1  
+**Gerado em:** 2026-05-20 · **Última atualização:** 2026-06-09  
 **Cobertura:** Landing Page · Auth · Dashboard · APIs · Middleware · Todos os módulos  
-**Total de arquivos analisados:** ~70
+**Total de arquivos analisados:** ~70 (+1 novo: `api/usuario/alterar-status/route.ts`)
 
-> ⚠️ **v2.0:** Documento atualizado com todas as implementações, correções e melhorias realizadas entre 20/05/2026 e 02/06/2026. Ver **Seção 39** para o changelog completo.
+> ⚠️ **v2.1 (09/06/2026):** Sprint 2 de correções aplicada. Toggles de catálogo/destaque em produtos; null-safety na busca de clientes; polling de plano pós-Stripe; preservação de status finais em garantias com refund auto-populate; nova rota de logout seguro `POST /api/usuario/alterar-status`; correção de `numero_base` em despesas via `getNextBase()`. TSC: zero erros. Commit: `e367a20`.
+> ⚠️ **v2.0:** Documento atualizado com todas as implementações, correções e melhorias realizadas entre 20/05/2026 e 02/06/2026.
 
 ---
 

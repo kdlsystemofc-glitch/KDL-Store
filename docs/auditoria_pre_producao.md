@@ -1,12 +1,13 @@
 # Auditoria Pré-Produção — KDL Store
-Data: 15 de Maio de 2026
+Data: 09 de Junho de 2026 _(atualizado)_
 
 ## Resumo Executivo
-- Total de problemas encontrados: 7
-- Críticos (bloqueiam lançamento): 1
-- Altos (corrigir antes): 1
-- Médios (corrigir em seguida): 4
-- Baixos (backlog): 1
+- Total de problemas encontrados originalmente: 7
+- **Corrigidos nesta sessão (sprint 2):** 6
+- Críticos abertos: 0
+- Altos abertos: 0
+- Médios abertos: 3
+- Baixos abertos: 1
 
 ## Problemas por Categoria
 
@@ -75,3 +76,58 @@ Data: 15 de Maio de 2026
 - As verificações sobre quais contas são `Pro` bloqueiam corretamente o acionamento dos caminhos como `/financeiro` e `/relatorios`, evitando acessos indevidos pelo painel `Start`.
 - A verificação de login funciona e bloqueia rotas fechadas sem sessão.
 - Estado "vazio/skeleton" mapeados por condições `if (loading) return (...)`.
+
+---
+
+## ✅ Correções Aplicadas — Sprint 2 (09/06/2026) · commit `e367a20`
+
+### [CORRIGIDO] 1.3 — Toggles Inline: Catálogo e Destaque em Produtos
+- **Arquivo:** `src/app/(dashboard)/produtos/page.tsx`
+- **Correção:** Adicionados campos `ativo_catalogo` e `destaque` à query e ao tipo. Implementados toggles-pill clicáveis com PATCH Supabase, atualização otimista de estado e feedback via `toast.success()`.
+
+### [CORRIGIDO] 1.4 — Bug de Busca em Clientes (Null-Safety + False-Positive)
+- **Arquivo:** `src/app/(dashboard)/clientes/page.tsx`
+- **Bug A:** `c.nome.toLowerCase()` jogava TypeError silenciosa se `nome` fosse null no banco, zerando toda a lista filtrada.
+- **Bug B:** `q.replace(/\D/g,'')` retornava `''` para buscas de texto, fazendo `''.includes('')` retornar `true` em todos os registros de telefone/CPF.
+- **Correção:** `(c.nome || '').toLowerCase()` + guarda `qDigits.length > 0` antes das comparações de telefone/CPF.
+
+### [CORRIGIDO] 1.5 — Plan Badge sem Atualização após Upgrade Stripe
+- **Arquivo:** `src/app/(dashboard)/layout.tsx`
+- **Correção:** `useSearchParams` detecta `?sucesso=1`. Ao detectar, limpa `kdl_subscription_cache` e inicia polling de `empresas.plano` a cada 2s (timeout 30s). Badge da sidebar atualiza em tempo real sem reload.
+
+### [CORRIGIDO] 1.6A — Garantias: Status Final Sobrescrito
+- **Arquivo:** `src/app/(dashboard)/garantias/page.tsx`
+- **Correção:** Array `FINAL_STATUSES` preserva `'em devolução'`, `'finalizada'`, `'resolvida'`, `'cancelada'` do banco. Só recalcula `ativa/vencida` para garantias sem status final.
+
+### [CORRIGIDO] 1.6B — Garantias: Campo de Reembolso sem Auto-Preenchimento
+- **Arquivo:** `src/app/(dashboard)/garantias/page.tsx`
+- **Correção:** Ao abrir modal de devolução, busca `preco_unitario` de `itens_venda` (por `venda_id` + `produto_id`). Campo `devValor` pré-preenchido com indicador de carregamento `⏳` e hint verde de confirmação.
+
+### [CORRIGIDO] 1.7 — Logout Seguro: Admin Suspende Usuário
+- **Arquivo (NEW):** `src/app/api/usuario/alterar-status/route.ts`
+- **Correção:** Nova rota POST que altera `profiles.status` E chama `supabaseAdmin.auth.admin.signOut(userId, 'global')`, invalidando todas as sessões ativas do usuário em todos os dispositivos imediatamente.
+
+### [CORRIGIDO] 1.8 — Despesas: Numeração Sequencial Pulando Dígitos
+- **Arquivo:** `src/app/(dashboard)/financeiro/despesas/page.tsx`
+- **Causa-raiz:** `MAX(numero_base)` era calculado da lista em memória (`despesas` state), que não reflete inserções externas (garantias, comissões, reembolsos).
+- **Correção:** Helper `getNextBase(eid)` faz `SELECT numero_base ORDER BY DESC LIMIT 1` diretamente no banco antes de cada `INSERT`.
+
+---
+
+## Problemas Ainda Abertos
+
+### [MÉDIO] — Middleware com Redirecionamento HTML em APIs
+- Status: **Aberto** (sem alteração)
+- Ver seção original acima.
+
+### [MÉDIO] — Funcionalidades Falsas em Configurações
+- Status: **Aberto** (sem alteração)
+- Ver seção original acima.
+
+### [MÉDIO] — Botão Redirecionando sem Aviso (`/puxadores`)
+- Status: **Aberto** (sem alteração)
+- Ver seção original acima.
+
+### [BAIXO] — Uso de `console.error` em Produção
+- Status: **Aberto** (sem alteração)
+- Ver seção original acima.
