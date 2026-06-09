@@ -7,7 +7,7 @@ import { Search, Loader2, Printer, X } from 'lucide-react'
 import { PageTabs } from '@/components/PageTabs'
 import { useSubscription } from '@/hooks/useSubscription'
 
-type Garantia = { id:string; produto_nome:string; num_serie:string|null; cliente_nome:string|null; cliente_tel:string|null; data_compra:string; data_vencimento:string; status:string; texto_garantia:string|null }
+type Garantia = { id:string; produto_nome:string; produto_id:string|null; num_serie:string|null; cliente_nome:string|null; cliente_tel:string|null; data_compra:string; data_vencimento:string; status:string; texto_garantia:string|null; venda_id:string|null }
 
 export default function GarantiasPage() {
   const { empresaId } = useEmpresaId()
@@ -22,7 +22,8 @@ export default function GarantiasPage() {
   const [devGarantia, setDevGarantia] = useState<Garantia|null>(null)
   const [devMotivo, setDevMotivo] = useState('')
   const [devRes, setDevRes] = useState('Troca de produto')
-  const [devValor, setDevValor] = useState('')  // G1: valor monetário da devolução
+  const [devValor, setDevValor] = useState('')
+  const [carregandoValor, setCarregandoValor] = useState(false)
   const [salvandoDev, setSalvandoDev] = useState(false)
 
   useEffect(() => { if (empresaId) carregar(empresaId) }, [empresaId])
@@ -31,12 +32,16 @@ export default function GarantiasPage() {
     setLoading(true)
     const { data } = await createClient()
       .from('garantias')
-      .select('id,produto_nome,num_serie,cliente_nome,cliente_tel,data_compra,data_vencimento,status,texto_garantia')
+      .select('id,produto_nome,produto_id,num_serie,cliente_nome,cliente_tel,data_compra,data_vencimento,status,texto_garantia,venda_id')
       .eq('empresa_id', eid)
       .order('data_vencimento', { ascending: false })
-    // Atualiza status baseado na data
+    // Preserva statuses finais vindos do banco; recalcula só ativa/vencida
+    const FINAL_STATUSES = ['em devolução', 'finalizada', 'resolvida', 'cancelada']
     const hoje = new Date().toISOString().slice(0,10)
-    const atualizadas = (data||[]).map(g => ({ ...g, status: g.data_vencimento < hoje ? 'vencida' : 'ativa' }))
+    const atualizadas = (data||[]).map(g => {
+      if (FINAL_STATUSES.includes(g.status)) return g // preserva status final do banco
+      return { ...g, status: g.data_vencimento < hoje ? 'vencida' : 'ativa' }
+    })
     setGarantias(atualizadas)
     setLoading(false)
   }
@@ -168,11 +173,22 @@ export default function GarantiasPage() {
                 </select>
                 {devRes === 'Troca de produto' && <p style={{fontSize:'0.75rem',color:'var(--verde)',marginTop:'0.25rem'}}>O produto devolvido será reinserido no estoque (+1) como defeituoso/retorno.</p>}
               </div>
-              {/* G1: campo de valor monetário da devolução */}
+              {/* Valor da devolução — auto-preenchido com preco_unitario da venda */}
               <div>
                 <label className="campo-label">Valor da devolução (R$) <span style={{color:'var(--texto-desab)'}}>— opcional</span></label>
-                <input className="campo" type="number" min="0" step="0.01" style={{marginTop:'0.375rem'}} value={devValor} onChange={e=>setDevValor(e.target.value)} placeholder="0,00"/>
-                <p style={{fontSize:'0.72rem',color:'var(--texto-desab)',marginTop:'0.2rem'}}>Registre o valor para acompanhamento financeiro.</p>
+                <div style={{position:'relative', marginTop:'0.375rem'}}>
+                  <input className="campo" type="number" min="0" step="0.01"
+                    style={{width:'100%', paddingRight: carregandoValor ? '2.5rem' : undefined}}
+                    value={devValor} onChange={e=>setDevValor(e.target.value)}
+                    placeholder={carregandoValor ? 'Buscando valor...' : '0,00'}
+                    disabled={carregandoValor}/>
+                  {carregandoValor && (
+                    <span style={{position:'absolute',right:'0.625rem',top:'50%',transform:'translateY(-50%)',fontSize:'0.7rem',color:'var(--verde)'}}>⏳</span>
+                  )}
+                </div>
+                <p style={{fontSize:'0.72rem',color: devValor && !carregandoValor ? 'var(--verde)' : 'var(--texto-desab)',marginTop:'0.2rem'}}>
+                  {devValor && !carregandoValor ? '✓ Valor preenchido automaticamente da venda original.' : 'Registre o valor para acompanhamento financeiro.'}
+                </p>
               </div>
               <div style={{display:'flex',gap:'0.5rem',justifyContent:'flex-end',marginTop:'0.5rem'}}>
                 <button onClick={()=>setShowDev(false)} className="btn btn-ghost">Cancelar</button>
@@ -260,7 +276,25 @@ export default function GarantiasPage() {
                     <td style={{textAlign:'center',display:'flex',gap:'0.25rem',justifyContent:'center',flexWrap:'wrap'}}>
                       <Link href={`/garantias/${g.id}`} target="_blank" className="btn btn-secondary" style={{fontSize:'0.62rem',padding:'0.15rem 0.4rem'}}>CERTIFICADO</Link>
                       {ativa && (
-                        <button onClick={()=>{setDevGarantia(g);setShowDev(true);setDevMotivo('')}} className="btn btn-secondary" style={{fontSize:'0.62rem',padding:'0.15rem 0.4rem',color:'var(--amarelo)'}}>DEVOL.</button>
+                        <button onClick={async ()=>{
+                          setDevGarantia(g)
+                          setShowDev(true)
+                          setDevMotivo('')
+                          setDevRes('Troca de produto')
+                          setDevValor('')
+                          // Auto-populate: busca preco_unitario da venda original
+                          if (g.venda_id && g.produto_id) {
+                            setCarregandoValor(true)
+                            const { data: item } = await createClient()
+                              .from('itens_venda')
+                              .select('preco_unitario')
+                              .eq('venda_id', g.venda_id)
+                              .eq('produto_id', g.produto_id)
+                              .maybeSingle()
+                            if (item?.preco_unitario) setDevValor(String(item.preco_unitario))
+                            setCarregandoValor(false)
+                          }
+                        }} className="btn btn-secondary" style={{fontSize:'0.62rem',padding:'0.15rem 0.4rem',color:'var(--amarelo)'}}>DEVOL.</button>
                       )}
                     </td>
                   </tr>

@@ -39,11 +39,13 @@ export default function ClientesPage() {
 
   const filtrados = clientes.filter(c => {
     const q = busca.toLowerCase().trim()
+    const qDigits = q.replace(/\D/g, '') // apenas dígitos da query
     const matchBusca = !q ||
-      c.nome.toLowerCase().includes(q) ||
-      (c.telefone || '').replace(/\D/g,'').includes(q.replace(/\D/g,'')) ||
+      (c.nome || '').toLowerCase().includes(q) ||
+      // só compara dígitos se a query tiver ao menos 1 dígito (evita ''.includes('') = true em tudo)
+      (qDigits.length > 0 && (c.telefone || '').replace(/\D/g,'').includes(qDigits)) ||
       (c.email || '').toLowerCase().includes(q) ||
-      (c.cpf || '').replace(/\D/g,'').includes(q.replace(/\D/g,'')) ||
+      (qDigits.length > 0 && (c.cpf || '').replace(/\D/g,'').includes(qDigits)) ||
       (c.endereco || '').toLowerCase().includes(q) ||
       (c.anotacoes || '').toLowerCase().includes(q) ||
       (c.obs || '').toLowerCase().includes(q)

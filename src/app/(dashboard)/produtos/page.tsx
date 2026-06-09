@@ -5,13 +5,14 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
-import { Plus, Search, AlertTriangle, Loader2, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { PageTabs } from '@/components/PageTabs'
 import { FormProduto } from '@/components/FormProduto'
 
 type Produto = {
   id: string; nome: string; sku: string | null; categoria: string | null
   preco_varejo: number; preco_custo: number; qtd_atual: number; qtd_minima: number; ativo: boolean; imagem_url: string | null
+  ativo_catalogo: boolean | null; destaque: boolean | null
 }
 
 export default function ProdutosPage() {
@@ -21,6 +22,7 @@ export default function ProdutosPage() {
   const [loading,    setLoading]    = useState(true)
   const [erro,       setErro]       = useState<string | null>(null)
   const [showModal,  setShowModal]  = useState(false)
+  const [toggling,   setToggling]   = useState<string | null>(null)
 
   useEffect(() => { if (empresaId) carregar(empresaId) }, [empresaId])
 
@@ -29,12 +31,26 @@ export default function ProdutosPage() {
     setErro(null)
     const { data, error } = await createClient()
       .from('produtos')
-      .select('id,nome,sku,categoria,preco_varejo,preco_custo,qtd_atual,qtd_minima,ativo,imagem_url')
+      .select('id,nome,sku,categoria,preco_varejo,preco_custo,qtd_atual,qtd_minima,ativo,imagem_url,ativo_catalogo,destaque')
       .eq('empresa_id', eid)
       .order('nome')
     if (error) { setErro('Erro ao carregar produtos.'); setLoading(false); return }
     setProdutos(data || [])
     setLoading(false)
+  }
+
+  async function toggleCampo(id: string, campo: 'ativo_catalogo' | 'destaque', valorAtual: boolean | null) {
+    const novoValor = !valorAtual
+    setToggling(id + campo)
+    const { error } = await createClient().from('produtos').update({ [campo]: novoValor }).eq('id', id)
+    if (error) {
+      toast.error('Erro ao atualizar: ' + error.message)
+    } else {
+      setProdutos(prev => prev.map(p => p.id === id ? { ...p, [campo]: novoValor } : p))
+      const label = campo === 'ativo_catalogo' ? 'Catálogo' : 'Destaque'
+      toast.success(`${label} ${novoValor ? 'ativado' : 'desativado'} com sucesso!`)
+    }
+    setToggling(null)
   }
 
   const filtrados = produtos.filter(p =>
@@ -144,18 +160,23 @@ export default function ProdutosPage() {
                 <th style={{ textAlign:'right' }}>VENDA</th>
                 <th style={{ textAlign:'center' }}>ESTQ.</th>
                 <th style={{ textAlign:'center' }}>STATUS</th>
+                <th style={{ textAlign:'center' }}>CATÁLOGO</th>
+                <th style={{ textAlign:'center' }}>DESTAQUE</th>
                 <th style={{ textAlign:'center' }}>AÇÃO</th>
               </tr>
             </thead>
             <tbody>
               {filtrados.map(p => {
                 const critico = p.qtd_atual <= p.qtd_minima && p.qtd_minima > 0
+                const isTogglingCatalogo = toggling === p.id + 'ativo_catalogo'
+                const isTogglingDestaque = toggling === p.id + 'destaque'
                 return (
                   <tr key={p.id}>
                     <td style={{ fontWeight:700, maxWidth:'240px' }}>
                       <div style={{ display:'flex', alignItems:'center', gap:'0.75rem' }}>
                         <div style={{ width:'40px', height:'40px', flexShrink:0, background:'var(--surface-alt)', border:'1px solid var(--borda)', borderRadius:'4px', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
                           {p.imagem_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
                             <img src={p.imagem_url} alt={p.nome} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                           ) : (
                             <span style={{ fontSize:'1.25rem', opacity:0.3 }}>📦</span>
@@ -176,6 +197,44 @@ export default function ProdutosPage() {
                       <span className={p.ativo ? 'status-ok' : 'status-neutro'} style={{ fontSize:'0.72rem' }}>
                         {p.ativo ? '● ATIVO' : '○ INATIVO'}
                       </span>
+                    </td>
+                    {/* Toggle Catálogo */}
+                    <td style={{ textAlign:'center' }}>
+                      <button
+                        onClick={() => toggleCampo(p.id, 'ativo_catalogo', p.ativo_catalogo)}
+                        disabled={isTogglingCatalogo}
+                        title={p.ativo_catalogo ? 'Remover do catálogo' : 'Publicar no catálogo'}
+                        style={{
+                          background: p.ativo_catalogo ? 'rgba(0,191,165,0.15)' : 'rgba(255,255,255,0.05)',
+                          border: `1px solid ${p.ativo_catalogo ? 'var(--verde)' : 'var(--borda)'}`,
+                          color: p.ativo_catalogo ? 'var(--verde)' : 'var(--texto-desab)',
+                          borderRadius: '999px', padding: '0.15rem 0.5rem',
+                          fontSize: '0.65rem', fontWeight: 700, cursor: 'pointer',
+                          transition: 'all 0.15s', letterSpacing: '0.04em',
+                          opacity: isTogglingCatalogo ? 0.5 : 1,
+                        }}
+                      >
+                        {isTogglingCatalogo ? '...' : p.ativo_catalogo ? '● ON' : '○ OFF'}
+                      </button>
+                    </td>
+                    {/* Toggle Destaque */}
+                    <td style={{ textAlign:'center' }}>
+                      <button
+                        onClick={() => toggleCampo(p.id, 'destaque', p.destaque)}
+                        disabled={isTogglingDestaque}
+                        title={p.destaque ? 'Remover destaque' : 'Marcar como destaque'}
+                        style={{
+                          background: p.destaque ? 'rgba(255,170,0,0.15)' : 'rgba(255,255,255,0.05)',
+                          border: `1px solid ${p.destaque ? 'var(--amarelo)' : 'var(--borda)'}`,
+                          color: p.destaque ? 'var(--amarelo)' : 'var(--texto-desab)',
+                          borderRadius: '999px', padding: '0.15rem 0.5rem',
+                          fontSize: '0.65rem', fontWeight: 700, cursor: 'pointer',
+                          transition: 'all 0.15s', letterSpacing: '0.04em',
+                          opacity: isTogglingDestaque ? 0.5 : 1,
+                        }}
+                      >
+                        {isTogglingDestaque ? '...' : p.destaque ? '★ SIM' : '☆ NÃO'}
+                      </button>
                     </td>
                     <td style={{ textAlign:'center' }}>
                       <Link href={`/produtos/${p.id}/editar`} className="btn btn-secondary" style={{ fontSize:'0.65rem', padding:'0.2rem 0.5rem' }}>

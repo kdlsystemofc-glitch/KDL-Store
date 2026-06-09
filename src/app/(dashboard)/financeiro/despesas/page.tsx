@@ -84,6 +84,18 @@ export default function DespesasPage() {
 
   const gerandoRef = useRef(false) // lock para evitar geração concorrente
 
+  // Helper: busca o próximo numero_base direto do banco (evita pulos por lista desatualizada)
+  async function getNextBase(eid: string): Promise<number> {
+    const { data } = await createClient()
+      .from('despesas')
+      .select('numero_base')
+      .eq('empresa_id', eid)
+      .order('numero_base', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    return (data?.numero_base ?? 0) + 1
+  }
+
   async function carregar(eid: string) {
     setLoading(true)
     const supabase = createClient()
@@ -118,8 +130,7 @@ export default function DespesasPage() {
           if ((count ?? 0) > 0) continue // já existe — não duplica
 
           const dia = fixa.data?.slice(8,10) ?? '01'
-          const maxBase = Math.max(0, ...lista.map(d => d.numero_base ?? 0))
-          const nextBase = maxBase + 1
+          const nextBase = await getNextBase(eid)
           await supabase.from('despesas').insert({
             empresa_id: eid, descricao: fixa.descricao, categoria: fixa.categoria,
             tipo: fixa.tipo, valor: fixa.valor, data: `${mesStr}-${dia}`,
@@ -157,8 +168,7 @@ export default function DespesasPage() {
     setSalvando(true); setErro(null)
     const supabase = createClient()
     const valor = parseFloat(form.valor)
-    const maxBase = Math.max(0, ...despesas.map(d => d.numero_base ?? 0))
-    let nextBase = maxBase + 1
+    const nextBase = await getNextBase(empresaId)
 
     if (form.parcelado && form.numParcelas > 1) {
       const linhas = Array.from({ length: form.numParcelas }, (_, i) => {

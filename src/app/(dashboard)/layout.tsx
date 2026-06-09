@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
-import { useState, useEffect, createContext } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { useState, useEffect, useRef, createContext } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
   LayoutDashboard, ShoppingCart, Package, Users, BarChart3,
@@ -292,6 +292,40 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [atualizandoSenha, setAtualizandoSenha] = useState(false)
   const [erroSenha, setErroSenha] = useState('')
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  // Fix 1.5 — Polling de plano após upgrade Stripe
+  // Quando Stripe redireciona com ?sucesso=1, limpa o cache e aguarda o webhook
+  // atualizar empresas.plano para 'pro' antes de recarregar o badge
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  useEffect(() => {
+    const sucesso = searchParams?.get('sucesso')
+    if (sucesso !== '1') return
+    // Limpa cache de assinatura
+    try { localStorage.removeItem('kdl_subscription_cache') } catch {}
+    let tentativas = 0
+    const MAX = 15 // 30 segundos (2s cada)
+    pollingRef.current = setInterval(async () => {
+      tentativas++
+      try {
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+        const { data: profile } = await supabase.from('profiles').select('empresa_id').eq('id', user.id).single()
+        if (!profile?.empresa_id) return
+        const { data: empresa } = await supabase.from('empresas').select('plano').eq('id', profile.empresa_id).single()
+        if (empresa?.plano === 'pro') {
+          setHeaderInfo(prev => ({ ...prev, plano: 'pro' }))
+          try { localStorage.removeItem('kdl_subscription_cache') } catch {}
+          if (pollingRef.current) clearInterval(pollingRef.current)
+          // Remove ?sucesso=1 da URL sem reload
+          router.replace(window.location.pathname)
+        }
+      } catch { /* ignora erros de polling */ }
+      if (tentativas >= MAX && pollingRef.current) clearInterval(pollingRef.current)
+    }, 2000)
+    return () => { if (pollingRef.current) clearInterval(pollingRef.current) }
+  }, [searchParams, router])
 
   useEffect(() => { setIsMounted(true) }, [])
 
