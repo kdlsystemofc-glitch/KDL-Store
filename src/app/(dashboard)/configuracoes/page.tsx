@@ -22,27 +22,55 @@ const PRO_FEATURES   = ['PDV ilimitado', 'Controle de estoque', 'Emissão de gar
 export default function ConfiguracoesPage() {
   const { empresaId } = useEmpresaId()
   const { plano, ativo, cancel_at_period_end, current_period_end, scheduled_plan, loading: loadingSub } = useSubscription()
-  const [prazoCrm,    setPrazoCrm]    = useState<number>(60)
+
+  // CRM — 3 limiares de inatividade
+  const [diasAtencao, setDiasAtencao] = useState(30)
+  const [diasSumido,  setDiasSumido]  = useState(60)
+  const [diasPerdido, setDiasPerdido] = useState(90)
   const [salvandoCrm, setSalvandoCrm] = useState(false)
+
   const [abrindoPortal, setAbrindoPortal] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deletando, setDeletando] = useState(false)
 
   useEffect(() => {
-    if (empresaId) {
-      createClient().from('empresas').select('crm_prazo_inatividade_dias').eq('id', empresaId).single()
-        .then(({data}) => { if (data?.crm_prazo_inatividade_dias) setPrazoCrm(data.crm_prazo_inatividade_dias) })
-    }
+    if (!empresaId) return
+    createClient()
+      .from('empresas')
+      .select('crm_dias_atencao, crm_dias_sumido, crm_dias_perdido, crm_prazo_inatividade_dias')
+      .eq('id', empresaId)
+      .single()
+      .then(({ data }) => {
+        if (!data) return
+        // Prefere as novas colunas; se ainda não existirem (migração pendente), usa a antiga
+        setDiasAtencao(data.crm_dias_atencao ?? Math.max(7, Math.floor((data.crm_prazo_inatividade_dias ?? 60) / 2)))
+        setDiasSumido( data.crm_dias_sumido  ?? (data.crm_prazo_inatividade_dias ?? 60))
+        setDiasPerdido(data.crm_dias_perdido ?? Math.round((data.crm_prazo_inatividade_dias ?? 60) * 1.5))
+      })
   }, [empresaId])
 
-  async function salvarPrazo() {
+  async function salvarCrm() {
     if (!empresaId) return
+    const atencao = Math.max(1, Math.min(364, Number(diasAtencao)))
+    const sumido  = Math.max(atencao + 1, Math.min(365, Number(diasSumido)))
+    const perdido = Math.max(sumido  + 1, Math.min(730, Number(diasPerdido)))
+
     setSalvandoCrm(true)
-    const val = Math.max(7, Math.min(365, Number(prazoCrm)))
-    await createClient().from('empresas').update({ crm_prazo_inatividade_dias: val }).eq('id', empresaId)
-    setPrazoCrm(val)
+    const { error } = await createClient().from('empresas').update({
+      crm_dias_atencao: atencao,
+      crm_dias_sumido:  sumido,
+      crm_dias_perdido: perdido,
+    }).eq('id', empresaId)
     setSalvandoCrm(false)
-    toast.success('Configurações salvas!')
+
+    if (error) {
+      toast.error('Erro ao salvar: ' + error.message)
+      return
+    }
+    setDiasAtencao(atencao)
+    setDiasSumido(sumido)
+    setDiasPerdido(perdido)
+    toast.success('Configurações CRM salvas!')
   }
 
   async function abrirPortal() {
@@ -68,7 +96,6 @@ export default function ConfiguracoesPage() {
     if (!empresaId) return
     setDeletando(true)
     try {
-      // CO3: abre portal direto no fluxo de cancelamento (não na tela de cartões)
       const res = await fetch('/api/stripe/portal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -178,18 +205,67 @@ export default function ConfiguracoesPage() {
       )}
 
 
-      {/* Preferências do CRM */}
+      {/* Preferências do CRM — 3 categorias */}
       <div className="card" style={{padding:0,overflow:'hidden'}}>
         <div className="sec-header"><span>PREFERÊNCIAS DO CRM</span></div>
-        <div style={{padding:'0.75rem'}}>
-          <p style={{ fontSize: '0.72rem', color: 'var(--texto-desab)', marginBottom: '0.75rem', letterSpacing:'0.03em' }}>CONFIGURE QUANDO OS CLIENTES DEVEM SER CONSIDERADOS SUMIDOS.</p>
-          <div style={{ display:'flex', gap:'0.5rem', alignItems:'flex-end' }}>
-            <div style={{ flex: 1, maxWidth:'250px' }}>
-              <label className="campo-label" style={{fontSize:'0.65rem'}}>ALERTAR CLIENTES INATIVOS APÓS (DIAS)</label>
-              <input type="number" min={7} max={365} className="campo" style={{marginTop:'0.375rem',fontSize:'0.78rem'}} value={prazoCrm} onChange={e=>setPrazoCrm(Number(e.target.value))} />
+        <div style={{padding:'0.875rem 1rem'}}>
+          <p style={{ fontSize: '0.72rem', color: 'var(--texto-desab)', marginBottom: '0.875rem', letterSpacing:'0.03em' }}>
+            DEFINA OS PRAZOS DE INATIVIDADE PARA CADA NÍVEL DE URGÊNCIA. OS VALORES DEVEM SER CRESCENTES.
+          </p>
+
+          <div style={{ display:'flex', flexDirection:'column', gap:'0.625rem' }}>
+            {/* Atenção */}
+            <div style={{ display:'flex', gap:'0.5rem', alignItems:'center', padding:'0.625rem 0.75rem', background:'rgba(234,179,8,0.06)', border:'1px solid rgba(234,179,8,0.2)', borderLeft:'3px solid var(--amarelo)', borderRadius:'var(--radius-sm)' }}>
+              <span style={{ fontSize:'1rem' }}>🟡</span>
+              <div style={{ flex:1 }}>
+                <label className="campo-label" style={{fontSize:'0.65rem', color:'var(--amarelo)'}}>ATENÇÃO (morno) — dias sem compra</label>
+                <input
+                  type="number" min={1} max={364}
+                  className="campo"
+                  style={{marginTop:'0.25rem', fontSize:'0.82rem', maxWidth:'100px', fontWeight:700}}
+                  value={diasAtencao}
+                  onChange={e => setDiasAtencao(Number(e.target.value))}
+                />
+              </div>
+              <span style={{ fontSize:'0.68rem', color:'var(--texto-desab)', whiteSpace:'nowrap' }}>dias</span>
             </div>
-            <button onClick={salvarPrazo} disabled={salvandoCrm} className="btn btn-primary" style={{height:'36px',fontSize:'0.72rem'}}>
-              {salvandoCrm ? 'SALVANDO...' : '▶ SALVAR'}
+
+            {/* Sumido */}
+            <div style={{ display:'flex', gap:'0.5rem', alignItems:'center', padding:'0.625rem 0.75rem', background:'rgba(192,82,0,0.06)', border:'1px solid rgba(192,82,0,0.2)', borderLeft:'3px solid #c05200', borderRadius:'var(--radius-sm)' }}>
+              <span style={{ fontSize:'1rem' }}>🟠</span>
+              <div style={{ flex:1 }}>
+                <label className="campo-label" style={{fontSize:'0.65rem', color:'#c05200'}}>SUMIDO (frio) — dias sem compra</label>
+                <input
+                  type="number" min={2} max={365}
+                  className="campo"
+                  style={{marginTop:'0.25rem', fontSize:'0.82rem', maxWidth:'100px', fontWeight:700}}
+                  value={diasSumido}
+                  onChange={e => setDiasSumido(Number(e.target.value))}
+                />
+              </div>
+              <span style={{ fontSize:'0.68rem', color:'var(--texto-desab)', whiteSpace:'nowrap' }}>dias</span>
+            </div>
+
+            {/* Perdido */}
+            <div style={{ display:'flex', gap:'0.5rem', alignItems:'center', padding:'0.625rem 0.75rem', background:'rgba(239,68,68,0.06)', border:'1px solid rgba(239,68,68,0.2)', borderLeft:'3px solid var(--vermelho)', borderRadius:'var(--radius-sm)' }}>
+              <span style={{ fontSize:'1rem' }}>🔴</span>
+              <div style={{ flex:1 }}>
+                <label className="campo-label" style={{fontSize:'0.65rem', color:'var(--vermelho)'}}>PERDIDO — dias sem compra</label>
+                <input
+                  type="number" min={3} max={730}
+                  className="campo"
+                  style={{marginTop:'0.25rem', fontSize:'0.82rem', maxWidth:'100px', fontWeight:700}}
+                  value={diasPerdido}
+                  onChange={e => setDiasPerdido(Number(e.target.value))}
+                />
+              </div>
+              <span style={{ fontSize:'0.68rem', color:'var(--texto-desab)', whiteSpace:'nowrap' }}>dias</span>
+            </div>
+          </div>
+
+          <div style={{ display:'flex', justifyContent:'flex-end', marginTop:'0.875rem' }}>
+            <button onClick={salvarCrm} disabled={salvandoCrm} className="btn btn-primary" style={{fontSize:'0.72rem', height:'36px'}}>
+              {salvandoCrm ? <><Loader2 size={12} style={{animation:'spin 1s linear infinite'}}/> SALVANDO...</> : '▶ SALVAR CRM'}
             </button>
           </div>
         </div>

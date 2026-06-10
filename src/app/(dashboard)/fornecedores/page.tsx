@@ -8,6 +8,7 @@ import { PageTabs } from '@/components/PageTabs'
 import { FormFornecedor } from '@/components/FormFornecedor'
 import { useSubscription } from '@/hooks/useSubscription'
 import { formatCurrency } from '@/lib/utils'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 
 type Fornecedor = {
   id: string; nome: string; contato: string | null; telefone: string | null
@@ -40,15 +41,18 @@ export default function FornecedoresPage() {
   const [editando,     setEditando]     = useState<Fornecedor | null>(null)
   const [salvando,     setSalvando]     = useState(false)
   const [erroEdit,     setErroEdit]     = useState<string | null>(null)
-  // FO2: estado para novo pedido
+  // FO2: novo pedido multi-itens
+  type ItemPedido = { produto: string; quantidade: string; precoUnitario: string }
+  const ITEM_VAZIO: ItemPedido = { produto: '', quantidade: '1', precoUnitario: '' }
   const [showPedido,   setShowPedido]   = useState(false)
-  const [pedProduto,   setPedProduto]   = useState('')
-  const [pedQtd,       setPedQtd]       = useState('1')
-  const [pedPrecoUnitario, setPedPrecoUnitario] = useState('')
+  const [itensPedido,  setItensPedido]  = useState<ItemPedido[]>([{ ...ITEM_VAZIO }])
   const [pedPrevisao,  setPedPrevisao]  = useState('')
   const [pedObs,       setPedObs]       = useState('')
   const [pedFornId,    setPedFornId]    = useState('')
   const [salvandoPed,  setSalvandoPed]  = useState(false)
+  // AutoComplete por índice de linha
+  const [sugsIdx,      setSugsIdx]      = useState<number | null>(null)
+  const [sugsList,     setSugsList]     = useState<{ id: string; nome: string; sku: string | null }[]>([])
   const [abaModal,     setAbaModal]     = useState<'dados'|'produtos'|'pedidos'>('dados')
   const [selectedProdParaVincular, setSelectedProdParaVincular] = useState('')
   // Detalhe / edição de pedido
@@ -61,11 +65,35 @@ export default function FornecedoresPage() {
   const [editPedObs, setEditPedObs] = useState('')
   const [editPedFornId, setEditPedFornId] = useState('')
   const [avancarLoading, setAvancarLoading] = useState<string | null>(null)
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean
+    title: string
+    message: string
+    onConfirm: () => void
+    danger?: boolean
+    loading?: boolean
+  }>({ open: false, title: '', message: '', onConfirm: () => {} })
 
   // Autocomplete de produtos em estoque
   const [produtosDB,   setProdutosDB]   = useState<{ id: string; nome: string; sku: string | null; qtd_atual: number; preco_varejo: number; fornecedor_id: string | null }[]>([])
-  const [pedSugs,      setPedSugs]      = useState<{ id: string; nome: string }[]>([])
-  const [showPedSugs,  setShowPedSugs]  = useState(false)
+
+  function updateItem(i: number, field: keyof ItemPedido, val: string) {
+    setItensPedido(prev => prev.map((it, idx) => idx === i ? { ...it, [field]: val } : it))
+  }
+  function addItem() { setItensPedido(prev => [...prev, { ...ITEM_VAZIO }]) }
+  function removeItem(i: number) { setItensPedido(prev => prev.filter((_, idx) => idx !== i)) }
+  function handleItemProduto(i: number, val: string) {
+    updateItem(i, 'produto', val)
+    const filtered = produtosDB.filter(p =>
+      p.nome.toLowerCase().includes(val.toLowerCase()) || (p.sku||'').toLowerCase().includes(val.toLowerCase())
+    ).slice(0, 6)
+    setSugsIdx(i)
+    setSugsList(filtered)
+  }
+  function selecionarSug(i: number, nome: string) {
+    updateItem(i, 'produto', nome)
+    setSugsIdx(null)
+  }
 
   useEffect(() => { if (empresaId) carregar(empresaId) }, [empresaId])
 
@@ -176,25 +204,42 @@ export default function FornecedoresPage() {
       try {
         const fornNome = Array.isArray(p.fornecedores) ? p.fornecedores[0]?.nome : (p.fornecedores as any)?.nome || 'Fornecedor'
 
-        // 2a. Estoque
-        const { data: prod } = await supabase
-          .from('produtos')
-          .select('id,qtd_atual')
-          .eq('empresa_id', empresaId)
-          .eq('nome', p.produto)
-          .maybeSingle()
+        // 2a. Estoque — busca itens_pedido_fornecedor
+        const { data: itensDoPedido } = await supabase
+          .from('itens_pedido_fornecedor')
+          .select('produto_nome,quantidade,custo_unitario')
+          .eq('pedido_id', id)
 
-        if (prod) {
-          const qtdSomada = parseFloat(String(p.quantidade)) || 0
-          await supabase.from('produtos').update({ qtd_atual: (prod.qtd_atual || 0) + qtdSomada }).eq('id', prod.id)
-          await supabase.from('estoque_movimentacoes').insert({
-            empresa_id: empresaId,
-            produto_id: prod.id,
-            tipo: 'entrada',
-            quantidade: qtdSomada,
-            obs: `Entrada via Pedido de Compra (Fornecedor: ${fornNome})`
-          })
-          toast.success(`Estoque de "${p.produto}" atualizado (+${qtdSomada})`)
+        // Fallback: se não há itens, usa o campo produto/quantidade do cabeçalho
+        const itensParaProcessar = (itensDoPedido && itensDoPedido.length > 0)
+          ? itensDoPedido
+          : [{ produto_nome: p.produto, quantidade: p.quantidade, custo_unitario: null }]
+
+        for (const item of itensParaProcessar) {
+          const { data: prod } = await supabase
+            .from('produtos')
+            .select('id,qtd_atual,preco_custo')
+            .eq('empresa_id', empresaId)
+            .eq('nome', item.produto_nome)
+            .maybeSingle()
+
+          if (prod) {
+            const qtdSomada = parseFloat(String(item.quantidade)) || 0
+            const novoCusto = item.custo_unitario ?? prod.preco_custo
+            await supabase.from('produtos').update({
+              qtd_atual: (prod.qtd_atual || 0) + qtdSomada,
+              ...(item.custo_unitario ? { preco_custo: item.custo_unitario } : {}),
+            }).eq('id', prod.id)
+            await supabase.from('estoque_movimentacoes').insert({
+              empresa_id:     empresaId,
+              produto_id:     prod.id,
+              tipo:           'entrada',
+              quantidade:     qtdSomada,
+              custo_unitario: item.custo_unitario || null,
+              obs:            `Entrada via Pedido de Compra (Fornecedor: ${fornNome})`,
+            })
+            toast.success(`Estoque de "${item.produto_nome}" atualizado (+${qtdSomada}${novoCusto ? ', custo: ' + formatCurrency(novoCusto) : ''})`)
+          }
         }
 
         // 2b. Despesa — guarda de idempotência: só cria se não existir despesa para este pedido
@@ -255,49 +300,84 @@ export default function FornecedoresPage() {
     setEditandoPedido(false)
   }
 
-  async function cancelarPedido(id: string) {
-    if (!confirm('Cancelar este pedido de compra?')) return
-    const { error } = await createClient().from('pedidos_fornecedor').update({ status: 'cancelado' }).eq('id', id)
-    if (error) { toast.error('Erro: ' + error.message); return }
-    toast.success('Pedido cancelado.')
-    setPedidos(prev => prev.map(p => p.id === id ? { ...p, status: 'cancelado' } : p))
-    setPedidoDetalhe(null)
+  function cancelarPedido(id: string) {
+    setConfirmDialog({
+      open: true,
+      title: 'Cancelar Pedido de Compra',
+      message: 'Tem certeza que deseja cancelar este pedido? Esta ação não pode ser desfeita.',
+      danger: true,
+      onConfirm: async () => {
+        setConfirmDialog(prev => ({ ...prev, loading: true }))
+        const { error } = await createClient().from('pedidos_fornecedor').update({ status: 'cancelado' }).eq('id', id)
+        if (error) {
+          toast.error('Erro: ' + error.message)
+          setConfirmDialog(prev => ({ ...prev, open: false, loading: false }))
+          return
+        }
+        toast.success('Pedido cancelado.')
+        setPedidos(prev => prev.map(p => p.id === id ? { ...p, status: 'cancelado' } : p))
+        setPedidoDetalhe(null)
+        setConfirmDialog(prev => ({ ...prev, open: false, loading: false }))
+      }
+    })
   }
 
-  // FO2: cria novo pedido ao fornecedor
+  // FO2: cria novo pedido ao fornecedor (multi-itens)
   async function criarPedido() {
-    if (!pedProduto.trim() || !pedQtd || !empresaId) return
+    const itensValidos = itensPedido.filter(it => it.produto.trim())
+    if (itensValidos.length === 0 || !empresaId) return
     setSalvandoPed(true)
-    
-    const totalCalculado = (parseInt(pedQtd) || 1) * (parseFloat(pedPrecoUnitario) || 0)
+
+    const totalGeral = itensValidos.reduce((acc, it) =>
+      acc + (parseFloat(it.quantidade) || 1) * (parseFloat(it.precoUnitario) || 0), 0)
+    const resumoProdutos = itensValidos.map(it => `${it.produto.trim()} (${it.quantidade}x)`).join(', ')
     const obsFinal = [
       pedPrevisao ? `Previsão: ${pedPrevisao}` : '',
       pedObs ? `Obs: ${pedObs}` : ''
     ].filter(Boolean).join(' | ')
 
-    const { data, error } = await createClient().from('pedidos_fornecedor').insert({
-      empresa_id: empresaId,
-      fornecedor_id: pedFornId || null,
-      produto: pedProduto.trim(),
-      quantidade: parseInt(pedQtd) || 1,
-      total: totalCalculado,
-      obs: obsFinal || null,
-      status: 'rascunho' // 'rascunho' | 'enviado' | 'recebido' | 'cancelado'
-    }).select('id,fornecedor_id,produto,quantidade,status,total,obs,criado_em,fornecedores(nome)').single()
-    
-    setSalvandoPed(false)
-    if (error) {
-      toast.error('Erro ao criar pedido: ' + error.message)
-    } else {
-      toast.success('Pedido ao fornecedor criado com sucesso!')
-      if (data) setPedidos(prev => [data as any, ...prev])
-      setPedProduto('')
-      setPedQtd('1')
-      setPedPrecoUnitario('')
+    try {
+      const supabase = createClient()
+
+      // 1. Cria o cabeçalho do pedido (produto = resumo legível)
+      const { data: pedido, error } = await supabase.from('pedidos_fornecedor').insert({
+        empresa_id: empresaId,
+        fornecedor_id: pedFornId || null,
+        produto: resumoProdutos,
+        quantidade: itensValidos.reduce((acc, it) => acc + (parseFloat(it.quantidade) || 1), 0),
+        total: totalGeral,
+        obs: obsFinal || null,
+        status: 'rascunho',
+      }).select('id,fornecedor_id,produto,quantidade,status,total,obs,criado_em,numero,fornecedores(nome,telefone,email)').single()
+
+      if (error || !pedido) { toast.error('Erro ao criar pedido: ' + error?.message); setSalvandoPed(false); return }
+
+      // 2. Insere cada item na tabela itens_pedido_fornecedor
+      if (itensValidos.length > 0) {
+        await supabase.from('itens_pedido_fornecedor').insert(
+          itensValidos.map(it => ({
+            pedido_id:      pedido.id,
+            empresa_id:     empresaId,
+            produto_nome:   it.produto.trim(),
+            quantidade:     parseFloat(it.quantidade) || 1,
+            custo_unitario: parseFloat(it.precoUnitario) || 0,
+          }))
+        )
+      }
+
+      toast.success(`Pedido com ${itensValidos.length} item(ns) criado com sucesso!`)
+      setPedidos(prev => [pedido as any, ...prev])
+      // Resetar
+      setItensPedido([{ ...ITEM_VAZIO }])
       setPedPrevisao('')
       setPedObs('')
       setPedFornId('')
       setShowPedido(false)
+    } catch (e) {
+      console.error(e)
+      toast.error('Erro ao criar pedido')
+    } finally {
+      setSalvandoPed(false)
     }
   }
 
@@ -325,17 +405,7 @@ export default function FornecedoresPage() {
     }
   }
 
-  const handlePedProdutoChange = (val: string) => {
-    setPedProduto(val)
-    if (val.trim().length > 0) {
-      const filtered = produtosDB.filter(p => p.nome.toLowerCase().includes(val.toLowerCase())).slice(0, 5)
-      setPedSugs(filtered)
-      setShowPedSugs(filtered.length > 0)
-    } else {
-      setPedSugs([])
-      setShowPedSugs(false)
-    }
-  }
+
 
   const filtrados = fornecedores.filter(f => {
     const q = busca.toLowerCase().trim()
@@ -536,99 +606,112 @@ export default function FornecedoresPage() {
         </div>
       )}
 
-      {/* FO2: Modal Novo Pedido */}
+      {/* FO2: Modal Novo Pedido — MULTI-ITENS */}
       {showPedido && (
         <div style={{ position:'fixed', inset:0, zIndex:100, background:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' }}
           onClick={e=>{if(e.target===e.currentTarget)setShowPedido(false)}}>
-          <div className="card anim-pop" style={{ width:'100%', maxWidth:'420px', padding:'1.25rem' }}>
+          <div className="card anim-pop" style={{ width:'100%', maxWidth:'520px', maxHeight:'90vh', overflowY:'auto', padding:'1.25rem' }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1rem' }}>
               <p style={{ fontWeight:900, fontSize:'1rem' }}>📦 Novo Pedido ao Fornecedor</p>
               <button onClick={()=>setShowPedido(false)} className="btn-icon"><X size={16}/></button>
             </div>
-            <div style={{ display:'flex', flexDirection:'column', gap:'0.625rem' }}>
-              <div>
-                <label className="campo-label">Produto / Descrição *</label>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    className="campo"
-                    style={{ marginTop: '0.375rem', width: '100%' }}
-                    value={pedProduto}
-                    onChange={e => handlePedProdutoChange(e.target.value)}
-                    onFocus={() => {
-                      if (pedProduto.trim().length > 0) {
-                        const filtered = produtosDB.filter(p => p.nome.toLowerCase().includes(pedProduto.toLowerCase())).slice(0, 5)
-                        setPedSugs(filtered)
-                        setShowPedSugs(filtered.length > 0)
-                      }
-                    }}
-                    onBlur={() => {
-                      setTimeout(() => setShowPedSugs(false), 200)
-                    }}
-                    placeholder="Ex: Cabo HDMI 2m"
-                  />
-                  {showPedSugs && (
-                    <div style={{
-                      position: 'absolute',
-                      top: '100%',
-                      left: 0,
-                      right: 0,
-                      zIndex: 50,
-                      background: 'var(--surface)',
-                      border: '1px solid var(--borda)',
-                      borderRadius: 'var(--radius-sm)',
-                      maxHeight: '150px',
-                      overflowY: 'auto',
-                      boxShadow: '0 4px 6px rgba(0,0,0,0.15)',
-                      marginTop: '2px'
-                    }}>
-                      {pedSugs.map(s => (
-                        <div
-                          key={s.id}
-                          onClick={() => {
-                            setPedProduto(s.nome)
-                            setShowPedSugs(false)
-                          }}
-                          style={{
-                            padding: '0.5rem 0.75rem',
-                            cursor: 'pointer',
-                            fontSize: '0.78rem',
-                            color: 'var(--texto)',
-                            borderBottom: '1px solid var(--borda-leve)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            transition: 'background 0.1s'
-                          }}
-                          onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-alt)'}
-                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                        >
-                          <span>{s.nome}</span>
-                          <span style={{ fontSize: '0.58rem', background: 'var(--verde-claro)', color: 'var(--verde-esc)', padding: '2px 6px', borderRadius: '999px', fontWeight: 700 }}>Estoque</span>
+
+            {/* Itens do pedido */}
+            <div style={{ display:'flex', flexDirection:'column', gap:'0.5rem', marginBottom:'0.75rem' }}>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 80px 100px auto', gap:'0.25rem', alignItems:'center' }}>
+                <span style={{ fontSize:'0.68rem', color:'var(--texto-desab)', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em' }}>PRODUTO *</span>
+                <span style={{ fontSize:'0.68rem', color:'var(--texto-desab)', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', textAlign:'center' }}>QTD</span>
+                <span style={{ fontSize:'0.68rem', color:'var(--texto-desab)', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', textAlign:'right' }}>CUSTO UN.</span>
+                <span/>
+              </div>
+
+              {itensPedido.map((item, i) => (
+                <div key={i} style={{ position:'relative' }}>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 80px 100px auto', gap:'0.25rem', alignItems:'center' }}>
+                    {/* Produto com autocomplete */}
+                    <div style={{ position:'relative' }}>
+                      <input
+                        className="campo"
+                        placeholder={`Produto ${i + 1}...`}
+                        value={item.produto}
+                        onChange={e => handleItemProduto(i, e.target.value)}
+                        onFocus={() => {
+                          if (item.produto.trim()) handleItemProduto(i, item.produto)
+                        }}
+                        onBlur={() => setTimeout(() => setSugsIdx(null), 160)}
+                        style={{ fontSize:'0.82rem' }}
+                      />
+                      {sugsIdx === i && sugsList.length > 0 && (
+                        <div style={{
+                          position:'absolute', top:'100%', left:0, right:0, zIndex:60,
+                          background:'var(--surface)', border:'1px solid var(--borda)',
+                          borderRadius:'var(--radius-sm)', maxHeight:'130px', overflowY:'auto',
+                          boxShadow:'0 4px 12px rgba(0,0,0,0.25)', marginTop:'2px',
+                        }}>
+                          {sugsList.map(s => (
+                            <div key={s.id} onMouseDown={() => selecionarSug(i, s.nome)}
+                              style={{ padding:'0.375rem 0.625rem', cursor:'pointer', fontSize:'0.75rem', borderBottom:'1px solid var(--borda-leve)', display:'flex', justifyContent:'space-between' }}
+                              onMouseEnter={e => e.currentTarget.style.background='var(--surface-alt)'}
+                              onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                              <span>{s.nome}</span>
+                              {s.sku && <span style={{ fontSize:'0.65rem', color:'var(--texto-desab)', fontFamily:'monospace' }}>#{s.sku}</span>}
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      )}
+                    </div>
+
+                    {/* Quantidade */}
+                    <input className="campo"
+                      type="number" min="0.01" step="0.01"
+                      value={item.quantidade}
+                      onChange={e => updateItem(i, 'quantidade', e.target.value)}
+                      style={{ textAlign:'center', fontWeight:700, fontSize:'0.82rem' }}
+                    />
+
+                    {/* Custo unitário */}
+                    <input className="campo"
+                      type="number" min="0" step="0.01"
+                      placeholder="0,00"
+                      value={item.precoUnitario}
+                      onChange={e => updateItem(i, 'precoUnitario', e.target.value)}
+                      style={{ textAlign:'right', fontFamily:'monospace', fontSize:'0.82rem' }}
+                    />
+
+                    {/* Remover linha */}
+                    <button onClick={() => removeItem(i)} disabled={itensPedido.length === 1}
+                      className="btn-icon" style={{ color:'var(--vermelho)', opacity: itensPedido.length === 1 ? 0.3 : 1 }}>
+                      <X size={14}/>
+                    </button>
+                  </div>
+
+                  {/* Subtotal da linha */}
+                  {item.precoUnitario && parseFloat(item.precoUnitario) > 0 && (
+                    <div style={{ textAlign:'right', fontSize:'0.68rem', color:'var(--verde)', marginTop:'2px', paddingRight:'28px' }}>
+                      = {formatCurrency((parseFloat(item.quantidade)||1) * parseFloat(item.precoUnitario))}
                     </div>
                   )}
                 </div>
-              </div>
+              ))}
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                <div>
-                  <label className="campo-label">Quantidade *</label>
-                  <input className="campo" type="number" min="1" style={{marginTop:'0.375rem'}} value={pedQtd} onChange={e=>setPedQtd(e.target.value)}/>
-                </div>
-                <div>
-                  <label className="campo-label">Preço Unitário (R$)</label>
-                  <input className="campo" type="number" step="0.01" min="0" style={{marginTop:'0.375rem', fontWeight: 700}} value={pedPrecoUnitario} onChange={e=>setPedPrecoUnitario(e.target.value)} placeholder="0,00"/>
-                </div>
-              </div>
+              <button onClick={addItem} className="btn btn-secondary"
+                style={{ fontSize:'0.72rem', alignSelf:'flex-start', padding:'0.25rem 0.625rem' }}>
+                + Adicionar Produto
+              </button>
+            </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface-alt)', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--borda)' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--texto-sec)' }}>Valor Total Estimado:</span>
-                <span style={{ fontSize: '0.9rem', fontWeight: 900, color: 'var(--verde)', fontFamily: 'monospace' }}>
-                  {formatCurrency((parseInt(pedQtd) || 1) * (parseFloat(pedPrecoUnitario) || 0))}
+            {/* Total geral */}
+            {itensPedido.some(it => parseFloat(it.precoUnitario) > 0) && (
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', background:'var(--surface-alt)', padding:'0.5rem 0.75rem', borderRadius:'var(--radius-sm)', border:'1px solid var(--borda)', marginBottom:'0.75rem' }}>
+                <span style={{ fontSize:'0.78rem', fontWeight:700, color:'var(--texto-sec)' }}>TOTAL DO PEDIDO:</span>
+                <span style={{ fontSize:'1rem', fontWeight:900, color:'var(--verde)', fontFamily:'monospace' }}>
+                  {formatCurrency(itensPedido.reduce((acc, it) => acc + (parseFloat(it.quantidade)||1) * (parseFloat(it.precoUnitario)||0), 0))}
                 </span>
               </div>
+            )}
 
+            {/* Campos gerais */}
+            <div style={{ display:'flex', flexDirection:'column', gap:'0.5rem' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
                 <div>
                   <label className="campo-label">Previsão Entrega</label>
@@ -642,15 +725,15 @@ export default function FornecedoresPage() {
                   </select>
                 </div>
               </div>
-
               <div>
                 <label className="campo-label">Observações Adicionais</label>
                 <input className="campo" style={{marginTop:'0.375rem'}} value={pedObs} onChange={e=>setPedObs(e.target.value)} placeholder="Ex: Observações do pedido..."/>
               </div>
             </div>
+
             <div style={{ display:'flex', gap:'0.5rem', justifyContent:'flex-end', marginTop:'1rem' }}>
               <button onClick={()=>setShowPedido(false)} className="btn btn-ghost">Cancelar</button>
-              <button onClick={criarPedido} disabled={!pedProduto.trim()||salvandoPed} className="btn btn-primary"
+              <button onClick={criarPedido} disabled={!itensPedido.some(it => it.produto.trim())||salvandoPed} className="btn btn-primary"
                 style={{ display:'flex', alignItems:'center', gap:'0.375rem' }}>
                 {salvandoPed?<Loader2 size={14} style={{animation:'spin 1s linear infinite'}}/>:<Save size={14}/>} Criar Pedido
               </button>
@@ -1127,6 +1210,16 @@ export default function FornecedoresPage() {
           </div>
         </>
       )}
+
+      <ConfirmDialog
+        open={confirmDialog.open}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        danger={confirmDialog.danger}
+        loading={confirmDialog.loading}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={() => setConfirmDialog(prev => ({ ...prev, open: false }))}
+      />
     </div>
   )
 }

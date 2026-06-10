@@ -20,7 +20,7 @@ type VendaComissao = {
 export default function ComissoesPage() {
   const { empresaId } = useEmpresaId()
   const { plano } = useSubscription()
-  const [aba,      setAba]      = useState<'cadastro'|'por-venda'>('cadastro')
+  const [aba,      setAba]      = useState<'cadastro'|'por-venda'|'historico'>('cadastro')
   const [lista,    setLista]    = useState<Comissao[]>([])
   const [vendas,   setVendas]   = useState<VendaComissao[]>([])
   const [loading,  setLoading]  = useState(true)
@@ -42,8 +42,26 @@ export default function ComissoesPage() {
   const [reciboData, setReciboData] = useState('')
   const [reciboTotal, setReciboTotal] = useState(0)
   const [formasPag, setFormasPag] = useState<{ id: string; nome: string }[]>([])
+  const [pagamentoComissaoId, setPagamentoComissaoId] = useState<string | null>(null)
+
+  // Histórico de pagamentos
+  type PagComissao = { id:string; comissionado_nome:string; forma_pagamento:string; total_pago:number; data_pagamento:string; criado_em:string; vendas_ids:string[] }
+  const [historicoPag, setHistoricoPag] = useState<PagComissao[]>([])
+  const [loadingHist,  setLoadingHist]  = useState(false)
 
   useEffect(() => { if (empresaId) carregar(empresaId) }, [empresaId])
+
+  async function carregarHistorico(eid: string) {
+    setLoadingHist(true)
+    const { data } = await createClient()
+      .from('pagamentos_comissao')
+      .select('id,comissionado_nome,forma_pagamento,total_pago,data_pagamento,criado_em,vendas_ids')
+      .eq('empresa_id', eid)
+      .order('criado_em', { ascending: false })
+      .limit(100)
+    setHistoricoPag((data || []) as PagComissao[])
+    setLoadingHist(false)
+  }
 
   async function carregar(eid: string) {
     setLoading(true)
@@ -212,6 +230,18 @@ export default function ComissoesPage() {
         pagas.push({ ...v, comissao_despesa_id: despesaId })
         totalPagoLote += v.valor_comissao
       }
+
+      // Salva o comprovante em pagamentos_comissao
+      const { data: pagComissao } = await supabase.from('pagamentos_comissao').insert({
+        empresa_id:       empresaId,
+        comissionado_id:  comissionadoPagar.id,
+        comissionado_nome: comissionadoPagar.nome,
+        forma_pagamento:  formaPagSelected || 'Dinheiro',
+        total_pago:       totalPagoLote,
+        data_pagamento:   new Date().toISOString().slice(0, 10),
+        vendas_ids:       selectedIds,
+      }).select('id').single()
+      setPagamentoComissaoId(pagComissao?.id ?? null)
 
       // Prepara o recibo
       setVendasPagasNoRecibo(pagas)
@@ -387,8 +417,11 @@ export default function ComissoesPage() {
 
           {/* ── Sub-abas ─────────────────────────────────────────── */}
           <div style={{ display: 'flex', gap: '0.25rem' }}>
-            {([['cadastro', 'COMISSIONADOS'], ['por-venda', 'POR VENDA']] as const).map(([v, l]) => (
-              <button key={v} onClick={() => setAba(v)}
+            {([['cadastro', 'COMISSIONADOS'], ['por-venda', 'POR VENDA'], ['historico', '📜 HISTÓRICO']] as const).map(([v, l]) => (
+              <button key={v} onClick={() => {
+                setAba(v as any)
+                if (v === 'historico' && empresaId) carregarHistorico(empresaId)
+              }}
                 className={aba === v ? 'btn btn-primary' : 'btn btn-secondary'}
                 style={{ fontSize: '0.65rem', padding: '0.3rem 0.75rem' }}>{l}</button>
             ))}
@@ -497,6 +530,58 @@ export default function ComissoesPage() {
                         <td />
                       </tr>
                     </tfoot>
+                  </table>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ── ABA HISTÓRICO ───────────────────────────────────── */}
+          {aba === 'historico' && (
+            <>
+              {loadingHist ? (
+                <div style={{display:'flex',justifyContent:'center',padding:'2rem',gap:'0.5rem',color:'var(--texto-desab)'}}>
+                  <Loader2 size={16} style={{animation:'spin 1s linear infinite'}}/> Carregando...
+                </div>
+              ) : historicoPag.length === 0 ? (
+                <div style={{textAlign:'center',padding:'3rem',color:'var(--texto-desab)',border:'1px solid var(--borda)',background:'var(--surface)'}}>
+                  <p style={{fontSize:'0.7rem',letterSpacing:'0.1em',fontWeight:700}}>[ NENHUM PAGAMENTO REGISTRADO ]</p>
+                  <p style={{fontSize:'0.75rem',marginTop:'0.5rem'}}>Os comprovantes aparecem aqui após pagar comissões em lote.</p>
+                </div>
+              ) : (
+                <div className="tabela-wrap">
+                  <table className="tabela">
+                    <thead><tr>
+                      <th>COMISSIONADO</th><th>DATA</th><th>FORMA PGTO</th>
+                      <th style={{textAlign:'right'}}>TOTAL PAGO</th>
+                      <th style={{textAlign:'center'}}>VENDAS</th>
+                      <th style={{textAlign:'center'}}>AÇÕES</th>
+                    </tr></thead>
+                    <tbody>
+                      {historicoPag.map(p => (
+                        <tr key={p.id}>
+                          <td style={{fontWeight:700}}>{p.comissionado_nome}</td>
+                          <td style={{fontSize:'0.82rem',color:'var(--texto-desab)'}}>
+                            {new Date(p.data_pagamento+'T12:00:00').toLocaleDateString('pt-BR')}
+                          </td>
+                          <td style={{fontSize:'0.82rem'}}>{p.forma_pagamento}</td>
+                          <td style={{textAlign:'right',fontWeight:900,color:'var(--verde)',fontFamily:'monospace'}}>
+                            {formatCurrency(p.total_pago)}
+                          </td>
+                          <td style={{textAlign:'center',fontFamily:'monospace',color:'var(--texto-sec)'}}>
+                            {p.vendas_ids?.length ?? 0} venda(s)
+                          </td>
+                          <td style={{textAlign:'center'}}>
+                            <a href={`/comissoes/comprovante/${p.id}`}
+                              target="_blank" rel="noopener noreferrer"
+                              className="btn btn-secondary"
+                              style={{fontSize:'0.68rem',padding:'0.2rem 0.5rem'}}>
+                              🧾 Ver Comprovante
+                            </a>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
                   </table>
                 </div>
               )}
@@ -631,11 +716,24 @@ export default function ComissoesPage() {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.5rem', justifyContent: 'flex-end' }} className="no-print">
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.5rem', justifyContent: 'flex-end', flexWrap:'wrap' }} className="no-print">
                   <button onClick={() => window.print()} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                     🖨️ Imprimir
                   </button>
-                  <button onClick={() => { setModalPagar(false); setPagamentoEfetuado(false); carregar(empresaId!) }} className="btn btn-primary">
+                  {pagamentoComissaoId && (
+                    <a href={`/comissoes/comprovante/${pagamentoComissaoId}`} target="_blank" rel="noopener noreferrer"
+                      className="btn btn-secondary" style={{ display:'flex', alignItems:'center', gap:'0.25rem' }}>
+                      🔗 Abrir Comprovante
+                    </a>
+                  )}
+                  {comissionadoPagar?.telefone && (
+                    <a href={`https://wa.me/55${comissionadoPagar.telefone.replace(/\D/g,'')}?text=${encodeURIComponent(`Olá ${comissionadoPagar.nome}! Segue comprovante do pagamento de comissão de ${formatCurrency(reciboTotal)} via ${reciboForma}. Data: ${reciboData}.`)}`}
+                      target="_blank" rel="noopener noreferrer"
+                      className="btn" style={{ background:'#25D366', color:'#fff', border:'none', display:'flex', alignItems:'center', gap:'0.25rem', fontSize:'0.78rem' }}>
+                      💬 Enviar WA
+                    </a>
+                  )}
+                  <button onClick={() => { setModalPagar(false); setPagamentoEfetuado(false); setPagamentoComissaoId(null); carregar(empresaId!) }} className="btn btn-primary">
                     Fechar
                   </button>
                 </div>

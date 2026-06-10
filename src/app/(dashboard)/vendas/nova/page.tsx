@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
-import { X, Loader2, Plus, Camera, UserPlus } from 'lucide-react'
+import { X, Loader2, Plus, Camera, UserPlus, Package } from 'lucide-react'
 import { BarcodeScannerModal, useHasCamera } from '@/components/BarcodeScannerModal'
 import { toast } from 'react-hot-toast'
 import { useSubscription } from '@/hooks/useSubscription'
@@ -66,55 +66,62 @@ export default function NovaPdvPage() {
   const hasCamera = useHasCamera()
   const [comissionados, setComissionados] = useState<{ id: string; nome: string }[]>([])
   const [comissionadoId, setComissionadoId] = useState<string | null>(null)
+  // Feedback visual ao adicionar produto
+  const [lastAddedId, setLastAddedId] = useState<string | null>(null)
+  const lastAddedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Progresso de carga do catálogo
+  const [catalogoTotal, setCatalogoTotal] = useState<number | null>(null)
+  const [catalogoCarregados, setCatalogoCarregados] = useState(0)
+
+  const CHUNK_SIZE = 200
 
   const carregar = useCallback(async (eid: string) => {
     const supabase = createClient()
-    const { data } = await supabase
-      .from('produtos')
-      .select('id,nome,sku,ean,preco_varejo,preco_atacado,preco_vip,preco_minimo,qtd_atual,tem_garantia,dias_garantia,texto_garantia')
-      .eq('empresa_id', eid)
-      .eq('ativo', true)
-      .order('nome')
-    
-    const { data: fAbertos } = await supabase
-      .from('fiados')
-      .select('cliente_nome')
-      .eq('empresa_id', eid)
-      .eq('status', 'aberto')
 
-    // CL1+P1: carrega lista de clientes para autocomplete
-    const { data: clis } = await supabase
-      .from('clientes')
-      .select('id,nome,telefone,tipo')
-      .eq('empresa_id', eid)
-      .eq('ativo', true)
-      .order('nome')
+    // — Carrega dados auxiliares em paralelo (leve)
+    const [fAbertosRes, clisRes, fPagtosRes, comsRes, countRes] = await Promise.all([
+      supabase.from('fiados').select('cliente_nome').eq('empresa_id', eid).eq('status', 'aberto'),
+      supabase.from('clientes').select('id,nome,telefone,tipo').eq('empresa_id', eid).eq('ativo', true).order('nome'),
+      supabase.from('formas_pagamento').select('id,nome,taxa,ativo').eq('empresa_id', eid).eq('ativo', true).order('nome'),
+      supabase.from('comissoes').select('id,nome').eq('empresa_id', eid).eq('status', 'ativo').order('nome'),
+      supabase.from('produtos').select('id', { count: 'exact', head: true }).eq('empresa_id', eid).eq('ativo', true),
+    ])
 
-    const { data: fPagtos } = await supabase
-      .from('formas_pagamento')
-      .select('id,nome,taxa,ativo')
-      .eq('empresa_id', eid)
-      .eq('ativo', true)
-      .order('nome')
+    const total = countRes.count ?? 0
+    setCatalogoTotal(total)
+    setCatalogoCarregados(0)
 
-    const list = fPagtos && fPagtos.length > 0 ? fPagtos : FALLBACK_FORMAS
+    const list = fPagtosRes.data && fPagtosRes.data.length > 0 ? fPagtosRes.data : FALLBACK_FORMAS
     const finalPagtos = [...list]
     if (!finalPagtos.some(f => f.nome.toLowerCase() === 'fiado')) {
       finalPagtos.push({ id: 'fiado-id', nome: 'Fiado', taxa: 0, ativo: true })
     }
 
-    const { data: coms } = await supabase
-      .from('comissoes')
-      .select('id,nome')
-      .eq('empresa_id', eid)
-      .eq('status', 'ativo')
-      .order('nome')
-
-    setCatalogo(data || [])
-    setFiadosAtivos((fAbertos || []).map(f => f.cliente_nome.toLowerCase().trim()))
-    setClientesDB(clis || [])
+    setFiadosAtivos((fAbertosRes.data || []).map(f => f.cliente_nome.toLowerCase().trim()))
+    setClientesDB(clisRes.data || [])
     setFormas(finalPagtos)
-    setComissionados(coms || [])
+    setComissionados(comsRes.data || [])
+
+    // — Carregamento do catálogo em chunks para não travar com catálogos grandes
+    let offset = 0
+    let acumulado: ProdDB[] = []
+    while (offset < total || total === 0) {
+      const { data: chunk } = await supabase
+        .from('produtos')
+        .select('id,nome,sku,ean,preco_varejo,preco_atacado,preco_vip,preco_minimo,qtd_atual,tem_garantia,dias_garantia,texto_garantia')
+        .eq('empresa_id', eid)
+        .eq('ativo', true)
+        .order('nome')
+        .range(offset, offset + CHUNK_SIZE - 1)
+
+      if (!chunk || chunk.length === 0) break
+      acumulado = [...acumulado, ...chunk]
+      setCatalogo([...acumulado])
+      setCatalogoCarregados(acumulado.length)
+      offset += chunk.length
+      if (chunk.length < CHUNK_SIZE) break
+    }
+    setCatalogoTotal(acumulado.length)
   }, [])
 
   useEffect(() => { if (empresaId) carregar(empresaId) }, [empresaId, carregar])
@@ -158,6 +165,12 @@ export default function NovaPdvPage() {
       }
       return [...prev, { produto: p, qty: 1, serie: '', brinde: false, precoUsado: getPreco(p, tipoCliente) }]
     })
+    // Feedback visual: flash no item + toast rápido
+    if (lastAddedTimer.current) clearTimeout(lastAddedTimer.current)
+    setLastAddedId(p.id)
+    lastAddedTimer.current = setTimeout(() => setLastAddedId(null), 800)
+    toast.success(`${p.nome} adicionado`, { duration: 1200, position: 'bottom-right',
+      style: { fontSize: '0.78rem', padding: '6px 12px', background: 'var(--verde)', color: '#fff' } })
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -372,18 +385,32 @@ export default function NovaPdvPage() {
             </div>
           )}
 
+          {/* Catálogo: barra de progresso de carga */}
+          {catalogoTotal !== null && catalogoCarregados < catalogoTotal && (
+            <div style={{display:'flex',alignItems:'center',gap:'0.5rem',padding:'0.375rem 0.625rem',background:'var(--azul-claro)',border:'1px solid var(--azul)',borderRadius:'var(--radius-sm)',fontSize:'0.72rem',color:'var(--azul)'}}>
+              <Loader2 size={12} style={{animation:'spin 1s linear infinite',flexShrink:0}}/>
+              <span>Carregando catálogo... <strong>{catalogoCarregados}</strong> de <strong>{catalogoTotal}</strong> produtos</span>
+              <div style={{flex:1,height:'4px',background:'#c5d9f1',borderRadius:'2px',overflow:'hidden'}}>
+                <div style={{height:'100%',background:'var(--azul)',width:`${Math.round((catalogoCarregados/catalogoTotal)*100)}%`,transition:'width 0.3s'}}/>
+              </div>
+            </div>
+          )}
+
           {/* Carrinho */}
           <div style={{border:'1px solid var(--borda-forte)',borderTop:'2px solid var(--verde)',overflow:'hidden',background:'var(--surface)'}}>
             <div className="sec-header"><span>CARRINHO — {itens.length} {itens.length===1?'ITEM':'ITENS'}</span></div>
             {itens.length === 0 ? (
               <div style={{padding:'2rem',textAlign:'center'}}>
+                <Package size={28} style={{color:'var(--borda-forte)',marginBottom:'0.5rem'}}/>
                 <p style={{fontSize:'0.7rem',color:'var(--borda-forte)',letterSpacing:'0.1em',fontWeight:700}}>[ CARRINHO VAZIO ]</p>
-                <p style={{fontSize:'0.7rem',color:'var(--texto-desab)',marginTop:'0.5rem'}}>Busque um produto no campo acima</p>
+                <p style={{fontSize:'0.7rem',color:'var(--texto-desab)',marginTop:'0.375rem'}}>Busque um produto acima ou leia um código de barras</p>
               </div>
             ) : (
               <div style={{maxHeight:'50vh',overflowY:'auto'}}>
                 {itens.map((item,idx) => (
-                  <div key={item.produto.id} style={{padding:'0.5rem 0.75rem',borderBottom:'1px solid var(--borda-leve)',background:item.brinde?'var(--verde-claro)':idx%2===0?'var(--surface)':'var(--surface-alt)'}}>
+                  <div key={item.produto.id}
+                    className={lastAddedId === item.produto.id ? 'pdv-item-flash' : ''}
+                    style={{padding:'0.5rem 0.75rem',borderBottom:'1px solid var(--borda-leve)',background:item.brinde?'var(--verde-claro)':idx%2===0?'var(--surface)':'var(--surface-alt)',transition:'background 0.3s'}}>
                     <div style={{display:'flex',alignItems:'flex-start',gap:'0.625rem'}}>
                       <div style={{flex:1,minWidth:0}}>
                         <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>

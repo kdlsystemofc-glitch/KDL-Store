@@ -3,14 +3,27 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
 import { formatCurrency } from '@/lib/utils'
-import { Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { PageTabs } from '@/components/PageTabs'
 import { ProOnly } from '@/components/ProOnly'
 
+type PrevMesData = {
+  receitaVendas: number
+  receitaOS: number
+  receita: number
+  cmv: number
+  brindes: number
+  despesas: number
+  lucroLiquido: number
+}
+
+type DreRow = { l: string; v: number; prev?: number; c: string; neg: boolean; sub: boolean }
+
 export default function FinanceiroPage() {
   const { empresaId } = useEmpresaId()
-  const [loading, setLoading]       = useState(true)
+  const [loading, setLoading]             = useState(true)
+  const [mesSel, setMesSel]               = useState(new Date().getMonth())
+  const [anoSel, setAnoSel]               = useState(new Date().getFullYear())
   const [receitaVendas, setReceitaVendas] = useState(0)
   const [receitaOS,     setReceitaOS]     = useState(0)
   const [despesas,      setDespesas]      = useState(0)
@@ -20,34 +33,57 @@ export default function FinanceiroPage() {
   const [despLista,  setDespLista]  = useState<{categoria:string|null;tipo:string;valor:number}[]>([])
   const [formas,     setFormas]     = useState<{forma:string;total:number}[]>([])
   const [diasGraf,   setDiasGraf]   = useState<{dia:string;total:number}[]>([])
+  const [prevMes, setPrevMes] = useState<PrevMesData>({
+    receitaVendas: 0, receitaOS: 0, receita: 0,
+    cmv: 0, brindes: 0, despesas: 0, lucroLiquido: 0
+  })
 
-  useEffect(() => { if (empresaId) carregar(empresaId) }, [empresaId])
+  useEffect(() => { if (empresaId) carregar(empresaId, anoSel, mesSel) }, [empresaId, anoSel, mesSel])
 
-  async function carregar(eid: string) {
+  async function carregar(eid: string, year: number, month: number) {
     setLoading(true)
-    const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0,10)
-    const fimMes    = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().slice(0,10)
-    const inicio15d = new Date(Date.now()-14*86400000).toISOString().slice(0,10)
-    const supabase  = createClient()
+    const supabase = createClient()
 
+    const inicioMes = new Date(year, month, 1).toISOString().slice(0, 10)
+    const fimMes    = new Date(year, month + 1, 0).toISOString().slice(0, 10)
+
+    // Previous month boundaries
+    const prevDate   = new Date(year, month - 1, 1)
+    const prevYear   = prevDate.getFullYear()
+    const prevMonth  = prevDate.getMonth()
+    const inicioPrev = new Date(prevYear, prevMonth, 1).toISOString().slice(0, 10)
+    const fimPrev    = new Date(prevYear, prevMonth + 1, 0).toISOString().slice(0, 10)
+
+    const inicio15d = new Date(Date.now() - 14 * 86400000).toISOString().slice(0, 10)
+
+    // Current month queries
     const results = await Promise.allSettled([
       // [0] Vendas do mês
-      supabase.from('vendas').select('total,forma_pagamento,criado_em').eq('empresa_id', eid).eq('status','concluida').gte('criado_em', inicioMes),
+      supabase.from('vendas').select('total,forma_pagamento,criado_em').eq('empresa_id', eid).eq('status','concluida').gte('criado_em', inicioMes).lte('criado_em', fimMes + 'T23:59:59'),
       // [1] Despesas do mês
-      // Apenas despesas PAGAS do mês atual — pendentes e meses futuros ficam de fora
       supabase.from('despesas').select('categoria,tipo,valor').eq('empresa_id', eid).eq('status','pago').gte('data', inicioMes).lte('data', fimMes),
       // [2] Fiados abertos
       supabase.from('fiados').select('valor_aberto').eq('empresa_id', eid).eq('status','aberto'),
       // [3] Vendas 15 dias para gráfico
       supabase.from('vendas').select('criado_em,total').eq('empresa_id', eid).eq('status','concluida').gte('criado_em', inicio15d),
       // [4] Brindes do mês
-      supabase.from('estoque_movimentacoes').select('quantidade,produto_id,produtos(preco_custo)').eq('empresa_id', eid).eq('tipo','brinde').gte('criado_em', inicioMes),
-      // [5] CMV — custo de mercadoria vendida no mês (apenas vendas concluídas)
-      supabase.from('itens_venda').select('quantidade,produtos(preco_custo),vendas!inner(status,empresa_id)').eq('empresa_id', eid).gte('criado_em', inicioMes).eq('vendas.status','concluida').eq('vendas.empresa_id', eid),
-      // [6] OS concluídas/entregues no mês (faturamento de serviços + custo peças para DRE)
-      supabase.from('ordens_servico').select('valor_servico,valor_pecas,custo_pecas,criado_em').eq('empresa_id', eid).in('status',['concluido','entregue']).gte('criado_em', inicioMes),
+      supabase.from('estoque_movimentacoes').select('quantidade,produto_id,produtos(preco_custo)').eq('empresa_id', eid).eq('tipo','brinde').gte('criado_em', inicioMes).lte('criado_em', fimMes + 'T23:59:59'),
+      // [5] CMV
+      supabase.from('itens_venda').select('quantidade,produtos(preco_custo),vendas!inner(status,empresa_id)').eq('empresa_id', eid).gte('criado_em', inicioMes).lte('criado_em', fimMes + 'T23:59:59').eq('vendas.status','concluida').eq('vendas.empresa_id', eid),
+      // [6] OS concluídas/entregues no mês
+      supabase.from('ordens_servico').select('valor_servico,valor_pecas,custo_pecas,criado_em').eq('empresa_id', eid).in('status',['concluido','entregue']).gte('criado_em', inicioMes).lte('criado_em', fimMes + 'T23:59:59'),
       // [7] OS 15 dias para gráfico
       supabase.from('ordens_servico').select('valor_servico,valor_pecas,criado_em').eq('empresa_id', eid).in('status',['concluido','entregue']).gte('criado_em', inicio15d),
+      // [8] Prev vendas
+      supabase.from('vendas').select('total').eq('empresa_id', eid).eq('status','concluida').gte('criado_em', inicioPrev).lte('criado_em', fimPrev + 'T23:59:59'),
+      // [9] Prev despesas
+      supabase.from('despesas').select('valor').eq('empresa_id', eid).eq('status','pago').gte('data', inicioPrev).lte('data', fimPrev),
+      // [10] Prev brindes
+      supabase.from('estoque_movimentacoes').select('quantidade,produtos(preco_custo)').eq('empresa_id', eid).eq('tipo','brinde').gte('criado_em', inicioPrev).lte('criado_em', fimPrev + 'T23:59:59'),
+      // [11] Prev CMV
+      supabase.from('itens_venda').select('quantidade,produtos(preco_custo),vendas!inner(status,empresa_id)').eq('empresa_id', eid).gte('criado_em', inicioPrev).lte('criado_em', fimPrev + 'T23:59:59').eq('vendas.status','concluida').eq('vendas.empresa_id', eid),
+      // [12] Prev OS
+      supabase.from('ordens_servico').select('valor_servico,valor_pecas,custo_pecas').eq('empresa_id', eid).in('status',['concluido','entregue']).gte('criado_em', inicioPrev).lte('criado_em', fimPrev + 'T23:59:59'),
     ])
 
     const getRes = (i: number): any => results[i].status === 'fulfilled' ? (results[i] as PromiseFulfilledResult<any>).value || {} : {}
@@ -59,36 +95,63 @@ export default function FinanceiroPage() {
     const { data: itensMes }   = getRes(5)
     const { data: osMes }      = getRes(6)
     const { data: os15d }      = getRes(7)
+    const { data: prevVendas } = getRes(8)
+    const { data: prevDesps }  = getRes(9)
+    const { data: prevBrindes }= getRes(10)
+    const { data: prevItens }  = getRes(11)
+    const { data: prevOS }     = getRes(12)
 
     // ── Receita Vendas ──────────────────────────────────────────
     const totalReceitaVendas = (vendas||[]).reduce((a: number, v: any) => a + (v.total || 0), 0)
 
-    // ── Receita OS = valor_servico + valor_pecas ─────────────────
-    const totalReceitaOS = (osMes||[]).reduce((a: number, os: any) => {
-      return a + (os.valor_servico || 0) + (os.valor_pecas || 0)
-    }, 0)
+    // ── Receita OS ──────────────────────────────────────────────
+    const totalReceitaOS = (osMes||[]).reduce((a: number, os: any) => a + (os.valor_servico || 0) + (os.valor_pecas || 0), 0)
 
-    const totalDesp    = (desps||[]).reduce((a: number, d: any) => a + (d.valor || 0), 0)
-    const totalFiado   = (fiados||[]).reduce((a: number, f: any) => a + (f.valor_aberto || 0), 0)
+    const totalDesp  = (desps||[]).reduce((a: number, d: any) => a + (d.valor || 0), 0)
+    const totalFiado = (fiados||[]).reduce((a: number, f: any) => a + (f.valor_aberto || 0), 0)
 
-    // Custo dos brindes
     const totalBrindes = (brindesMov||[]).reduce((a: number, m: any) => {
       const prod = m.produtos as any
       const custo = Array.isArray(prod) ? (prod[0]?.preco_custo || 0) : (prod?.preco_custo || 0)
       return a + Math.abs(m.quantidade) * custo
     }, 0)
 
-    // CMV = soma de (quantidade × preco_custo) das vendas + custo_pecas das OS
     const totalCMVVendas = (itensMes||[]).reduce((a: number, iv: any) => {
       const prod = iv.produtos as any
       const custo = Array.isArray(prod) ? (prod[0]?.preco_custo || 0) : (prod?.preco_custo || 0)
       return a + (iv.quantidade || 0) * custo
     }, 0)
-    // Custo de peças das OS entregues/concluídas (registrado manualmente)
-    const totalCMVPecasOS = (osMes||[]).reduce((a: number, os: any) => {
-      return a + (os.custo_pecas || 0)
-    }, 0)
+    const totalCMVPecasOS = (osMes||[]).reduce((a: number, os: any) => a + (os.custo_pecas || 0), 0)
     const totalCMV = totalCMVVendas + totalCMVPecasOS
+
+    // ── Prev month calculations ──────────────────────────────────
+    const prevReceitaVendas = (prevVendas||[]).reduce((a: number, v: any) => a + (v.total || 0), 0)
+    const prevReceitaOS     = (prevOS||[]).reduce((a: number, os: any) => a + (os.valor_servico || 0) + (os.valor_pecas || 0), 0)
+    const prevReceita       = prevReceitaVendas + prevReceitaOS
+    const prevTotalDesp     = (prevDesps||[]).reduce((a: number, d: any) => a + (d.valor || 0), 0)
+    const prevTotalBrindes  = (prevBrindes||[]).reduce((a: number, m: any) => {
+      const prod = m.produtos as any
+      const custo = Array.isArray(prod) ? (prod[0]?.preco_custo || 0) : (prod?.preco_custo || 0)
+      return a + Math.abs(m.quantidade) * custo
+    }, 0)
+    const prevCMVVendas = (prevItens||[]).reduce((a: number, iv: any) => {
+      const prod = iv.produtos as any
+      const custo = Array.isArray(prod) ? (prod[0]?.preco_custo || 0) : (prod?.preco_custo || 0)
+      return a + (iv.quantidade || 0) * custo
+    }, 0)
+    const prevCMVPecas  = (prevOS||[]).reduce((a: number, os: any) => a + (os.custo_pecas || 0), 0)
+    const prevCMV       = prevCMVVendas + prevCMVPecas
+    const prevLucro     = prevReceita - prevCMV - prevTotalBrindes - prevTotalDesp
+
+    setPrevMes({
+      receitaVendas: prevReceitaVendas,
+      receitaOS:     prevReceitaOS,
+      receita:       prevReceita,
+      cmv:           prevCMV,
+      brindes:       prevTotalBrindes,
+      despesas:      prevTotalDesp,
+      lucroLiquido:  prevLucro,
+    })
 
     setReceitaVendas(totalReceitaVendas)
     setReceitaOS(totalReceitaOS)
@@ -98,12 +161,12 @@ export default function FinanceiroPage() {
     setCmv(totalCMV)
     setDespLista(desps||[])
 
-    // ── Formas de pagamento (apenas vendas) ─────────────────────
+    // ── Formas de pagamento ─────────────────────────────────────
     const fMap: Record<string,number> = {}
-    ;(vendas||[]).forEach((v: any)=>{ fMap[v.forma_pagamento]=(fMap[v.forma_pagamento]||0)+v.total })
+    ;(vendas||[]).forEach((v: any) => { fMap[v.forma_pagamento]=(fMap[v.forma_pagamento]||0)+v.total })
     setFormas(Object.entries(fMap).sort((a,b)=>b[1]-a[1]).map(([forma,total])=>({forma,total})))
 
-    // ── Gráfico 15 dias (Vendas + OS combinadas) ─────────────────
+    // ── Gráfico 15 dias ─────────────────────────────────────────
     const dMap: Record<string,number> = {}
     ;(vendasMes||[]).forEach((v: any)=>{ const d=v.criado_em.slice(0,10); dMap[d]=(dMap[d]||0)+v.total })
     ;(os15d||[]).forEach((os: any)=>{ const d=os.criado_em.slice(0,10); dMap[d]=(dMap[d]||0)+(os.valor_servico||0)+(os.valor_pecas||0) })
@@ -121,12 +184,37 @@ export default function FinanceiroPage() {
   const margem       = receita > 0 ? ((lucroLiquido/receita)*100).toFixed(1) : '0.0'
   const maxGraf      = Math.max(...diasGraf.map(d=>d.total), 1)
 
+  function varCalc(atual: number, anterior: number): string {
+    if (anterior === 0) return '—'
+    const pct = ((atual - anterior) / anterior) * 100
+    return (pct > 0 ? '+' : '') + pct.toFixed(1) + '%'
+  }
+  function varColor(atual: number, anterior: number): string {
+    if (anterior === 0) return 'var(--texto-desab)'
+    if (atual > anterior) return 'var(--verde)'
+    if (atual < anterior) return 'var(--vermelho)'
+    return 'var(--texto-desab)'
+  }
+
+  const dreRows: DreRow[] = [
+    { l: '(+) RECEITA DE VENDAS',        v: receitaVendas,  prev: prevMes.receitaVendas, c: 'var(--verde)',    neg: false, sub: true  },
+    { l: '(+) RECEITA DE SERVIÇOS (OS)', v: receitaOS,      prev: prevMes.receitaOS,     c: '#60a5fa',         neg: false, sub: true  },
+    { l: '(=) RECEITA BRUTA TOTAL',      v: receita,        prev: prevMes.receita,        c: 'var(--verde)',    neg: false, sub: false },
+    { l: '(-) CMV + CUSTO PEÇAS (OS)',    v: cmv,            prev: prevMes.cmv,            c: 'var(--vermelho)', neg: true,  sub: true  },
+    { l: '(-) BRINDES CONCEDIDOS',        v: brindes,        prev: prevMes.brindes,        c: 'var(--amarelo)', neg: true,  sub: true  },
+    { l: '(-) DESPESAS TOTAIS',           v: despesas,       prev: prevMes.despesas,       c: 'var(--vermelho)', neg: true,  sub: true  },
+    { l: '(=) LUCRO LÍQUIDO ESTIMADO',   v: lucroLiquido,   prev: prevMes.lucroLiquido,   c: lucroLiquido >= 0 ? 'var(--verde)' : 'var(--vermelho)', neg: false, sub: false },
+  ]
+
+  // Label for selected period
+  const periodoLabel = new Date(anoSel, mesSel, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase()
+
   return (
     <div className="anim-fade" style={{display:'flex',flexDirection:'column',gap:'0.75rem'}}>
       <div className="pg-header">
         <div>
           <h1 className="pg-titulo">FINANCEIRO — VISÃO GERAL</h1>
-          <p className="pg-sub">{new Date().toLocaleDateString('pt-BR',{month:'long',year:'numeric'}).toUpperCase()} · TEMPO REAL</p>
+          <p className="pg-sub">{periodoLabel} · TEMPO REAL</p>
         </div>
         <div style={{display:'flex',gap:'0.375rem'}}>
           <Link href="/financeiro/despesas"  className="btn btn-secondary">+ DESPESA</Link>
@@ -148,7 +236,7 @@ export default function FinanceiroPage() {
         </div>
       ) : (
         <>
-          {/* KPIs — 5 cards (incluindo OS) */}
+          {/* KPIs — 5 cards */}
           <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:'0.5rem'}}>
             {[
               {l:'RECEITA TOTAL',    v:formatCurrency(receita),          dot:'var(--verde)',    c:'var(--verde)'},
@@ -164,7 +252,6 @@ export default function FinanceiroPage() {
                 </div>
                 <p className="kpi-valor" style={{color:k.c,fontSize:'1rem'}}>{k.v}</p>
                 {k.l==='LUCRO ESTIM.'&&<p className="kpi-sub">MARGEM: {margem}%</p>}
-                {k.l==='FIADO ABERTO'&&fiado>0&&<p className="kpi-sub" style={{color:'var(--amarelo)'}}>PENDENTE RECEBER</p>}
               </div>
             ))}
           </div>
@@ -177,7 +264,7 @@ export default function FinanceiroPage() {
             </div>
           )}
 
-          {/* Gráfico horizontal — Faturamento total (Vendas + OS) */}
+          {/* Gráfico horizontal */}
           <div className="card" style={{padding:0,overflow:'hidden'}}>
             <div className="sec-header"><span>FATURAMENTO TOTAL (VENDAS + OS) — ÚLTIMOS 15 DIAS</span></div>
             <div style={{padding:'0.75rem'}}>
@@ -241,35 +328,81 @@ export default function FinanceiroPage() {
             </div>
           </div>
 
-          {/* DRE simplificado — agora com Vendas e OS desdobradas */}
+          {/* DRE simplificado — comparativo */}
           <div className="card" style={{padding:0,overflow:'hidden'}}>
-            <div className="sec-header"><span>DRE SIMPLIFICADO — {new Date().toLocaleDateString('pt-BR',{month:'long',year:'numeric'}).toUpperCase()}</span></div>
+            <div className="sec-header" style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <span>DRE SIMPLIFICADO — {periodoLabel}</span>
+            </div>
             <div style={{padding:'0.75rem'}}>
-              {[
-                {l:'(+) RECEITA DE VENDAS',          v:receitaVendas,   c:'var(--verde)',     neg:false, sub:true},
-                {l:'(+) RECEITA DE SERVIÇOS (OS)',    v:receitaOS,       c:'#60a5fa',          neg:false, sub:true},
-                {l:'(=) RECEITA BRUTA TOTAL',         v:receita,         c:'var(--verde)',     neg:false, sub:false},
-                {l:'(-) CMV + CUSTO PEÇAS (OS)',       v:cmv,             c:'var(--vermelho)',  neg:true,  sub:true},
-                {l:'(-) BRINDES CONCEDIDOS',           v:brindes,         c:'var(--amarelo)',  neg:true,  sub:true},
-                {l:'(-) DESPESAS TOTAIS',              v:despesas,        c:'var(--vermelho)', neg:true,  sub:true},
-                {l:'(=) LUCRO LÍQUIDO ESTIMADO',       v:lucroLiquido,    c:lucroLiquido>=0?'var(--verde)':'var(--vermelho)', neg:false, sub:false},
-              ].map(r=>(
+              {/* Month selector */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <label style={{ fontSize: '0.75rem', color: 'var(--texto-sec)', fontWeight: 700 }}>PERÍODO:</label>
+                <select
+                  className="campo"
+                  style={{ width: 'auto', fontSize: '0.78rem', padding: '0.25rem 0.5rem' }}
+                  value={`${anoSel}-${String(mesSel + 1).padStart(2, '0')}`}
+                  onChange={e => {
+                    const [y, m] = e.target.value.split('-').map(Number)
+                    setAnoSel(y)
+                    setMesSel(m - 1)
+                  }}
+                >
+                  {Array.from({ length: 12 }, (_, i) => {
+                    const d = new Date()
+                    d.setDate(1)
+                    d.setMonth(d.getMonth() - i)
+                    return (
+                      <option key={i} value={`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`}>
+                        {d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase()}
+                      </option>
+                    )
+                  })}
+                </select>
+              </div>
+
+              {/* Column headers */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', padding: '0.25rem 0', borderBottom: '1px solid var(--borda-leve)', marginBottom: '0.25rem' }}>
+                <span style={{ fontSize: '0.65rem', color: 'var(--texto-desab)', fontWeight: 700, minWidth: '100px', textAlign: 'right' }}>MÊS ATUAL</span>
+                <span style={{ fontSize: '0.65rem', color: 'var(--texto-desab)', fontWeight: 700, minWidth: '80px', textAlign: 'right' }}>MÊS ANT.</span>
+                <span style={{ fontSize: '0.65rem', color: 'var(--texto-desab)', fontWeight: 700, minWidth: '48px', textAlign: 'right' }}>VAR.</span>
+              </div>
+
+              {dreRows.map(r => (
                 <div key={r.l} style={{
                   display:'flex',justifyContent:'space-between',
                   padding:r.sub?'0.25rem 0':'0.4rem 0',
-                  borderBottom:`1px ${r.l.startsWith('(=)')?'dashed':'solid'} var(--borda-leve)`,
+                  borderBottom:`1px ${r.l.startsWith('(=')?'dashed':'solid'} var(--borda-leve)`,
                   ...(r.l==='(=) RECEITA BRUTA TOTAL'||r.l==='(=) LUCRO LÍQUIDO ESTIMADO' ? {background:'rgba(0,0,0,0.15)',padding:'0.4rem 0.5rem',margin:'0 -0.75rem'} : {})
                 }}>
                   <span style={{
-                    fontWeight:r.l.startsWith('(=)')?700:400,
+                    fontWeight:r.l.startsWith('(=')?700:400,
                     fontSize:r.sub?'0.7rem':'0.75rem',
                     letterSpacing:'0.04em',
-                    color:r.l.startsWith('(=)')?'var(--texto)':'var(--texto-sec)',
-                    paddingLeft:r.sub&&!r.l.startsWith('(=)')?'0.75rem':'0'
+                    color:r.l.startsWith('(=')?'var(--texto)':'var(--texto-sec)',
+                    paddingLeft:r.sub&&!r.l.startsWith('(=')?'0.75rem':'0'
                   }}>{r.l}</span>
-                  <span style={{fontWeight:700,color:r.c,fontVariantNumeric:'tabular-nums',fontSize:r.l.startsWith('(=)')?'0.9rem':'0.8rem'}}>
-                    {r.neg?'- ':''}{formatCurrency(r.v)}
-                  </span>
+
+                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                    {/* Current month */}
+                    <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: r.l.startsWith('(=)') ? '0.9rem' : '0.8rem', color: r.c, fontWeight: 700, minWidth: '100px', textAlign: 'right' }}>
+                      {r.neg ? '- ' : ''}{formatCurrency(r.v)}
+                    </span>
+                    {/* Previous month */}
+                    <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: '0.72rem', color: 'var(--texto-desab)', minWidth: '80px', textAlign: 'right' }}>
+                      {r.prev !== undefined ? formatCurrency(r.prev ?? 0) : '—'}
+                    </span>
+                    {/* Variation */}
+                    {r.prev !== undefined && r.prev !== null ? (
+                      <span style={{
+                        fontSize: '0.65rem', fontWeight: 800, minWidth: '48px', textAlign: 'right',
+                        color: varColor(r.v, r.prev)
+                      }}>
+                        {varCalc(r.v, r.prev)}
+                      </span>
+                    ) : (
+                      <span style={{ minWidth: '48px' }} />
+                    )}
+                  </div>
                 </div>
               ))}
               <p style={{fontSize:'0.62rem',color:'var(--texto-desab)',marginTop:'0.5rem',letterSpacing:'0.03em'}}>* Fiado não recebido e OS em aberto não estão incluídos na receita.</p>

@@ -8,6 +8,8 @@ import { formatCurrency } from '@/lib/utils'
 import { X } from 'lucide-react'
 import { PageTabs } from '@/components/PageTabs'
 import { FormProduto } from '@/components/FormProduto'
+import { Pagination } from '@/components/Pagination'
+import { EmptyState } from '@/components/EmptyState'
 
 type Produto = {
   id: string; nome: string; sku: string | null; categoria: string | null
@@ -23,8 +25,11 @@ export default function ProdutosPage() {
   const [erro,       setErro]       = useState<string | null>(null)
   const [showModal,  setShowModal]  = useState(false)
   const [toggling,   setToggling]   = useState<string | null>(null)
+  const [page,       setPage]       = useState(1)
+  const PAGE_SIZE = 50
 
   useEffect(() => { if (empresaId) carregar(empresaId) }, [empresaId])
+  useEffect(() => { setPage(1) }, [busca])
 
   async function carregar(eid: string) {
     setLoading(true)
@@ -58,6 +63,9 @@ export default function ProdutosPage() {
     (p.sku || '').toLowerCase().includes(busca.toLowerCase()) ||
     (p.categoria || '').toLowerCase().includes(busca.toLowerCase())
   )
+
+  const totalPages = Math.ceil(filtrados.length / PAGE_SIZE)
+  const paginados = filtrados.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   const criticos   = produtos.filter(p => p.qtd_atual <= p.qtd_minima && p.qtd_minima > 0)
   const totalItens = produtos.reduce((a, p) => a + p.qtd_atual, 0)
@@ -139,19 +147,24 @@ export default function ProdutosPage() {
       ) : erro ? (
         <div className="alerta alerta-perigo">{erro}</div>
       ) : filtrados.length === 0 ? (
-        <div style={{ textAlign:'center', padding:'3rem', color:'var(--texto-desab)', border:'1px solid var(--borda)', background:'var(--surface)' }}>
-          {busca ? (
-            <p style={{ fontSize:'0.78rem', letterSpacing:'0.04em' }}>[ NENHUM PRODUTO ENCONTRADO PARA &quot;{busca}&quot; ]</p>
-          ) : (
-            <div>
-              <p style={{ fontSize:'0.7rem', color:'var(--borda-forte)', letterSpacing:'0.1em', fontWeight:700, marginBottom:'0.5rem' }}>[ ESTOQUE VAZIO ]</p>
-              <p style={{ fontSize:'0.72rem', marginBottom:'1rem' }}>Cadastre seu primeiro produto para começar</p>
-              <button onClick={() => setShowModal(true)} className="btn btn-primary">+ CADASTRAR PRODUTO</button>
-            </div>
-          )}
-        </div>
+        busca || produtos.length > 0 ? (
+          <EmptyState
+            icon="🔍"
+            title="Nenhum produto encontrado"
+            description="Tente ajustar os filtros ou a busca."
+          />
+        ) : (
+          <EmptyState
+            icon="📦"
+            title="Nenhum produto cadastrado"
+            description="Cadastre seu primeiro produto para começar a controlar seu estoque."
+            actionLabel="+ Cadastrar Produto"
+            onAction={() => setShowModal(true)}
+          />
+        )
       ) : (
-        <div className="tabela-wrap">
+        <>
+          <div className="tabela-wrap">
           <table className="tabela">
             <thead>
               <tr>
@@ -166,7 +179,7 @@ export default function ProdutosPage() {
               </tr>
             </thead>
             <tbody>
-              {filtrados.map(p => {
+              {paginados.map(p => {
                 const critico = p.qtd_atual <= p.qtd_minima && p.qtd_minima > 0
                 const isTogglingCatalogo = toggling === p.id + 'ativo_catalogo'
                 const isTogglingDestaque = toggling === p.id + 'destaque'
@@ -247,6 +260,8 @@ export default function ProdutosPage() {
             </tbody>
           </table>
         </div>
+        <Pagination page={page} totalPages={totalPages} total={filtrados.length} pageSize={PAGE_SIZE} onPage={setPage} />
+      </>
       )}
     </div>
   )

@@ -607,14 +607,80 @@ select.campo { cursor: pointer; }
 
 .pdv-formas-pagamento-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
   gap: 0.375rem;
   margin-top: 0.375rem;
 }
 
+/* ── ANIMAÇÃO: ITEM ADICIONADO AO CARRINHO ── */
+@keyframes itemFlash {
+  0%   { background-color: #d4edda; transform: scale(1.01); box-shadow: 0 0 0 2px var(--verde); }
+  60%  { background-color: #d4edda; transform: scale(1.01); }
+  100% { background-color: transparent; transform: scale(1); box-shadow: none; }
+}
+
+.pdv-item-flash {
+  animation: itemFlash 0.75s ease-out forwards;
+}
+
+/* Tablet ≤ 1024px: empilha as colunas */
 @media (max-width: 1024px) {
   .pdv-grid {
     grid-template-columns: 1fr !important;
+  }
+}
+
+/* Mobile ≤ 768px: reduz espaçamentos, aumenta legibilidade */
+@media (max-width: 768px) {
+  .pdv-grid {
+    gap: 0.5rem;
+  }
+
+  /* Campo de busca maior para toque */
+  #pdv-busca {
+    font-size: 1rem !important;
+    padding: 0.75rem 0.875rem !important;
+  }
+
+  /* Botões de pagamento maiores para toque */
+  .pdv-formas-pagamento-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+
+  /* Botão finalizar mais proeminente */
+  #btn-finalizar-venda {
+    padding: 1rem !important;
+    font-size: 1rem !important;
+    letter-spacing: 0.03em !important;
+  }
+
+  /* Cabeçalho do dashboard mais compacto */
+  .pg-header {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+}
+
+/* Mobile pequeno ≤ 480px */
+@media (max-width: 480px) {
+  body {
+    font-size: 12px;
+  }
+
+  .pdv-formas-pagamento-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Oculta sidebar e usa todo o espaço */
+  .layout-main {
+    padding: 0.5rem !important;
+  }
+
+  /* Botão de voltar compacto */
+  .pg-header .btn {
+    font-size: 0.72rem;
+    padding: 0.35rem 0.625rem;
   }
 }
 

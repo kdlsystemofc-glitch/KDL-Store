@@ -11,7 +11,6 @@ import toast from 'react-hot-toast'
 
 type Fiado = { id:string; cliente_nome:string; cliente_tel:string|null; valor_aberto:number; criado_em:string; status:string; data_vencimento:string|null; pago_em:string|null; valor_original:number|null }
 type FormaPag = { id: string; nome: string }
-
 type PagtoItem = { forma: string; valor: string }
 
 export default function FiadoPage() {
@@ -21,6 +20,7 @@ export default function FiadoPage() {
   const [filtro,  setFiltro]  = useState<'todos'|'vencidos'|'hoje'|'avencer'|'historico'>('todos')
   const [amortizacoes, setAmortizacoes] = useState<{data: string; descricao: string; valor: number; forma_pagamento: string|null}[]>([])
   const [expandedFiados, setExpandedFiados] = useState<Record<string, boolean>>({})
+  const [nomeEmpresa, setNomeEmpresa] = useState('nossa loja')
 
   // Modal amortização
   const [fiadoPagando, setFiadoPagando] = useState<Fiado | null>(null)
@@ -37,7 +37,7 @@ export default function FiadoPage() {
   async function carregar(eid: string) {
     setLoading(true)
     const supabase = createClient()
-    const [resFiados, resFm] = await Promise.all([
+    const [resFiados, resFm, resEmp] = await Promise.all([
       supabase
         .from('fiados')
         .select('id,cliente_nome,cliente_tel,valor_aberto,criado_em,status,data_vencimento,pago_em,valor_original')
@@ -48,10 +48,12 @@ export default function FiadoPage() {
         .select('data,descricao,valor,forma_pagamento')
         .eq('empresa_id', eid)
         .eq('tipo', 'entrada')
-        .like('descricao', 'Recebimento fiado — %')
+        .like('descricao', 'Recebimento fiado — %'),
+      supabase.from('empresas').select('nome').eq('id', eid).single(),
     ])
     setFiados(resFiados.data||[])
     setAmortizacoes((resFm.data as any)||[])
+    if (resEmp.data?.nome) setNomeEmpresa(resEmp.data.nome)
     setLoading(false)
   }
 
@@ -99,7 +101,6 @@ export default function FiadoPage() {
         await supabase.from('fiados').update({ valor_aberto: parseFloat(novoSaldo.toFixed(2)) }).eq('id', fiadoPagando.id)
       }
 
-      // Registra no fechamento de caixa como entradas por forma de pagamento
       for (const pag of pagamentos) {
         if (!pag.valor || parseFloat(pag.valor) <= 0) continue
         await supabase.from('fechamentos_manuais').insert({
@@ -132,7 +133,6 @@ export default function FiadoPage() {
   }
 
   const hojeData = new Date().toISOString().slice(0,10)
-
   const abertosDb = fiados.filter(f=>f.status==='aberto')
 
   const abertosSorted = [...abertosDb].sort((a,b) => {
@@ -173,17 +173,19 @@ export default function FiadoPage() {
 
   function getWaMsg(f: Fiado) {
     const val = formatCurrency(f.valor_aberto)
+    const loja = nomeEmpresa
+
     if (!f.data_vencimento) {
-      return encodeURIComponent(`Oi ${f.cliente_nome}, tudo bem? Passando para lembrar que você tem ${val} em aberto aqui na loja. Quando puder aparecer ou me chama no zap! 😊`)
+      return encodeURIComponent(`Oi ${f.cliente_nome}, tudo bem? Passando para lembrar que você tem ${val} em aberto aqui na ${loja}. Quando puder aparecer ou me chama no zap! 😊`)
     }
     const dias = calcDiasRestantes(f.data_vencimento)
     const dataStr = new Date(f.data_vencimento+'T12:00:00').toLocaleDateString('pt-BR')
     if (dias < 0) {
-      return encodeURIComponent(`Oi ${f.cliente_nome}, seu fiado de ${val} venceu em ${dataStr}. Quando puder, vamos acertar?`)
+      return encodeURIComponent(`Oi ${f.cliente_nome}, seu fiado de ${val} na ${loja} venceu em ${dataStr}. Quando puder, vamos acertar? 😊`)
     } else if (dias === 0) {
-      return encodeURIComponent(`Oi ${f.cliente_nome}, seu fiado de ${val} vence hoje. Pode passar aqui ou me chamar para acertar!`)
+      return encodeURIComponent(`Oi ${f.cliente_nome}, seu fiado de ${val} na ${loja} vence hoje. Pode passar aqui ou me chamar para acertar!`)
     } else {
-      return encodeURIComponent(`Oi ${f.cliente_nome}, lembrando que seu fiado de ${val} vence em ${dataStr}. Qualquer dúvida é só chamar!`)
+      return encodeURIComponent(`Oi ${f.cliente_nome}, lembrando que seu fiado de ${val} na ${loja} vence em ${dataStr}. Qualquer dúvida é só chamar!`)
     }
   }
 
@@ -200,7 +202,6 @@ export default function FiadoPage() {
               <button onClick={() => setFiadoPagando(null)} className="btn-icon"><X size={16}/></button>
             </div>
 
-            {/* Info do fiado */}
             <div style={{ marginBottom:'1rem', padding:'0.75rem', background:'var(--surface-2)', borderRadius:'0.5rem' }}>
               <p style={{ fontWeight:700, fontSize:'1rem' }}>{fiadoPagando.cliente_nome}</p>
               <p style={{ fontSize:'0.8rem', color:'var(--texto-desab)', marginTop:'0.25rem' }}>
@@ -208,24 +209,18 @@ export default function FiadoPage() {
               </p>
             </div>
 
-            {/* Pagamentos parciais */}
             <div style={{ display:'flex', flexDirection:'column', gap:'0.5rem', marginBottom:'0.75rem' }}>
               <label className="campo-label">Formas de Pagamento</label>
               {pagamentos.map((pag, i) => (
                 <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 1fr auto', gap:'0.375rem', alignItems:'center' }}>
-                  <select
-                    className="campo"
-                    value={pag.forma}
+                  <select className="campo" value={pag.forma}
                     onChange={e => setPagamentos(p => p.map((x, j) => j===i ? { ...x, forma: e.target.value } : x))}>
                     {formasPag.length === 0
                       ? <option value="Dinheiro">Dinheiro</option>
                       : formasPag.map(f => <option key={f.id} value={f.nome}>{f.nome}</option>)
                     }
                   </select>
-                  <input
-                    className="campo"
-                    type="number" min="0.01" step="0.01"
-                    placeholder="R$ 0,00"
+                  <input className="campo" type="number" min="0.01" step="0.01" placeholder="R$ 0,00"
                     value={pag.valor}
                     onChange={e => setPagamentos(p => p.map((x, j) => j===i ? { ...x, valor: e.target.value } : x))}
                   />
@@ -239,7 +234,6 @@ export default function FiadoPage() {
               </button>
             </div>
 
-            {/* Totalizador */}
             <div style={{ padding:'0.75rem', background:'var(--surface-2)', borderRadius:'0.5rem', marginBottom:'1rem' }}>
               <div style={{ display:'flex', justifyContent:'space-between', fontSize:'0.85rem' }}>
                 <span>Total pagando:</span>
@@ -260,8 +254,7 @@ export default function FiadoPage() {
 
             <div style={{ display:'flex', gap:'0.5rem', justifyContent:'flex-end' }}>
               <button onClick={() => setFiadoPagando(null)} className="btn btn-secondary">Cancelar</button>
-              <button
-                onClick={confirmarPagamento}
+              <button onClick={confirmarPagamento}
                 disabled={salvandoPag || totalPagamentos <= 0 || totalPagamentos > fiadoPagando.valor_aberto + 0.001}
                 className="btn btn-primary">
                 {salvandoPag ? 'Salvando...' : '✓ Confirmar Pagamento'}
@@ -329,7 +322,6 @@ export default function FiadoPage() {
             <Loader2 size={20} style={{animation:'spin 1s linear infinite'}}/> Carregando...
           </div>
         ) : filtro === 'historico' ? (
-          /* ── ABA HISTÓRICO DE FIADOS QUITADOS ─────────── */
           pagos.length === 0 ? (
             <div style={{textAlign:'center',padding:'3rem',color:'var(--texto-desab)'}}>
               <p style={{fontSize:'2rem',marginBottom:'0.5rem'}}>📜</p>
@@ -481,13 +473,15 @@ export default function FiadoPage() {
                         {new Date(f.criado_em).toLocaleDateString('pt-BR')}
                       </td>
                       <td style={{textAlign:'center'}}>
-                        <div style={{display:'flex',gap:'0.375rem',justifyContent:'center'}}>
-                          {f.cliente_tel&&(
+                        <div style={{display:'flex',gap:'0.375rem',justifyContent:'center',flexWrap:'wrap'}}>
+                          {f.cliente_tel ? (
                             <a href={`https://wa.me/55${f.cliente_tel.replace(/\D/g,'')}?text=${getWaMsg(f)}`}
                               target="_blank" rel="noopener noreferrer"
                               className="btn btn-secondary" style={{fontSize:'0.72rem',padding:'0.2rem 0.5rem',background:'#25D366',color:'#fff',border:'none'}}>
                               💬 Cobrar
                             </a>
+                          ) : (
+                            <span style={{fontSize:'0.68rem',color:'var(--texto-desab)'}}>Sem tel.</span>
                           )}
                           <OperadorOnly>
                             <button onClick={() => abrirPagar(f)}

@@ -1,11 +1,13 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
+import { toast } from 'react-hot-toast'
 import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
 import { Plus, Search, Loader2, X, Wrench, Shield, CheckCircle2, Clock, AlertTriangle, AlertCircle, FileText } from 'lucide-react'
 import { PageTabs } from '@/components/PageTabs'
 import { useSubscription } from '@/hooks/useSubscription'
 import { formatCurrency } from '@/lib/utils'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 
 type OS = {
   id: string;
@@ -80,6 +82,14 @@ export default function OrdensServicoPage() {
   const [showForm, setShowForm] = useState(false)
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean
+    title: string
+    message: string
+    onConfirm: () => void
+    danger?: boolean
+    loading?: boolean
+  }>({ open: false, title: '', message: '', onConfirm: () => {} })
   
   // Cliente autocomplete state
   const [clienteBusca, setClienteBusca] = useState('')
@@ -266,14 +276,24 @@ export default function OrdensServicoPage() {
     setOrdens(prev => prev.map(o => o.id === id ? { ...o, status: next } : o))
   }
 
-  async function cancelar(id: string) {
-    if (!confirm('Deseja realmente cancelar esta Ordem de Serviço?')) return
-    const { error } = await createClient().from('ordens_servico').update({ status: 'cancelado' }).eq('id', id)
-    if (error) {
-      alert('Erro ao cancelar OS: ' + error.message)
-      return
-    }
-    setOrdens(prev => prev.map(o => o.id === id ? { ...o, status: 'cancelado' } : o))
+  function cancelar(id: string) {
+    setConfirmDialog({
+      open: true,
+      title: 'Cancelar Ordem de Serviço',
+      message: 'Deseja realmente cancelar esta Ordem de Serviço? Esta ação não pode ser desfeita.',
+      danger: true,
+      onConfirm: async () => {
+        setConfirmDialog(prev => ({ ...prev, loading: true }))
+        const { error } = await createClient().from('ordens_servico').update({ status: 'cancelado' }).eq('id', id)
+        if (error) {
+          toast.error('Erro ao cancelar OS: ' + error.message)
+          setConfirmDialog(prev => ({ ...prev, open: false, loading: false }))
+          return
+        }
+        setOrdens(prev => prev.map(o => o.id === id ? { ...o, status: 'cancelado' } : o))
+        setConfirmDialog(prev => ({ ...prev, open: false, loading: false }))
+      }
+    })
   }
 
   const filtradas = ordens.filter(o => {
@@ -753,6 +773,16 @@ export default function OrdensServicoPage() {
           </table>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmDialog.open}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        danger={confirmDialog.danger}
+        loading={confirmDialog.loading}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={() => setConfirmDialog(prev => ({ ...prev, open: false }))}
+      />
     </div>
   )
 }

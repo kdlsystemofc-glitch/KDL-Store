@@ -7,7 +7,7 @@ import { Loader2, Printer, Download } from 'lucide-react'
 import { ProOnly } from '@/components/ProOnly'
 
 type Venda = { id: string; total: number; desconto: number; forma_pagamento: string; status: string; criado_em: string; cliente_nome: string | null; comissionado_id?: string }
-type ItemVenda = { produto_id: string; produto_nome: string; quantidade: number; preco_unitario: number; brinde: boolean }
+type ItemVenda = { produto_id: string; produto_nome: string; quantidade: number; preco_unitario: number; brinde: boolean; produtos?: { preco_custo: number; categoria: string | null } | { preco_custo: number; categoria: string | null }[] | null }
 type Despesa = { valor: number; data: string }
 type Comissionado = { id: string; nome: string; tipo_comissao: string; taxa: number }
 
@@ -60,7 +60,7 @@ export default function RelatoriosPage() {
     const supabase = createClient()
     const results = await Promise.allSettled([
       supabase.from('vendas').select('id,total,desconto,forma_pagamento,status,criado_em,cliente_nome,comissionado_id')
-        .eq('empresa_id', eid).eq('status', 'concluida')
+        .eq('empresa_id', eid).in('status', ['concluida', 'cancelada'])
         .gte('criado_em', `${ini}T00:00:00`).lte('criado_em', `${fim}T23:59:59`),
       supabase.from('despesas').select('valor,data')
         .eq('empresa_id', eid)
@@ -81,9 +81,9 @@ export default function RelatoriosPage() {
       for (let i = 0; i < vendasIds.length; i += 100) {
         const chunk = vendasIds.slice(i, i + 100)
         const { data: iChunk } = await supabase.from('itens_venda')
-          .select('produto_id,produto_nome,quantidade,preco_unitario,brinde')
+          .select('produto_id,produto_nome,quantidade,preco_unitario,brinde,produtos(preco_custo,categoria)')
           .in('venda_id', chunk)
-        if (iChunk) allItens = allItens.concat(iChunk)
+        if (iChunk) allItens = allItens.concat(iChunk as any)
       }
     }
 
@@ -113,16 +113,25 @@ export default function RelatoriosPage() {
     a.click()
   }
 
+  // ── Filtro de status de vendas ──────────────────────────────
+  const vendasConcluidas = vendas.filter(v => v.status === 'concluida')
+  const vendasCanceladas = vendas.filter(v => v.status === 'cancelada')
+
   // ── SEÇÃO 2: Resumo Financeiro
-  const faturamentoBruto = vendas.reduce((a,v) => a + v.total + (v.desconto||0), 0)
-  const descontos        = vendas.reduce((a,v) => a + (v.desconto||0), 0)
+  const faturamentoBruto = vendasConcluidas.reduce((a,v) => a + v.total + (v.desconto||0), 0)
+  const descontos        = vendasConcluidas.reduce((a,v) => a + (v.desconto||0), 0)
   const faturamentoLiq   = faturamentoBruto - descontos
   const totalDespesas    = despesas.reduce((a,d) => a + d.valor, 0)
   const lucroEstimado    = faturamentoLiq - totalDespesas
 
+  // Novos indicadores solicitados
+  const ticketMedio = vendasConcluidas.length > 0 ? faturamentoLiq / vendasConcluidas.length : 0
+  const totalVendas = vendasConcluidas.length + vendasCanceladas.length
+  const taxaCancelamento = totalVendas > 0 ? (vendasCanceladas.length / totalVendas) * 100 : 0
+
   // ── SEÇÃO 3: Formas de Pagamento
   const fMap: Record<string, { qtd: number, valor: number }> = {}
-  vendas.forEach(v => {
+  vendasConcluidas.forEach(v => {
     if (!fMap[v.forma_pagamento]) fMap[v.forma_pagamento] = { qtd: 0, valor: 0 }
     fMap[v.forma_pagamento].qtd += 1
     fMap[v.forma_pagamento].valor += v.total
@@ -137,11 +146,12 @@ export default function RelatoriosPage() {
     pMap[i.produto_nome].receita += (i.preco_unitario * i.quantidade)
   })
   const topProdutos = Object.entries(pMap).sort((a,b) => b[1].receita - a[1].receita).slice(0, 10)
+  const produtoMaisVendido = topProdutos[0] ?? null
 
   // ── SEÇÃO 5: Desempenho por Dia
   const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
   const diaMap: number[] = [0,0,0,0,0,0,0]
-  vendas.forEach(v => {
+  vendasConcluidas.forEach(v => {
     const d = new Date(v.criado_em)
     diaMap[d.getDay()] += v.total
   })
@@ -149,7 +159,7 @@ export default function RelatoriosPage() {
 
   // ── SEÇÃO 6: Top Clientes
   const cMap: Record<string, { qtd: number, valor: number, ultima: string }> = {}
-  vendas.forEach(v => {
+  vendasConcluidas.forEach(v => {
     const nome = v.cliente_nome || 'Anônimo'
     if (!cMap[nome]) cMap[nome] = { qtd: 0, valor: 0, ultima: v.criado_em }
     cMap[nome].qtd += 1
@@ -157,13 +167,14 @@ export default function RelatoriosPage() {
     if (v.criado_em > cMap[nome].ultima) cMap[nome].ultima = v.criado_em
   })
   const topClientes = Object.entries(cMap).sort((a,b) => b[1].valor - a[1].valor).slice(0, 5)
+  const melhorCliente = topClientes[0] ?? null
 
   // ── SEÇÃO 7: Comissões
   const comMap: Record<string, { nome: string, qtd: number, valorGerado: number, comissao: number }> = {}
   const configCom: Record<string, Comissionado> = {}
   comissionados.forEach(c => configCom[c.id] = c)
 
-  vendas.forEach(v => {
+  vendasConcluidas.forEach(v => {
     if (v.comissionado_id && configCom[v.comissionado_id]) {
       const cId = v.comissionado_id
       const cCfg = configCom[cId]
@@ -176,6 +187,39 @@ export default function RelatoriosPage() {
     }
   })
   const topComissoes = Object.values(comMap).sort((a,b) => b.comissao - a.comissao)
+
+  // ── SEÇÃO 8: Margem Bruta por Categoria de Produto
+  const getCustoECategoria = (item: any) => {
+    const prod = item.produtos
+    let precoCusto = 0
+    let categoria = 'Outros'
+    if (prod) {
+      if (Array.isArray(prod)) {
+        precoCusto = prod[0]?.preco_custo ?? 0
+        categoria = prod[0]?.categoria ?? 'Outros'
+      } else {
+        precoCusto = prod.preco_custo ?? 0
+        categoria = prod.categoria ?? 'Outros'
+      }
+    }
+    return { precoCusto, categoria }
+  }
+
+  const catMap: Record<string, { receita: number; custo: number }> = {}
+  itens.forEach(item => {
+    const { precoCusto, categoria } = getCustoECategoria(item)
+    const cat = categoria || 'Outros'
+    if (!catMap[cat]) catMap[cat] = { receita: 0, custo: 0 }
+    if (!item.brinde) {
+      catMap[cat].receita += item.preco_unitario * item.quantidade
+    }
+    catMap[cat].custo += precoCusto * item.quantidade
+  })
+
+  const margemPorCategoria = Object.entries(catMap).map(([cat, d]) => {
+    const margem = d.receita > 0 ? ((d.receita - d.custo) / d.receita) * 100 : 0
+    return { categoria: cat, receita: d.receita, custo: d.custo, margem }
+  }).sort((a,b) => b.receita - a.receita)
 
 
   return (
@@ -239,22 +283,67 @@ export default function RelatoriosPage() {
         <div style={{display:'flex',flexDirection:'column',gap:'0.875rem'}}>
           
           {/* SEÇÃO 2: Resumo Financeiro (KPIs) */}
-          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))',gap:'0.625rem'}}>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(180px, 1fr))',gap:'0.625rem'}}>
             <div className="card" style={{padding:'1rem'}}>
               <p style={{fontSize:'0.78rem',color:'var(--texto-sec)',marginBottom:'0.25rem',fontWeight:700}}>Faturamento Bruto</p>
-              <p style={{fontWeight:900,fontSize:'1.6rem',color:'var(--verde)'}}>{formatCurrency(faturamentoBruto)}</p>
+              <p style={{fontWeight:900,fontSize:'1.3rem',color:'var(--verde)'}}>{formatCurrency(faturamentoBruto)}</p>
             </div>
             <div className="card" style={{padding:'1rem'}}>
               <p style={{fontSize:'0.78rem',color:'var(--texto-sec)',marginBottom:'0.25rem',fontWeight:700}}>Descontos Concedidos</p>
-              <p style={{fontWeight:900,fontSize:'1.6rem',color:'var(--vermelho)'}}>{formatCurrency(descontos)}</p>
+              <p style={{fontWeight:900,fontSize:'1.3rem',color:'var(--vermelho)'}}>{formatCurrency(descontos)}</p>
+            </div>
+            <div className="card" style={{padding:'1rem'}}>
+              <p style={{fontSize:'0.78rem',color:'var(--texto-sec)',marginBottom:'0.25rem',fontWeight:700}}>Total de Vendas</p>
+              <p style={{fontWeight:900,fontSize:'1.3rem',color:'var(--texto)'}}>{vendasConcluidas.length} <span style={{fontSize:'0.65rem',fontWeight:500,color:'var(--texto-desab)'}}>(TM: {formatCurrency(ticketMedio)})</span></p>
+            </div>
+            <div className="card" style={{padding:'1rem'}}>
+              <p style={{fontSize:'0.78rem',color:'var(--texto-sec)',marginBottom:'0.25rem',fontWeight:700}}>Taxa de Cancelamento</p>
+              <p style={{fontWeight:900,fontSize:'1.3rem',color:taxaCancelamento > 0 ? 'var(--amarelo)' : 'var(--texto-desab)'}}>{taxaCancelamento.toFixed(1)}% <span style={{fontSize:'0.65rem',fontWeight:500,color:'var(--texto-desab)'}}>({vendasCanceladas.length} canceladas)</span></p>
             </div>
             <div className="card" style={{padding:'1rem'}}>
               <p style={{fontSize:'0.78rem',color:'var(--texto-sec)',marginBottom:'0.25rem',fontWeight:700}}>Total de Despesas</p>
-              <p style={{fontWeight:900,fontSize:'1.6rem',color:'var(--vermelho)'}}>{formatCurrency(totalDespesas)}</p>
+              <p style={{fontWeight:900,fontSize:'1.3rem',color:'var(--vermelho)'}}>{formatCurrency(totalDespesas)}</p>
             </div>
             <div className="card" style={{padding:'1rem',background:'var(--verde-claro)',borderColor:'var(--verde)',boxShadow:'0 4px 12px rgba(0,191,165,0.1)'}}>
               <p style={{fontSize:'0.78rem',color:'var(--verde-esc)',marginBottom:'0.25rem',fontWeight:800}}>Lucro Estimado</p>
-              <p style={{fontWeight:900,fontSize:'1.6rem',color:lucroEstimado>=0?'var(--verde-esc)':'#c0392b'}}>{formatCurrency(lucroEstimado)}</p>
+              <p style={{fontWeight:900,fontSize:'1.3rem',color:lucroEstimado>=0?'var(--verde-esc)':'#c0392b'}}>{formatCurrency(lucroEstimado)}</p>
+            </div>
+          </div>
+
+          {/* SEÇÃO: Destaques do Período */}
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(300px, 1fr))',gap:'0.625rem'}}>
+            <div className="card" style={{padding:'1rem', display:'flex', alignItems:'center', gap:'1rem'}}>
+              <span style={{fontSize:'1.8rem'}}>🏆</span>
+              <div>
+                <p style={{fontSize:'0.72rem',color:'var(--texto-sec)',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.04em'}}>Produto Mais Vendido</p>
+                {produtoMaisVendido ? (
+                  <>
+                    <p style={{fontWeight:800,fontSize:'1rem',color:'var(--verde)',marginTop:'0.25rem'}}>{produtoMaisVendido[0]}</p>
+                    <p style={{fontSize:'0.72rem',color:'var(--texto-desab)',marginTop:'0.125rem'}}>
+                      <strong>{produtoMaisVendido[1].qtd}</strong> unidades vendidas &nbsp;·&nbsp; Receita: <strong>{formatCurrency(produtoMaisVendido[1].receita)}</strong>
+                    </p>
+                  </>
+                ) : (
+                  <p style={{fontSize:'0.75rem',color:'var(--texto-desab)',marginTop:'0.25rem'}}>Nenhum produto vendido no período</p>
+                )}
+              </div>
+            </div>
+            
+            <div className="card" style={{padding:'1rem', display:'flex', alignItems:'center', gap:'1rem'}}>
+              <span style={{fontSize:'1.8rem'}}>👑</span>
+              <div>
+                <p style={{fontSize:'0.72rem',color:'var(--texto-sec)',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.04em'}}>Cliente que mais comprou</p>
+                {melhorCliente ? (
+                  <>
+                    <p style={{fontWeight:800,fontSize:'1rem',color:'var(--verde)',marginTop:'0.25rem'}}>{melhorCliente[0]}</p>
+                    <p style={{fontSize:'0.72rem',color:'var(--texto-desab)',marginTop:'0.125rem'}}>
+                      Total comprado: <strong>{formatCurrency(melhorCliente[1].valor)}</strong> &nbsp;·&nbsp; Frequência: <strong>{melhorCliente[1].qtd}</strong> compras
+                    </p>
+                  </>
+                ) : (
+                  <p style={{fontSize:'0.75rem',color:'var(--texto-desab)',marginTop:'0.25rem'}}>Nenhuma venda registrada no período</p>
+                )}
+              </div>
             </div>
           </div>
 
@@ -344,8 +433,8 @@ export default function RelatoriosPage() {
 
           </div>
 
-          {/* SEÇÃO 7: Comissões */}
-          {comissionados.length > 0 && (
+          <div className="print-grid" style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(320px, 1fr))',gap:'0.875rem'}}>
+            {/* SEÇÃO 7: Comissões */}
             <div className="card" style={{padding:0,overflow:'hidden'}}>
               <div className="sec-header"><span>7. Comissões do Período</span></div>
               <table className="tabela">
@@ -364,7 +453,38 @@ export default function RelatoriosPage() {
                 </tbody>
               </table>
             </div>
-          )}
+
+            {/* SEÇÃO 8: Margem Bruta por Categoria */}
+            <div className="card" style={{padding:0,overflow:'hidden'}}>
+              <div className="sec-header"><span>8. Margem Bruta por Categoria de Produto</span></div>
+              <table className="tabela">
+                <thead>
+                  <tr>
+                    <th>Categoria</th>
+                    <th style={{textAlign:'right'}}>Receita</th>
+                    <th style={{textAlign:'right'}}>Custo (CMV)</th>
+                    <th style={{textAlign:'center'}}>Margem</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {margemPorCategoria.length === 0 ? (
+                    <tr><td colSpan={4} style={{textAlign:'center',padding:'1rem'}}>[ SEM DADOS ]</td></tr>
+                  ) : (
+                    margemPorCategoria.map(m => (
+                      <tr key={m.categoria}>
+                        <td style={{fontWeight:700}}>{m.categoria}</td>
+                        <td style={{textAlign:'right',fontVariantNumeric:'tabular-nums'}}>{formatCurrency(m.receita)}</td>
+                        <td style={{textAlign:'right',fontVariantNumeric:'tabular-nums',color:'var(--texto-desab)'}}>{formatCurrency(m.custo)}</td>
+                        <td style={{textAlign:'center',fontWeight:900,color: m.margem >= 0 ? 'var(--verde)' : 'var(--vermelho)'}}>
+                          {m.margem >= 0 ? '+' : ''}{m.margem.toFixed(1)}%
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
 
         </div>
       )}

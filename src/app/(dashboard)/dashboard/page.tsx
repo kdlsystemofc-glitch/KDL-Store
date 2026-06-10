@@ -12,6 +12,7 @@ type KPIs = {
   vendasHoje: number; faturamentoHoje: number; ticketMedio: number
   produtosCriticos: number; fiadoAberto: number; fiadosVencidos: number; despesasMes: number
   comissoesPagar: number; clientesSumidos: number
+  crmAtencao: number; crmSumido: number; crmPerdido: number
   vendasSemana: { dia: string; total: number }[]
   totalProdutos: number; totalVendas: number
 }
@@ -19,6 +20,7 @@ type KPIs = {
 const EMPTY: KPIs = {
   vendasHoje:0, faturamentoHoje:0, ticketMedio:0, produtosCriticos:0,
   fiadoAberto:0, fiadosVencidos:0, despesasMes:0, comissoesPagar:0, clientesSumidos:0,
+  crmAtencao:0, crmSumido:0, crmPerdido:0,
   vendasSemana:[], totalProdutos:0, totalVendas:0,
 }
 
@@ -46,7 +48,7 @@ export default function DashboardPage() {
       supabase.from('vendas').select('criado_em,total').eq('empresa_id', eid).eq('status','concluida')
         .gte('criado_em', new Date(Date.now()-6*86400000).toISOString()).order('criado_em'),
       supabase.from('clientes').select('ultima_compra').eq('empresa_id', eid).eq('ativo',true),
-      supabase.from('empresas').select('crm_prazo_inatividade_dias').eq('id', eid).single(),
+      supabase.from('empresas').select('crm_dias_atencao,crm_dias_sumido,crm_dias_perdido,crm_prazo_inatividade_dias').eq('id', eid).single(),
       supabase.from('produtos').select('*', { count: 'exact', head: true }).eq('empresa_id', eid),
       supabase.from('vendas').select('*', { count: 'exact', head: true }).eq('empresa_id', eid),
     ])
@@ -69,9 +71,26 @@ export default function DashboardPage() {
     const fiadoTotal = (fiados||[]).reduce((a: number, f: any) => a + (f.valor_aberto||0), 0)
     const fiadosVencidos = (fiados||[]).filter((f: any) => f.data_vencimento && f.data_vencimento < hoje).length
     const despTotal  = (despesas||[]).reduce((a: number, d: any) => a + (d.valor||0), 0)
-    const prazo      = empresaData?.crm_prazo_inatividade_dias || 60
-    const limiteData = new Date(Date.now() - prazo * 86400000).toISOString().slice(0,10)
-    const sumidos    = (clientes||[]).filter((c: any) => !c.ultima_compra || c.ultima_compra < limiteData).length
+
+    // CRM 3-tier: usa novos campos se disponíveis, senão faz fallback
+    const diasAtencao = empresaData?.crm_dias_atencao ?? Math.max(15, Math.floor((empresaData?.crm_prazo_inatividade_dias ?? 60) / 2))
+    const diasSumido  = empresaData?.crm_dias_sumido  ?? (empresaData?.crm_prazo_inatividade_dias ?? 60)
+    const diasPerdido = empresaData?.crm_dias_perdido ?? Math.round((empresaData?.crm_prazo_inatividade_dias ?? 60) * 1.5)
+
+    const hoje8601 = hoje // 'YYYY-MM-DD'
+    const limiteAtencao = new Date(Date.now() - diasAtencao * 86400000).toISOString().slice(0,10)
+    const limiteSumido  = new Date(Date.now() - diasSumido  * 86400000).toISOString().slice(0,10)
+    const limitePerdido = new Date(Date.now() - diasPerdido * 86400000).toISOString().slice(0,10)
+
+    let crmAtencao = 0, crmSumido = 0, crmPerdido = 0
+    ;(clientes||[]).forEach((c: any) => {
+      const ultima = c.ultima_compra
+      if (!ultima || ultima >= limiteAtencao) return // dentro do prazo, não conta
+      if (ultima < limitePerdido)      crmPerdido++
+      else if (ultima < limiteSumido)  crmSumido++
+      else                             crmAtencao++
+    })
+    const sumidos = crmAtencao + crmSumido + crmPerdido
 
     const porDia: Record<string,number> = {}
     ;(vendasSemana||[]).forEach((v: any) => { const d = v.criado_em.slice(0,10); porDia[d]=(porDia[d]||0)+v.total })
@@ -85,6 +104,7 @@ export default function DashboardPage() {
       ticketMedio: qtdHoje > 0 ? totalHoje/qtdHoje : 0,
       produtosCriticos: (criticos||[]).length,
       fiadoAberto: fiadoTotal, fiadosVencidos, despesasMes: despTotal, comissoesPagar: 0, clientesSumidos: sumidos,
+      crmAtencao, crmSumido, crmPerdido,
       vendasSemana: dias, totalProdutos: totalProdutos||0, totalVendas: totalVendas||0,
     })
     setLoading(false)
@@ -190,7 +210,7 @@ export default function DashboardPage() {
             {label:'Estoque Crítico',  valor:String(kpis.produtosCriticos), suf:'produto(s)', cor:kpis.produtosCriticos>0?'#c0392b':'#1a7a3c', top:kpis.produtosCriticos>0?'#c0392b':'#1a7a3c', href:'/estoque'},
             {label:'Fiado em Aberto',  valor:formatCurrency(kpis.fiadoAberto), suf:'pendente', cor:kpis.fiadoAberto>0?'#b7860b':'#1a7a3c', top:kpis.fiadoAberto>0?'#b7860b':'#cccccc', href:'/financeiro/fiado', extra: kpis.fiadosVencidos > 0 ? `⚠ ${kpis.fiadosVencidos} vencido(s)` : null},
             {label:'Despesas do Mês',  valor:formatCurrency(kpis.despesasMes), suf:'lançados', cor:'#111111', top:'#1a5fa8', href:'/financeiro/despesas'},
-            {label:'Clientes Sumidos', valor:String(kpis.clientesSumidos), suf:'inativos', cor:kpis.clientesSumidos>0?'#b7860b':'#1a7a3c', top:kpis.clientesSumidos>0?'#b7860b':'#cccccc', href:'/clientes'},
+            {label:'Clientes Sumidos', valor:String(kpis.clientesSumidos), suf:kpis.clientesSumidos > 0 ? `🟡${kpis.crmAtencao} 🟠${kpis.crmSumido} 🔴${kpis.crmPerdido}` : 'todos em dia', cor:kpis.clientesSumidos>0?'#b7860b':'#1a7a3c', top:kpis.clientesSumidos>0?'#b7860b':'#cccccc', href:'/clientes/inativos'},
           ].map((k: any) => (
             <Link key={k.label} href={k.href} style={{textDecoration:'none',display:'block',background:'#ffffff',border:'1px solid #cccccc',borderTop:`3px solid ${k.top}`,borderRadius:'4px',padding:'0.875rem',color:'inherit',transition:'box-shadow 0.12s',boxShadow:'0 1px 3px rgba(0,0,0,0.06)'}}
               onMouseEnter={e=>(e.currentTarget.style.boxShadow='0 3px 10px rgba(0,0,0,0.1)')}

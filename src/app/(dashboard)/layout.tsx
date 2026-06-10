@@ -2,13 +2,14 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { useState, useEffect, useRef, createContext } from 'react'
+import { useState, useEffect, useRef, createContext, useCallback, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
   LayoutDashboard, ShoppingCart, Package, Users, BarChart3,
-  Shield, FileBarChart2, Settings, Plus, LogOut, Menu, X, Lock
+  Shield, FileBarChart2, Settings, Plus, LogOut, Menu, X, Lock, Bell,
 } from 'lucide-react'
 import { OperadorOnly } from '@/components/OperadorOnly'
+import { useNotifications } from '@/hooks/useNotifications'
 
 /* ─ Contexto de Permissões para operadores ─ */
 export const PermissionsContext = createContext<{
@@ -282,7 +283,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     plano: 'start',
     papel: '',
     nomeUsuario: 'Carregando...',
-    permissoes: {} as Record<string, 'read' | 'write' | 'none'>
+    permissoes: {} as Record<string, 'read' | 'write' | 'none'>,
+    empresaId: '',
   })
   const [precisaTrocarSenha, setPrecisaTrocarSenha] = useState(false)
   const [novaSenha, setNovaSenha] = useState('')
@@ -292,40 +294,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [atualizandoSenha, setAtualizandoSenha] = useState(false)
   const [erroSenha, setErroSenha] = useState('')
   const router = useRouter()
-  const searchParams = useSearchParams()
-
-  // Fix 1.5 — Polling de plano após upgrade Stripe
-  // Quando Stripe redireciona com ?sucesso=1, limpa o cache e aguarda o webhook
-  // atualizar empresas.plano para 'pro' antes de recarregar o badge
-  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  useEffect(() => {
-    const sucesso = searchParams?.get('sucesso')
-    if (sucesso !== '1') return
-    // Limpa cache de assinatura
-    try { localStorage.removeItem('kdl_subscription_cache') } catch {}
-    let tentativas = 0
-    const MAX = 15 // 30 segundos (2s cada)
-    pollingRef.current = setInterval(async () => {
-      tentativas++
-      try {
-        const supabase = createClient()
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
-        const { data: profile } = await supabase.from('profiles').select('empresa_id').eq('id', user.id).single()
-        if (!profile?.empresa_id) return
-        const { data: empresa } = await supabase.from('empresas').select('plano').eq('id', profile.empresa_id).single()
-        if (empresa?.plano === 'pro') {
-          setHeaderInfo(prev => ({ ...prev, plano: 'pro' }))
-          try { localStorage.removeItem('kdl_subscription_cache') } catch {}
-          if (pollingRef.current) clearInterval(pollingRef.current)
-          // Remove ?sucesso=1 da URL sem reload
-          router.replace(window.location.pathname)
-        }
-      } catch { /* ignora erros de polling */ }
-      if (tentativas >= MAX && pollingRef.current) clearInterval(pollingRef.current)
-    }, 2000)
-    return () => { if (pollingRef.current) clearInterval(pollingRef.current) }
-  }, [searchParams, router])
 
   useEffect(() => { setIsMounted(true) }, [])
 
@@ -363,6 +331,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           papel: profile.papel || '',
           nomeUsuario: profile.nome || user.email || 'Usuário',
           permissoes: profile.permissoes || {},
+          empresaId: profile.empresa_id,
         })
       }
 
@@ -426,6 +395,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <PermissionsContext.Provider value={{ papel: headerInfo.papel, permissoes: headerInfo.permissoes, temPermissao }}>
+      <Suspense fallback={null}>
+        <StripePollingListener setHeaderInfo={setHeaderInfo} />
+      </Suspense>
       <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--fundo)' }}>
       {/* Modal de Troca de Senha Obrigatória no Primeiro Acesso */}
       {precisaTrocarSenha && (
@@ -564,56 +536,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-        {/* Header */}
-        <header style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          height: '48px', padding: '0 1.25rem', flexShrink: 0,
-          background: 'var(--surface)', borderBottom: '1px solid var(--borda)',
-        }}>
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="lg:hidden"
-            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: '4px' }}
-          >
-            <Menu size={18} />
-          </button>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginLeft: 'auto' }}>
-            <Link href="/vendas/nova" style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.375rem',
-              fontSize: '0.72rem',
-              background: 'rgba(0,191,165,0.08)',
-              color: 'var(--verde)',
-              border: '1px solid rgba(0,191,165,0.2)',
-              padding: '0.2rem 0.5rem',
-              borderRadius: 'var(--radius-sm)',
-              fontWeight: 700,
-              textDecoration: 'none',
-              transition: 'background 0.1s',
-            }}
-              onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,191,165,0.15)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,191,165,0.08)'}
-              title="Ir para o PDV (Frente de Caixa)"
-            >
-              <span>PDV</span>
-              <span style={{
-                fontSize: '0.58rem',
-                background: 'var(--verde)',
-                color: '#060a06',
-                padding: '1px 3px',
-                borderRadius: '2px',
-                fontFamily: 'monospace',
-                fontWeight: 900,
-                letterSpacing: '0.02em',
-              }}>F2</span>
-            </Link>
-            <span style={{ fontSize: '0.78rem', color: 'var(--muted)', fontWeight: 500 }} className="hidden sm:block">
-              {headerInfo.nomeLoja}
-            </span>
-          </div>
-        </header>
+        {/* Header com sino de notificações */}
+        <HeaderWithBell
+          nomeLoja={headerInfo.nomeLoja}
+          empresaId={headerInfo.empresaId}
+          onMenuClick={() => setSidebarOpen(true)}
+        />
         <SubscriptionBanner />
         <main style={{ flex: 1, overflowY: 'auto', padding: '1.25rem 1.5rem' }}>
           {temAcessoModulo ? children : (
@@ -664,6 +592,175 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   )
 }
 
+function HeaderWithBell({ nomeLoja, empresaId, onMenuClick }: { nomeLoja: string; empresaId: string; onMenuClick?: () => void }) {
+  const [bellOpen, setBellOpen] = useState(false)
+  const bellRef = useRef<HTMLDivElement>(null)
+  const { notificacoes, naoLidas, marcarLida, marcarTodasLidas } = useNotifications(empresaId || null)
+  const router = useRouter()
+
+  // Fecha o painel ao clicar fora
+  useEffect(() => {
+    if (!bellOpen) return
+    const handler = (e: MouseEvent) => {
+      if (bellRef.current && !bellRef.current.contains(e.target as Node)) {
+        setBellOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [bellOpen])
+
+  const tipoIcon: Record<string, string> = {
+    estoque_critico: '📦',
+    garantia_expirando: '🛡️',
+    fiado_vencido: '💸',
+    os_vencida: '🔧',
+    pedido_aguardando_entrada: '📥',
+    geral: '🔔',
+  }
+
+  return (
+    <header style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      height: '48px', padding: '0 1.25rem', flexShrink: 0,
+      background: 'var(--surface)', borderBottom: '1px solid var(--borda)',
+      position: 'relative', zIndex: 30,
+    }}>
+      {/* Menu burger (mobile) */}
+      <button
+        onClick={onMenuClick}
+        className="lg:hidden"
+        style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: '4px' }}
+      >
+        <Menu size={18} />
+      </button>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginLeft: 'auto' }}>
+        {/* PDV shortcut */}
+        <Link href="/vendas/nova" style={{
+          display: 'flex', alignItems: 'center', gap: '0.375rem',
+          fontSize: '0.72rem', background: 'rgba(0,191,165,0.08)', color: 'var(--verde)',
+          border: '1px solid rgba(0,191,165,0.2)', padding: '0.2rem 0.5rem',
+          borderRadius: 'var(--radius-sm)', fontWeight: 700, textDecoration: 'none', transition: 'background 0.1s',
+        }}
+          onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,191,165,0.15)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,191,165,0.08)'}
+          title="Ir para o PDV (Frente de Caixa)"
+        >
+          <span>PDV</span>
+          <span style={{ fontSize: '0.58rem', background: 'var(--verde)', color: '#060a06', padding: '1px 3px', borderRadius: '2px', fontFamily: 'monospace', fontWeight: 900 }}>F2</span>
+        </Link>
+
+        <span style={{ fontSize: '0.78rem', color: 'var(--muted)', fontWeight: 500 }} className="hidden sm:block">
+          {nomeLoja}
+        </span>
+
+        {/* 🔔 Sino de Notificações */}
+        <div ref={bellRef} style={{ position: 'relative' }}>
+          <button
+            onClick={() => setBellOpen(v => !v)}
+            style={{
+              position: 'relative', background: 'transparent', border: 'none',
+              cursor: 'pointer', color: naoLidas > 0 ? 'var(--amarelo, #f59e0b)' : 'var(--muted, #aaa)',
+              padding: '4px', borderRadius: '6px', display: 'flex', alignItems: 'center',
+              transition: 'color 0.15s',
+            }}
+            title="Notificações"
+          >
+            <Bell size={18} />
+            {naoLidas > 0 && (
+              <span style={{
+                position: 'absolute', top: '-2px', right: '-2px',
+                minWidth: '16px', height: '16px',
+                background: 'var(--vermelho, #e74c3c)', color: '#fff',
+                borderRadius: '999px', fontSize: '0.55rem', fontWeight: 900,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                padding: '0 3px', lineHeight: 1,
+                border: '1.5px solid var(--surface)',
+                fontFamily: 'monospace',
+              }}>
+                {naoLidas > 99 ? '99+' : naoLidas}
+              </span>
+            )}
+          </button>
+
+          {/* Painel dropdown */}
+          {bellOpen && (
+            <div className="anim-pop" style={{
+              position: 'absolute', top: '100%', right: 0,
+              width: '340px', maxHeight: '420px',
+              background: 'var(--surface)', border: '1px solid var(--borda)',
+              borderRadius: 'var(--radius)', boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+              overflow: 'hidden', display: 'flex', flexDirection: 'column',
+              marginTop: '4px',
+            }}>
+              {/* Cabeçalho */}
+              <div style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '0.75rem 1rem', borderBottom: '1px solid var(--borda)',
+                background: 'var(--surface-alt)',
+              }}>
+                <p style={{ fontWeight: 800, fontSize: '0.82rem', margin: 0 }}>
+                  🔔 Notificações
+                  {naoLidas > 0 && <span style={{ marginLeft: '0.375rem', fontSize: '0.7rem', fontWeight: 600, color: 'var(--texto-desab)' }}>({naoLidas} nova{naoLidas !== 1 ? 's' : ''})</span>}
+                </p>
+                {naoLidas > 0 && (
+                  <button
+                    onClick={marcarTodasLidas}
+                    style={{ fontSize: '0.7rem', color: 'var(--verde)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}
+                  >
+                    Marcar todas como lidas
+                  </button>
+                )}
+              </div>
+
+              {/* Lista */}
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                {notificacoes.length === 0 ? (
+                  <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--texto-desab)' }}>
+                    <p style={{ fontSize: '1.75rem', marginBottom: '0.5rem' }}>✅</p>
+                    <p style={{ fontSize: '0.82rem', fontWeight: 600 }}>Tudo em dia!</p>
+                    <p style={{ fontSize: '0.72rem', marginTop: '0.25rem' }}>Nenhuma notificação pendente.</p>
+                  </div>
+                ) : (
+                  notificacoes.slice(0, 20).map(n => (
+                    <div
+                      key={n.id}
+                      onClick={() => {
+                        marcarLida(n.id)
+                        if (n.link) { router.push(n.link); setBellOpen(false) }
+                      }}
+                      style={{
+                        display: 'flex', gap: '0.625rem', padding: '0.625rem 1rem',
+                        borderBottom: '1px solid var(--borda-leve)',
+                        background: n.lida ? 'transparent' : 'rgba(0,191,165,0.04)',
+                        cursor: n.link ? 'pointer' : 'default',
+                        transition: 'background 0.1s',
+                        opacity: n.lida ? 0.6 : 1,
+                      }}
+                      onMouseEnter={e => { if (!n.lida || n.link) e.currentTarget.style.background = 'var(--surface-alt)' }}
+                      onMouseLeave={e => e.currentTarget.style.background = n.lida ? 'transparent' : 'rgba(0,191,165,0.04)'}
+                    >
+                      <span style={{ fontSize: '1.25rem', flexShrink: 0, lineHeight: 1, marginTop: '1px' }}>{tipoIcon[n.tipo] || '🔔'}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontWeight: 700, fontSize: '0.75rem', margin: 0, color: 'var(--texto)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.titulo}</p>
+                        <p style={{ fontSize: '0.68rem', color: 'var(--texto-sec)', margin: '2px 0 0', lineHeight: '1.4', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.descricao}</p>
+                      </div>
+                      {!n.lida && (
+                        <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'var(--verde)', flexShrink: 0, marginTop: '5px' }} />
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </header>
+  )
+}
+
 function SubscriptionBanner() {
   const { status, cancel_at_period_end, current_period_end } = require('@/hooks/useSubscription').useSubscription()
   const router = useRouter()
@@ -711,6 +808,41 @@ function SubscriptionBanner() {
       </div>
     )
   }
+
+  return null
+}
+
+function StripePollingListener({ setHeaderInfo }: { setHeaderInfo: React.Dispatch<React.SetStateAction<any>> }) {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    const sucesso = searchParams?.get('sucesso')
+    if (sucesso !== '1') return
+    try { localStorage.removeItem('kdl_subscription_cache') } catch {}
+    let tentativas = 0
+    const MAX = 15
+    pollingRef.current = setInterval(async () => {
+      tentativas++
+      try {
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+        const { data: profile } = await supabase.from('profiles').select('empresa_id').eq('id', user.id).single()
+        if (!profile?.empresa_id) return
+        const { data: empresa } = await supabase.from('empresas').select('plano').eq('id', profile.empresa_id).single()
+        if (empresa?.plano === 'pro') {
+          setHeaderInfo((prev: any) => ({ ...prev, plano: 'pro' }))
+          try { localStorage.removeItem('kdl_subscription_cache') } catch {}
+          if (pollingRef.current) clearInterval(pollingRef.current)
+          router.replace(window.location.pathname)
+        }
+      } catch {}
+      if (tentativas >= MAX && pollingRef.current) clearInterval(pollingRef.current)
+    }, 2000)
+    return () => { if (pollingRef.current) clearInterval(pollingRef.current) }
+  }, [searchParams, router, setHeaderInfo])
 
   return null
 }
