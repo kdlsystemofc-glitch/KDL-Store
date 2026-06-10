@@ -39,7 +39,7 @@ CREATE POLICY "itens_pedido_empresa"
   FOR ALL
   USING (
     empresa_id IN (
-      SELECT empresa_id FROM usuarios WHERE auth_user_id = auth.uid()
+      SELECT empresa_id FROM profiles WHERE id = auth.uid()
     )
   );
 
@@ -70,7 +70,7 @@ CREATE POLICY "pagamentos_comissao_empresa"
   FOR ALL
   USING (
     empresa_id IN (
-      SELECT empresa_id FROM usuarios WHERE auth_user_id = auth.uid()
+      SELECT empresa_id FROM profiles WHERE id = auth.uid()
     )
   );
 
