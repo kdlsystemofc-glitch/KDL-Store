@@ -207,6 +207,9 @@ export function useNotifications(empresaId: string | null) {
 
   useEffect(() => {
     carregar()
+    // Atualiza a cada 5 minutos enquanto o usuário está na plataforma
+    const interval = setInterval(carregar, 5 * 60 * 1000)
+    return () => clearInterval(interval)
   }, [carregar])
 
   async function marcarLida(id: string) {

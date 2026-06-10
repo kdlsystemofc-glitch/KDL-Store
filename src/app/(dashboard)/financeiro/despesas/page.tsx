@@ -291,7 +291,7 @@ export default function DespesasPage() {
       {/* ── HEADER ── */}
       <div className="pg-header">
         <div style={{display:'flex',alignItems:'center',gap:'0.625rem'}}>
-          <Link href="/financeiro" className="btn btn-secondary" style={{padding:'0.4rem 0.625rem'}}><ArrowLeft size={15}/></Link>
+          <Link href="/financeiro" className="btn btn-secondary" style={{padding:'0.4rem 0.625rem'}} aria-label="Voltar ao Financeiro"><ArrowLeft size={15}/></Link>
           <div>
             <h1 className="pg-titulo">💸 Despesas</h1>
             <p className="pg-sub">{pendentes} a pagar · {formatCurrency(totalMes)} planejado em {mesLabel}</p>
@@ -313,9 +313,9 @@ export default function DespesasPage() {
 
       {/* ── SELETOR DE MÊS ── */}
       <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'0.75rem',padding:'0.5rem 1rem',background:'var(--surface)',border:'1px solid var(--borda)',borderRadius:'var(--radius)'}}>
-        <button onClick={()=>navMes(-1)} className="btn btn-secondary" style={{padding:'0.3rem 0.625rem'}}><ChevronLeft size={16}/></button>
+        <button onClick={()=>navMes(-1)} className="btn btn-secondary" style={{padding:'0.3rem 0.625rem'}} aria-label="Mês anterior"><ChevronLeft size={16}/></button>
         <span style={{fontWeight:800,fontSize:'1rem',textTransform:'capitalize',minWidth:'200px',textAlign:'center',color:'var(--texto)'}}>{mesLabel}</span>
-        <button onClick={()=>navMes(+1)} className="btn btn-secondary" style={{padding:'0.3rem 0.625rem'}}><ChevronRight size={16}/></button>
+        <button onClick={()=>navMes(+1)} className="btn btn-secondary" style={{padding:'0.3rem 0.625rem'}} aria-label="Próximo mês"><ChevronRight size={16}/></button>
       </div>
 
       {/* ── KPIs ── */}
@@ -467,7 +467,8 @@ export default function DespesasPage() {
                         {isFilhaRecorrente(d)&&<span style={{fontSize:'0.62rem',color:'var(--texto-desab)',fontWeight:400}}>↩ auto</span>}
                         {d.observacao&&(
                           <button onClick={()=>setExpandido(expandido===d.id?null:d.id)}
-                            style={{background:'none',border:'none',cursor:'pointer',color:'var(--texto-desab)',padding:0,display:'flex',alignItems:'center'}}>
+                            style={{background:'none',border:'none',cursor:'pointer',color:'var(--texto-desab)',padding:0,display:'flex',alignItems:'center'}}
+                            aria-label="Ver detalhes da observação">
                             <FileText size={11}/>
                           </button>
                         )}
@@ -504,11 +505,11 @@ export default function DespesasPage() {
                         )}
                         <AdminOnly>
                           <button onClick={()=>abrirEdit(d)} className="btn btn-secondary"
-                            style={{fontSize:'0.62rem',padding:'0.2rem 0.4rem'}} title="Editar">
+                            style={{fontSize:'0.62rem',padding:'0.2rem 0.4rem'}} title="Editar" aria-label="Editar despesa">
                             <Pencil size={10}/>
                           </button>
                           <button onClick={()=>excluir(d.id)} className="btn btn-secondary"
-                            style={{fontSize:'0.62rem',padding:'0.2rem 0.4rem',color:'var(--vermelho)'}} title="Excluir">
+                            style={{fontSize:'0.62rem',padding:'0.2rem 0.4rem',color:'var(--vermelho)'}} title="Excluir" aria-label="Excluir despesa">
                             <Trash2 size={10}/>
                           </button>
                         </AdminOnly>

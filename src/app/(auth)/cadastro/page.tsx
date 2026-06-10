@@ -38,7 +38,7 @@ export default function CadastroPage() {
   const [erro, setErro] = useState<string | null>(null)
   const [sucesso, setSucesso] = useState(false)
 
-  const senhaForte = senha.length >= 8 && /[A-Z]/.test(senha) && /[0-9]/.test(senha)
+  const senhaForte = senha.length >= 8 && /[A-Z]/.test(senha) && /[0-9]/.test(senha) && /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>/?]/.test(senha)
 
   const focus = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => {
     e.target.style.borderColor = 'var(--verde)'
@@ -53,7 +53,7 @@ export default function CadastroPage() {
     e.preventDefault(); setErro(null)
     if (!nomeLoja || !tipo || !email || !senha || !confirmar) { setErro('Preencha todos os campos.'); return }
     if (senha !== confirmar) { setErro('As senhas não coincidem.'); return }
-    if (!senhaForte) { setErro('Senha fraca. Use 8+ caracteres, 1 maiúscula e 1 número.'); return }
+    if (!senhaForte) { setErro('Senha fraca. Use 8+ caracteres, 1 maiúscula, 1 número e 1 caractere especial (!@#$...).'); return }
 
     setLoading(true)
     const supabase = createClient()
@@ -146,7 +146,7 @@ export default function CadastroPage() {
 
         <div>
           <label style={lbl}>
-            Senha * <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: '0.72rem' }}>(8+ chars, 1 maiúscula, 1 número)</span>
+            Senha * <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: '0.72rem' }}>(8+ chars, 1 maiúscula, 1 número, 1 especial)</span>
           </label>
           <div style={{ position: 'relative' }}>
             <input id="cad-senha" type={showPwd ? 'text' : 'password'}
@@ -166,6 +166,7 @@ export default function CadastroPage() {
                 { ok: senha.length >= 8, l: '8+ chars' },
                 { ok: /[A-Z]/.test(senha), l: 'Maiúscula' },
                 { ok: /[0-9]/.test(senha), l: 'Número' },
+                { ok: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>/?]/.test(senha), l: 'Especial' },
               ].map(c => (
                 <span key={c.l} style={{ fontSize: '0.72rem', fontWeight: 600, color: c.ok ? 'var(--verde)' : 'var(--muted)' }}>
                   {c.ok ? '✓' : '○'} {c.l}

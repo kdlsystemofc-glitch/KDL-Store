@@ -1,6 +1,6 @@
 'use client'
 import { toast } from 'react-hot-toast'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
@@ -17,31 +17,70 @@ type Produto = {
   ativo_catalogo: boolean | null; destaque: boolean | null
 }
 
+type KpiProduto = { qtd_atual: number; qtd_minima: number; preco_custo: number }
+
+const PAGE_SIZE = 50
+
 export default function ProdutosPage() {
   const { empresaId } = useEmpresaId()
+  // Paginated table data
   const [produtos,   setProdutos]   = useState<Produto[]>([])
+  const [total,      setTotal]      = useState(0)
+  const [page,       setPage]       = useState(1)
+  // KPI data (lightweight — só 3 colunas, todos os produtos)
+  const [kpis,       setKpis]       = useState<KpiProduto[]>([])
   const [busca,      setBusca]      = useState('')
   const [loading,    setLoading]    = useState(true)
   const [erro,       setErro]       = useState<string | null>(null)
   const [showModal,  setShowModal]  = useState(false)
   const [toggling,   setToggling]   = useState<string | null>(null)
-  const [page,       setPage]       = useState(1)
-  const PAGE_SIZE = 50
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  useEffect(() => { if (empresaId) carregar(empresaId) }, [empresaId])
-  useEffect(() => { setPage(1) }, [busca])
+  // Carrega KPIs (lightweight: 3 colunas de todos os produtos para totais e alertas)
+  const carregarKpis = useCallback(async (eid: string) => {
+    const { data } = await createClient()
+      .from('produtos')
+      .select('qtd_atual,qtd_minima,preco_custo')
+      .eq('empresa_id', eid)
+    setKpis(data || [])
+  }, [])
 
-  async function carregar(eid: string) {
+  // Carrega página paginada com busca server-side
+  const carregar = useCallback(async (eid: string, pg: number, buscaTxt: string) => {
     setLoading(true)
     setErro(null)
-    const { data, error } = await createClient()
+    const from = (pg - 1) * PAGE_SIZE
+    const to   = from + PAGE_SIZE - 1
+    let q = createClient()
       .from('produtos')
-      .select('id,nome,sku,categoria,preco_varejo,preco_custo,qtd_atual,qtd_minima,ativo,imagem_url,ativo_catalogo,destaque')
+      .select('id,nome,sku,categoria,preco_varejo,preco_custo,qtd_atual,qtd_minima,ativo,imagem_url,ativo_catalogo,destaque', { count: 'exact' })
       .eq('empresa_id', eid)
       .order('nome')
+      .range(from, to)
+    if (buscaTxt.trim()) {
+      q = q.or(`nome.ilike.%${buscaTxt.trim()}%,sku.ilike.%${buscaTxt.trim()}%,categoria.ilike.%${buscaTxt.trim()}%`)
+    }
+    const { data, count, error } = await q
     if (error) { setErro('Erro ao carregar produtos.'); setLoading(false); return }
     setProdutos(data || [])
+    setTotal(count ?? 0)
     setLoading(false)
+  }, [])
+
+  useEffect(() => { if (empresaId) { carregarKpis(empresaId); carregar(empresaId, 1, '') } }, [empresaId, carregarKpis, carregar])
+
+  function aplicarBusca(novaBusca: string) {
+    setBusca(novaBusca)
+    setPage(1)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      if (empresaId) carregar(empresaId, 1, novaBusca)
+    }, 300)
+  }
+
+  function handlePage(p: number) {
+    setPage(p)
+    if (empresaId) carregar(empresaId, p, busca)
   }
 
   async function toggleCampo(id: string, campo: 'ativo_catalogo' | 'destaque', valorAtual: boolean | null) {
@@ -52,24 +91,18 @@ export default function ProdutosPage() {
       toast.error('Erro ao atualizar: ' + error.message)
     } else {
       setProdutos(prev => prev.map(p => p.id === id ? { ...p, [campo]: novoValor } : p))
+      setKpis(prev => prev.map(p => p)) // KPIs não mudam com toggle de catálogo
       const label = campo === 'ativo_catalogo' ? 'Catálogo' : 'Destaque'
       toast.success(`${label} ${novoValor ? 'ativado' : 'desativado'} com sucesso!`)
     }
     setToggling(null)
   }
 
-  const filtrados = produtos.filter(p =>
-    p.nome.toLowerCase().includes(busca.toLowerCase()) ||
-    (p.sku || '').toLowerCase().includes(busca.toLowerCase()) ||
-    (p.categoria || '').toLowerCase().includes(busca.toLowerCase())
-  )
-
-  const totalPages = Math.ceil(filtrados.length / PAGE_SIZE)
-  const paginados = filtrados.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-
-  const criticos   = produtos.filter(p => p.qtd_atual <= p.qtd_minima && p.qtd_minima > 0)
-  const totalItens = produtos.reduce((a, p) => a + p.qtd_atual, 0)
-  const valorEstoque = produtos.reduce((a, p) => a + p.qtd_atual * p.preco_custo, 0)
+  const totalPages  = Math.ceil(total / PAGE_SIZE)
+  const criticos    = kpis.filter(p => p.qtd_atual <= p.qtd_minima && p.qtd_minima > 0)
+  const totalItens  = kpis.reduce((a, p) => a + p.qtd_atual, 0)
+  const valorEstoque = kpis.reduce((a, p) => a + p.qtd_atual * p.preco_custo, 0)
+  const totalCadastros = kpis.length
 
   return (
     <div className="anim-fade" style={{ display:'flex', flexDirection:'column', gap:'0.75rem' }}>
@@ -77,7 +110,7 @@ export default function ProdutosPage() {
       <div className="pg-header">
         <div>
           <h1 className="pg-titulo">PRODUTOS &amp; ESTOQUE</h1>
-          <p className="pg-sub">{produtos.length} CADASTROS · {totalItens} ITENS EM ESTOQUE</p>
+          <p className="pg-sub">{totalCadastros} CADASTROS · {totalItens} ITENS EM ESTOQUE</p>
         </div>
         <button onClick={() => setShowModal(true)} className="btn btn-primary">
           + NOVO PRODUTO
@@ -96,7 +129,7 @@ export default function ProdutosPage() {
               <button onClick={()=>setShowModal(false)} className="btn-icon"><X size={16}/></button>
             </div>
             <div style={{ padding:'1rem' }}>
-              <FormProduto onSuccess={() => { toast.success('Salvo com sucesso!'); setShowModal(false); if (empresaId) carregar(empresaId); }} onCancel={() => setShowModal(false)} />
+              <FormProduto onSuccess={() => { toast.success('Salvo com sucesso!'); setShowModal(false); if (empresaId) carregar(empresaId, 1, ''); }} onCancel={() => setShowModal(false)} />
             </div>
           </div>
         </div>
@@ -110,8 +143,8 @@ export default function ProdutosPage() {
 
       {/* KPIs */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'0.5rem' }}>
-        {[
-          { label:'TOTAL PRODUTOS', valor: String(produtos.length), suf:'cadastros', dot:'var(--verde)', cor:'var(--verde)' },
+        {[{
+          label:'TOTAL PRODUTOS', valor: String(totalCadastros), suf:'cadastros', dot:'var(--verde)', cor:'var(--verde)' },
           { label:'VALOR ESTOQUE',  valor: formatCurrency(valorEstoque), suf:'preço de custo', dot:'var(--azul)', cor:'var(--texto-mono)' },
           { label:'ESTQ. CRÍTICO',  valor: String(criticos.length), suf:'abaixo do mínimo', dot: criticos.length > 0 ? 'var(--vermelho)' : 'var(--verde)', cor: criticos.length > 0 ? 'var(--vermelho)' : 'var(--verde)' },
         ].map(k => (
@@ -129,14 +162,14 @@ export default function ProdutosPage() {
       {/* Alerta críticos */}
       {criticos.length > 0 && (
         <div className="alerta alerta-perigo">
-          ⚠ <strong>{criticos.length} produto(s)</strong> abaixo do estoque mínimo: {criticos.map(p=>p.nome).join(', ')}
+          ⚠ <strong>{criticos.length} produto(s)</strong> abaixo do estoque mínimo
         </div>
       )}
 
       {/* Busca */}
       <div style={{ maxWidth:'360px' }}>
         <input className="campo" placeholder="BUSCAR POR NOME, SKU OU CATEGORIA_"
-          value={busca} onChange={e => setBusca(e.target.value)} />
+          value={busca} onChange={e => aplicarBusca(e.target.value)} />
       </div>
 
       {/* Lista */}
@@ -146,8 +179,8 @@ export default function ProdutosPage() {
         </div>
       ) : erro ? (
         <div className="alerta alerta-perigo">{erro}</div>
-      ) : filtrados.length === 0 ? (
-        busca || produtos.length > 0 ? (
+      ) : total === 0 ? (
+        busca ? (
           <EmptyState
             icon="🔍"
             title="Nenhum produto encontrado"
@@ -179,7 +212,7 @@ export default function ProdutosPage() {
               </tr>
             </thead>
             <tbody>
-              {paginados.map(p => {
+              {produtos.map(p => {
                 const critico = p.qtd_atual <= p.qtd_minima && p.qtd_minima > 0
                 const isTogglingCatalogo = toggling === p.id + 'ativo_catalogo'
                 const isTogglingDestaque = toggling === p.id + 'destaque'
@@ -260,8 +293,26 @@ export default function ProdutosPage() {
             </tbody>
           </table>
         </div>
-        <Pagination page={page} totalPages={totalPages} total={filtrados.length} pageSize={PAGE_SIZE} onPage={setPage} />
+        <Pagination page={page} totalPages={totalPages} total={total} pageSize={PAGE_SIZE} onPage={handlePage} />
       </>
+      )}
+      {/* Modal novo produto (inline, sem navegação) */}
+      {showModal && (
+        <div style={{ position:'fixed', inset:0, zIndex:100, background:'rgba(0,0,0,0.88)', display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' }}
+          onClick={e=>{if(e.target===e.currentTarget)setShowModal(false)}}>
+          <div className="anim-pop" style={{ width:'100%', maxWidth:'800px', maxHeight:'90vh', overflowY:'auto', background:'var(--surface)', border:'1px solid var(--borda-forte)', borderRadius:'2px' }}>
+            <div style={{ padding:'0.75rem 1rem', borderBottom:'2px solid var(--verde)', display:'flex', justifyContent:'space-between', alignItems:'center', position:'sticky', top:0, background:'var(--fundo-painel)', zIndex:10 }}>
+              <div>
+                <p style={{ fontSize:'0.78rem', fontWeight:700, color:'var(--verde)', textTransform:'uppercase', letterSpacing:'0.06em' }}>CADASTRAR NOVO PRODUTO</p>
+                <p style={{ fontSize:'0.65rem', color:'var(--texto-desab)' }}>Preencha os dados do item</p>
+              </div>
+              <button onClick={()=>setShowModal(false)} className="btn-icon" aria-label="Fechar modal"><X size={16}/></button>
+            </div>
+            <div style={{ padding:'1rem' }}>
+              <FormProduto onSuccess={() => { toast.success('Salvo com sucesso!'); setShowModal(false); if (empresaId) { carregarKpis(empresaId); carregar(empresaId, page, busca) } }} onCancel={() => setShowModal(false)} />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
@@ -27,6 +27,7 @@ const FORMAS: Record<string, string> = {
 
 export default function VendasPage() {
   const { empresaId } = useEmpresaId()
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // pagination & data
   const [vendas,      setVendas]      = useState<Venda[]>([])
@@ -129,7 +130,10 @@ export default function VendasPage() {
   function aplicarBusca(novaBusca: string) {
     setBusca(novaBusca)
     setPage(1)
-    if (empresaId) carregar(empresaId, 1, novaBusca, filtro)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      if (empresaId) carregar(empresaId, 1, novaBusca, filtro)
+    }, 300)
   }
 
   function handlePage(p: number) {

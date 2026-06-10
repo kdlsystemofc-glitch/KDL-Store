@@ -28,6 +28,8 @@ export default function EstoquePage() {
   const [filtro,    setFiltro]    = useState<'todos'|'criticos'|'brindes'>('todos')
   const [filtroMov, setFiltroMov] = useState<typeof FILTRO_TIPOS[number]>('todos')
   const [loading,   setLoading]   = useState(true)
+  const [loadingMovs, setLoadingMovs] = useState(false)
+  const [hasMoreMovs, setHasMoreMovs] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [tipoModal, setTipoModal] = useState<'entrada'|'ajuste'>('entrada')
 
@@ -58,7 +60,27 @@ export default function EstoquePage() {
     const { data: movimentos } = getRes(1)
     setProdutos(prods||[])
     setMovs(movimentos||[])
+    setHasMoreMovs((movimentos||[]).length === 80)
     setLoading(false)
+  }
+
+  async function carregarMaisMovs() {
+    if (!empresaId || loadingMovs) return
+    setLoadingMovs(true)
+    const proximoOffset = movs.length
+    const novoLimit = 80
+    const { data, error } = await createClient()
+      .from('estoque_movimentacoes')
+      .select('id,tipo,quantidade,custo_unitario,nota_fiscal,criado_em,obs,produtos(nome)')
+      .eq('empresa_id', empresaId)
+      .order('criado_em', { ascending: false })
+      .range(proximoOffset, proximoOffset + novoLimit - 1)
+    
+    if (!error && data) {
+      setMovs(prev => [...prev, ...data])
+      setHasMoreMovs(data.length === novoLimit)
+    }
+    setLoadingMovs(false)
   }
 
   function abrirModal(tipo: 'entrada'|'ajuste') {
@@ -282,6 +304,19 @@ export default function EstoquePage() {
             ))}
           </tbody>
         </table>
+        {hasMoreMovs && (
+          <div style={{ display:'flex', justifyContent:'center', padding:'1rem', borderTop:'1px solid var(--borda-leve)' }}>
+            <button
+              onClick={carregarMaisMovs}
+              className="btn btn-secondary"
+              disabled={loadingMovs}
+              style={{ fontSize:'0.72rem', padding:'0.4rem 1rem' }}
+              aria-label="Carregar mais movimentações de estoque"
+            >
+              {loadingMovs ? 'CARREGANDO...' : 'CARREGAR MAIS MOVIMENTAÇÕES'}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Modal de ajuste / entrada */}

@@ -68,8 +68,8 @@ export default function FinanceiroPage() {
       supabase.from('vendas').select('criado_em,total').eq('empresa_id', eid).eq('status','concluida').gte('criado_em', inicio15d),
       // [4] Brindes do mês
       supabase.from('estoque_movimentacoes').select('quantidade,produto_id,produtos(preco_custo)').eq('empresa_id', eid).eq('tipo','brinde').gte('criado_em', inicioMes).lte('criado_em', fimMes + 'T23:59:59'),
-      // [5] CMV
-      supabase.from('itens_venda').select('quantidade,produtos(preco_custo),vendas!inner(status,empresa_id)').eq('empresa_id', eid).gte('criado_em', inicioMes).lte('criado_em', fimMes + 'T23:59:59').eq('vendas.status','concluida').eq('vendas.empresa_id', eid),
+      // [5] CMV — filtra via vendas.criado_em (itens_venda pode não ter criado_em próprio)
+      supabase.from('itens_venda').select('quantidade,produtos(preco_custo),vendas!inner(status,empresa_id,criado_em)').eq('empresa_id', eid).eq('vendas.status','concluida').eq('vendas.empresa_id', eid).gte('vendas.criado_em', inicioMes).lte('vendas.criado_em', fimMes + 'T23:59:59'),
       // [6] OS concluídas/entregues no mês
       supabase.from('ordens_servico').select('valor_servico,valor_pecas,custo_pecas,criado_em').eq('empresa_id', eid).in('status',['concluido','entregue']).gte('criado_em', inicioMes).lte('criado_em', fimMes + 'T23:59:59'),
       // [7] OS 15 dias para gráfico
@@ -80,8 +80,8 @@ export default function FinanceiroPage() {
       supabase.from('despesas').select('valor').eq('empresa_id', eid).eq('status','pago').gte('data', inicioPrev).lte('data', fimPrev),
       // [10] Prev brindes
       supabase.from('estoque_movimentacoes').select('quantidade,produtos(preco_custo)').eq('empresa_id', eid).eq('tipo','brinde').gte('criado_em', inicioPrev).lte('criado_em', fimPrev + 'T23:59:59'),
-      // [11] Prev CMV
-      supabase.from('itens_venda').select('quantidade,produtos(preco_custo),vendas!inner(status,empresa_id)').eq('empresa_id', eid).gte('criado_em', inicioPrev).lte('criado_em', fimPrev + 'T23:59:59').eq('vendas.status','concluida').eq('vendas.empresa_id', eid),
+      // [11] Prev CMV — filtra via vendas.criado_em
+      supabase.from('itens_venda').select('quantidade,produtos(preco_custo),vendas!inner(status,empresa_id,criado_em)').eq('empresa_id', eid).eq('vendas.status','concluida').eq('vendas.empresa_id', eid).gte('vendas.criado_em', inicioPrev).lte('vendas.criado_em', fimPrev + 'T23:59:59'),
       // [12] Prev OS
       supabase.from('ordens_servico').select('valor_servico,valor_pecas,custo_pecas').eq('empresa_id', eid).in('status',['concluido','entregue']).gte('criado_em', inicioPrev).lte('criado_em', fimPrev + 'T23:59:59'),
     ])

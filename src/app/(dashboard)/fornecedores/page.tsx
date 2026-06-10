@@ -36,6 +36,12 @@ export default function FornecedoresPage() {
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([])
   const [pedidos,      setPedidos]      = useState<Pedido[]>([])
   const [busca,        setBusca]        = useState('')
+  const [buscaDebounced, setBuscaDebounced] = useState('')
+
+  useEffect(() => {
+    const t = setTimeout(() => setBuscaDebounced(busca), 300)
+    return () => clearTimeout(t)
+  }, [busca])
   const [loading,      setLoading]      = useState(true)
   const [showModal,    setShowModal]    = useState(false)
   const [editando,     setEditando]     = useState<Fornecedor | null>(null)
@@ -408,7 +414,7 @@ export default function FornecedoresPage() {
 
 
   const filtrados = fornecedores.filter(f => {
-    const q = busca.toLowerCase().trim()
+    const q = buscaDebounced.toLowerCase().trim()
     if (!q) return true
     return (
       f.nome.toLowerCase().includes(q) ||

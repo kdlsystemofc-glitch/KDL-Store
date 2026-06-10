@@ -1,6 +1,6 @@
 'use client'
 import { toast } from 'react-hot-toast'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useEmpresaId } from '@/lib/useEmpresaId'
@@ -42,15 +42,15 @@ export default function ClientesPage() {
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
 
-  // Fetch summary counts (active/inactive) independently
+  // Fetch summary counts (active/inactive) — server-side COUNT, sem transferir dados
   const carregarContagens = useCallback(async (eid: string) => {
-    const { data } = await createClient()
-      .from('clientes')
-      .select('ativo')
-      .eq('empresa_id', eid)
-    if (!data) return
-    setTotalAtivos(data.filter(c => c.ativo).length)
-    setTotalInativos(data.filter(c => !c.ativo).length)
+    const client = createClient()
+    const [{ count: ativos }, { count: inativos }] = await Promise.all([
+      client.from('clientes').select('*', { count: 'exact', head: true }).eq('empresa_id', eid).eq('ativo', true),
+      client.from('clientes').select('*', { count: 'exact', head: true }).eq('empresa_id', eid).eq('ativo', false),
+    ])
+    setTotalAtivos(ativos ?? 0)
+    setTotalInativos(inativos ?? 0)
   }, [])
 
   // Main fetch with server-side pagination + filters
@@ -116,10 +116,15 @@ export default function ClientesPage() {
     if (empresaId) carregar(empresaId, 1, busca, novoFiltro)
   }
 
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   function aplicarBusca(novaBusca: string) {
     setBusca(novaBusca)
     setPage(1)
-    if (empresaId) carregar(empresaId, 1, novaBusca, filtro)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      if (empresaId) carregar(empresaId, 1, novaBusca, filtro)
+    }, 300)
   }
 
   function handlePage(p: number) {

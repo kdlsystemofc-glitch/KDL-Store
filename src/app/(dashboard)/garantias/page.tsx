@@ -14,6 +14,12 @@ export default function GarantiasPage() {
   const { plano } = useSubscription()
   const [garantias, setGarantias] = useState<Garantia[]>([])
   const [busca,     setBusca]     = useState('')
+  const [buscaDebounced, setBuscaDebounced] = useState('')
+
+  useEffect(() => {
+    const t = setTimeout(() => setBuscaDebounced(busca), 300)
+    return () => clearTimeout(t)
+  }, [busca])
   const [filtro,    setFiltro]    = useState<'todas'|'ativas'|'vencidas'>('todas')
   const [loading,   setLoading]   = useState(true)
   
@@ -119,9 +125,9 @@ export default function GarantiasPage() {
   }
 
   const filtradas = garantias.filter(g => {
-    const matchBusca = (g.produto_nome||'').toLowerCase().includes(busca.toLowerCase())||
-      (g.cliente_nome||'').toLowerCase().includes(busca.toLowerCase())||
-      (g.num_serie||'').toLowerCase().includes(busca.toLowerCase())
+    const matchBusca = (g.produto_nome||'').toLowerCase().includes(buscaDebounced.toLowerCase())||
+      (g.cliente_nome||'').toLowerCase().includes(buscaDebounced.toLowerCase())||
+      (g.num_serie||'').toLowerCase().includes(buscaDebounced.toLowerCase())
     const matchFiltro = filtro==='todas' ? true : g.status===filtro.slice(0,-1)
     return matchBusca && matchFiltro
   })
@@ -152,7 +158,7 @@ export default function GarantiasPage() {
           <div className="card anim-pop" style={{width:'100%',maxWidth:'400px',padding:0}}>
             <div style={{padding:'1.25rem',borderBottom:'1px solid var(--borda)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
               <h2 style={{fontWeight:800,fontSize:'1.1rem'}}>↩ Registrar Devolução</h2>
-              <button onClick={()=>setShowDev(false)} className="btn-icon"><X size={18}/></button>
+              <button onClick={()=>setShowDev(false)} className="btn-icon" aria-label="Fechar modal"><X size={18}/></button>
             </div>
             <div style={{padding:'1.25rem',display:'flex',flexDirection:'column',gap:'0.875rem'}}>
               <div>

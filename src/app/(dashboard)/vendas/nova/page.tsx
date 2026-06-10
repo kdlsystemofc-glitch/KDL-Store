@@ -731,8 +731,8 @@ export default function NovaPdvPage() {
             {pagamento==='Dinheiro'&&(
               <div style={{marginTop:'0.5rem'}}>
                 <label className="campo-label">DINHEIRO RECEBIDO</label>
-                <input className="campo" type="number" style={{marginTop:'0.25rem'}} placeholder="0,00" value={troco} onChange={e=>setTroco(e.target.value)}/>
-                {troco&&parseFloat(troco)>0&&<p style={{fontSize:'0.78rem',fontWeight:700,color:'var(--verde)',marginTop:'4px',fontVariantNumeric:'tabular-nums'}}>TROCO: {formatCurrency(Math.max(0,parseFloat(troco)-total))}</p>}
+                <input className="campo" type="text" style={{marginTop:'0.25rem'}} placeholder="0,00" value={troco} onChange={e=>setTroco(e.target.value)}/>
+                {troco&&parseFloat(troco.replace(',', '.'))>0&&<p style={{fontSize:'0.78rem',fontWeight:700,color:'var(--verde)',marginTop:'4px',fontVariantNumeric:'tabular-nums'}}>TROCO: {formatCurrency(Math.max(0,parseFloat(troco.replace(',', '.'))-total))}</p>}
               </div>
             )}
             {pagamento==='Fiado'&&(
