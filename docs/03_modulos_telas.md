@@ -95,7 +95,7 @@ A sidebar é renderizada no `(dashboard)/layout.tsx` e **filtrada por plano**:
 5. Selecionar tabela de preço: Varejo / Atacado / VIP
 6. Informar cliente (obrigatório se pagamento = Fiado)
 7. Selecionar forma de pagamento
-8. Se Dinheiro: calcular troco
+8. Se Dinheiro: calcular troco (suporta decimais com vírgula ou ponto transparentemente)
 9. Aplicar desconto (campo R$)
 10. Clicar "FINALIZAR VENDA"
 ```
@@ -134,7 +134,7 @@ A sidebar é renderizada no `(dashboard)/layout.tsx` e **filtrada por plano**:
 ### Funcionalidades
 - Listagem paginada de vendas (mais recentes primeiro)
 - Filtros: por data, por forma de pagamento, por status
-- Busca por cliente ou número da venda
+- Busca por cliente ou número da venda (com debounce de 300ms para evitar chamadas de banco no digito)
 - Visualizar detalhes de cada venda
 - Cancelar venda (muda `status` para `cancelada`, não exclui)
 
@@ -188,7 +188,7 @@ A sidebar é renderizada no `(dashboard)/layout.tsx` e **filtrada por plano**:
 - Editar preço do catálogo inline
 
 ### Estoque (`/estoque`)
-- Histórico de movimentações (entradas, saídas, ajustes, brindes)
+- Histórico de movimentações (entradas, saídas, ajustes, brindes) com botão "Carregar Mais" para paginação dinâmica
 - Ajuste manual de estoque com observação
 - Tipos: `entrada`, `saida`, `ajuste`, `brinde`, `devolucao`, `venda`
 

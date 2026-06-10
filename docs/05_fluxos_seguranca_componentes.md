@@ -329,6 +329,14 @@ rewrites: [
 
 ## 5.13 Changelog Vivo
 
+### v1.8.0 — 2026-06-10
+- ✅ **Estabilização & Correções Gerais (Fase de Robustez)**:
+  - **Paginação "Carregar Mais" no Estoque**: Adicionado suporte para carregamento incremental no histórico de movimentações com estados `loadingMovs` e `hasMoreMovs` para evitar truncamento fixo no Supabase.
+  - **Debounce de Busca**: Implementado debounce de 300ms nas buscas de Vendas (server-side), Fornecedores (client-side) e Garantias (client-side) para evitar sobrecarga e re-renders.
+  - **Vírgula no Troco do PDV**: Alterado input de dinheiro recebido para `text`, realizando a substituição automática de vírgula por ponto para o cálculo matemático do troco.
+  - **Acessibilidade (aria-labels)**: Incluídos atributos `aria-label` descritivos nos botões e links de ícones nas páginas de Despesas e Garantias.
+  - **Correção de Tipagem**: Ajustado o callback de sucesso do formulário de produto para atender aos tipos corretos da assinatura do método `carregar`.
+
 ### v1.7.0 — 2026-05-26
 - ✅ **Fix: Upload de Logo via API Server-Side**: O upload da logomarca do catálogo foi migrado de chamada direta ao Supabase Storage no browser para uma rota Next.js server-side (`POST /api/upload-logo`). A rota usa a `SUPABASE_SERVICE_ROLE_KEY` para criar automaticamente o bucket `logos` se não existir e realizar o upload sem depender de políticas RLS do cliente, eliminando o erro *"Bucket not found"*.
 - ✅ **Admin Client**: Criado `src/lib/supabase/admin.ts` com `createAdminClient()` para uso exclusivo em rotas de servidor.
